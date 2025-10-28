@@ -6,8 +6,19 @@ $vendorDir = dirname(__DIR__);
 $baseDir = dirname($vendorDir);
 
 return array(
+    'App\\Controllers\\AdminController' => $baseDir . '/app/Controllers/AdminController.php',
     'App\\Controllers\\BaseController' => $baseDir . '/app/Controllers/BaseController.php',
     'App\\Controllers\\Home' => $baseDir . '/app/Controllers/Home.php',
+    'App\\Controllers\\SpotOwnerController' => $baseDir . '/app/Controllers/SpotOwnerController.php',
+    'App\\Controllers\\TouristController' => $baseDir . '/app/Controllers/TouristController.php',
+    'App\\Models\\BookingModel' => $baseDir . '/app/Models/BookingModel.php',
+    'App\\Models\\BusinessModel' => $baseDir . '/app/Models/BusinessModel.php',
+    'App\\Models\\FeedbackModel' => $baseDir . '/app/Models/FeedbackModel.php',
+    'App\\Models\\RecommendationModel' => $baseDir . '/app/Models/RecommendationModel.php',
+    'App\\Models\\SpotGalleryModel' => $baseDir . '/app/Models/SpotGalleryModel.php',
+    'App\\Models\\TouristSpotModel' => $baseDir . '/app/Models/TouristSpotModel.php',
+    'App\\Models\\UserPreferenceModel' => $baseDir . '/app/Models/UserPreferenceModel.php',
+    'App\\Models\\UsersModel' => $baseDir . '/app/Models/UsersModel.php',
     'CodeIgniter\\API\\ResponseTrait' => $vendorDir . '/codeigniter4/framework/system/API/ResponseTrait.php',
     'CodeIgniter\\Autoloader\\Autoloader' => $vendorDir . '/codeigniter4/framework/system/Autoloader/Autoloader.php',
     'CodeIgniter\\Autoloader\\FileLocator' => $vendorDir . '/codeigniter4/framework/system/Autoloader/FileLocator.php',
