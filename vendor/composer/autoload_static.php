@@ -100,8 +100,19 @@ class ComposerStaticInit657ac079313fab046eb8c29fe1d6992b
     );
 
     public static $classMap = array (
+        'App\\Controllers\\AdminController' => __DIR__ . '/../..' . '/app/Controllers/AdminController.php',
         'App\\Controllers\\BaseController' => __DIR__ . '/../..' . '/app/Controllers/BaseController.php',
         'App\\Controllers\\Home' => __DIR__ . '/../..' . '/app/Controllers/Home.php',
+        'App\\Controllers\\SpotOwnerController' => __DIR__ . '/../..' . '/app/Controllers/SpotOwnerController.php',
+        'App\\Controllers\\TouristController' => __DIR__ . '/../..' . '/app/Controllers/TouristController.php',
+        'App\\Models\\BookingModel' => __DIR__ . '/../..' . '/app/Models/BookingModel.php',
+        'App\\Models\\BusinessModel' => __DIR__ . '/../..' . '/app/Models/BusinessModel.php',
+        'App\\Models\\FeedbackModel' => __DIR__ . '/../..' . '/app/Models/FeedbackModel.php',
+        'App\\Models\\RecommendationModel' => __DIR__ . '/../..' . '/app/Models/RecommendationModel.php',
+        'App\\Models\\SpotGalleryModel' => __DIR__ . '/../..' . '/app/Models/SpotGalleryModel.php',
+        'App\\Models\\TouristSpotModel' => __DIR__ . '/../..' . '/app/Models/TouristSpotModel.php',
+        'App\\Models\\UserPreferenceModel' => __DIR__ . '/../..' . '/app/Models/UserPreferenceModel.php',
+        'App\\Models\\UsersModel' => __DIR__ . '/../..' . '/app/Models/UsersModel.php',
         'CodeIgniter\\API\\ResponseTrait' => __DIR__ . '/..' . '/codeigniter4/framework/system/API/ResponseTrait.php',
         'CodeIgniter\\Autoloader\\Autoloader' => __DIR__ . '/..' . '/codeigniter4/framework/system/Autoloader/Autoloader.php',
         'CodeIgniter\\Autoloader\\FileLocator' => __DIR__ . '/..' . '/codeigniter4/framework/system/Autoloader/FileLocator.php',
