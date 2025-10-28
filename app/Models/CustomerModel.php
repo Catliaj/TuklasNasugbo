@@ -4,16 +4,16 @@ namespace App\Models;
 
 use CodeIgniter\Model;
 
-class BusinessModel extends Model
+class CustomerModel extends Model
 {
-    protected $table            = 'businesses';
-    protected $primaryKey       =  'business_id';
+    protected $table            = 'customers';
+    protected $primaryKey       = 'customer_id';
     protected $useAutoIncrement = true;
     protected $returnType       = 'array';
     protected $useSoftDeletes   = false;
     protected $protectFields    = true;
     protected $allowedFields    = [
-        'user_id', 'business_name', 'contact_email', 'contact_phone', 'business_address', 'logo_url', 'status', 'created_at', 'updated_at'
+        'user_id', 'type', 'phone', 'address', 'date_of_birth', 'nationality', 'emergency_contact', 'emergency_phone', 'created_at', 'updated_at'
     ];
 
     protected bool $allowEmptyInserts = false;
@@ -45,11 +45,4 @@ class BusinessModel extends Model
     protected $afterFind      = [];
     protected $beforeDelete   = [];
     protected $afterDelete    = [];
-
-
-    //get Total Pending Request
-    public function getTotalPendingRequests()
-    {
-        return $this->where('status', 'pending')->countAllResults();
-    }
 }

@@ -31,6 +31,16 @@ class UserSeeder extends Seeder
                 'created_at' => date('Y-m-d H:i:s'),
                 'updated_at' => date('Y-m-d H:i:s'),
             ],
+            [
+                'FirstName' => 'Spot',
+                'MiddleName' => 'O',
+                'LastName' => 'Owner',
+                'email' => 'spot1@gmail.com',
+                'password' => password_hash('spot123', PASSWORD_BCRYPT),
+                'role' => 'Spot Owner',
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s'),
+            ]
         ];
          $this->db->table('users')->insertBatch($data);
 

@@ -21,11 +21,6 @@ class CreateTouristSpot extends Migration
                 'constraint' => 11,
                 'unsigned'   => true,
             ],
-            'gallery_id' => [
-                'type'       => 'INT',
-                'constraint' => 11,
-                'null'       => true,
-            ],
             'spot_name' => [
                 'type'       => 'VARCHAR',
                 'constraint' => '100',

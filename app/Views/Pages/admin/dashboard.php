@@ -17,6 +17,13 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="<?= base_url("assets/css/admin-style.css")?>">
 </head>
+<style>
+    #bookingsChart, #categoryChart {
+  height: 300px !important; /* fixed height for the chart area */
+  max-height: 400px;
+}
+
+    </style>
 <body>
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
@@ -111,7 +118,53 @@
 
 <!-- Stats Cards -->
 <div class="row mb-4" id="statsContainer">
-    <!-- Stats will be loaded by JavaScript -->
+     <div class="col-sm-6 col-lg-3 mb-3">
+            <div class="stats-card primary">
+                <div class="stats-card-icon">
+                    <i class="bi bi-person-plus"></i>
+                </div>
+                <div class="stats-card-content">
+                    <h3><?=$TotalPendingRequests?></h3>
+                    <p>Pending Requests</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-sm-6 col-lg-3 mb-3">
+            <div class="stats-card success">
+                <div class="stats-card-icon">
+                    <i class="bi bi-geo-alt"></i>
+                </div>
+                <div class="stats-card-content">
+                    <h3><?= $TotalTouristSpots?></h3>
+                    <p>Total Attractions</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-sm-6 col-lg-3 mb-3">
+            <div class="stats-card info">
+                <div class="stats-card-icon">
+                    <i class="bi bi-calendar-check"></i>
+                </div>
+                <div class="stats-card-content">
+                    <h3><?=$TotalBookingsThisMonth?></h3>
+                    <p>Total Bookings</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-sm-6 col-lg-3 mb-3">
+            <div class="stats-card revenue">
+                <div class="stats-card-icon">
+                    <i class="bi bi-currency-dollar"></i>
+                </div>
+                <div class="stats-card-content">
+                    <h3><?= $TotalTodayBookings?></h3>
+                    <p>Today's Bookings</p>
+                </div>
+            </div>
+        </div>
 </div>
 
 <div class="row mb-4">
@@ -120,7 +173,7 @@
         <div class="card h-100">
             <div class="card-body">
                 <h5 class="card-title mb-4">Monthly Bookings Trend</h5>
-                <canvas id="bookingsChart" height="80"></canvas>
+                <canvas id="bookingsChart"></canvas>
             </div>
         </div>
     </div>
@@ -131,6 +184,7 @@
             <div class="card-body">
                 <h5 class="card-title mb-4">Attraction Categories</h5>
                 <canvas id="categoryChart"></canvas>
+
             </div>
         </div>
     </div>
@@ -153,7 +207,7 @@
 <script>
 // Initialize dashboard when page loads
 document.addEventListener('DOMContentLoaded', function() {
-    initSidebar();
+  
     loadDashboard();
 });
 </script>
@@ -165,6 +219,18 @@ document.addEventListener('DOMContentLoaded', function() {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <!-- Custom JavaScript -->
-    <script src="<?= base_url("assets/js/admin-script.js")?>"></script>
+<script>
+  window.monthlyBookingsTrend = <?= $MonthlyBookingsTrend ?>;
+   const categoryData = <?= $TotalCategories  ?>;
+   console.log("Category data:", categoryData);
+
+</script>
+
+
+
+    <script src="<?= base_url('assets/js/admin-script.js') ?>"></script>
+
+
+
 </body>
 </html>

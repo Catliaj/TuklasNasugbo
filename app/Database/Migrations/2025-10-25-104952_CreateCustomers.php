@@ -39,10 +39,6 @@ class CreateCustomers extends Migration
                 'type'       => 'VARCHAR',
                 'constraint' => 100,
             ],
-            'id_number' => [
-                'type'       => 'VARCHAR',
-                'constraint' => 50,
-            ],
             'emergency_contact' => [
                 'type'       => 'VARCHAR',
                 'constraint' => 100,
@@ -50,20 +46,6 @@ class CreateCustomers extends Migration
             'emergency_phone' => [
                 'type'       => 'VARCHAR',
                 'constraint' => 15,
-            ],
-            'notes' => [
-                'type'       => 'TEXT',
-                'null'       => true,
-            ],
-            'total_bookings' => [
-                'type'       => 'INT',
-                'constraint' => 11,
-                'default'    => 0,
-            ],
-            'total_spent' => [
-                'type'       => 'DECIMAL',
-                'constraint' => '15,2',
-                'default'    => 0.00,
             ],
             'created_at' => [
                 'type'       => 'DATETIME',
