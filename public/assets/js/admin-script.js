@@ -212,7 +212,7 @@ const MOCK_DATA = {
 // ========================================
 
 let bookingsChart = null;
-let categoryChart = null;
+
 let currentAttractionId = null;
 let currentRegistrationId = null;
 
@@ -366,9 +366,9 @@ function showSection(sectionName) {
 // ========================================
 
 function loadDashboard() {
-    loadStats();
     loadCharts();
     loadActivity();
+    
 }
 
 function loadStats() {
@@ -433,73 +433,89 @@ function loadCharts() {
 }
 
 function loadBookingsChart() {
-    const ctx = document.getElementById('bookingsChart');
-    if (!ctx) return;
-    
-    // Destroy existing chart
-    if (bookingsChart) {
-        bookingsChart.destroy();
+  const ctx = document.getElementById('bookingsChart');
+  if (!ctx) return;
+
+  // ✅ Destroy safely
+  if (window.bookingsChart && typeof window.bookingsChart.destroy === 'function') {
+    window.bookingsChart.destroy();
+  }
+
+  const data = window.monthlyBookingsTrend;
+  console.log('📊 Chart data received:', data);
+
+  if (!Array.isArray(data)) {
+    console.error('❌ Invalid chart data:', data);
+    return;
+  }
+
+  window.bookingsChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: data.map(d => d.month),
+      datasets: [{
+        label: 'Bookings',
+        data: data.map(d => d.total_bookings),
+        borderColor: '#10b981',
+        backgroundColor: 'rgba(16,185,129,0.1)',
+        tension: 0.4,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: { beginAtZero: true }
+      }
     }
-    
-    const data = MOCK_DATA.monthlyBookings;
-    
-    bookingsChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: data.map(d => d.month),
-            datasets: [{
-                label: 'Bookings',
-                data: data.map(d => d.count),
-                borderColor: '#10b981',
-                backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                tension: 0.4,
-                fill: true
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    display: false
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        stepSize: 20
-                    }
-                }
-            }
-        }
-    });
+  });
 }
+
+
+
+
+let categoryChart; // global chart variable
 
 function loadCategoryChart() {
     const ctx = document.getElementById('categoryChart');
-    if (!ctx) return;
-    
-    // Destroy existing chart
+    if (!ctx) {
+        console.error("❌ categoryChart canvas not found");
+        return;
+    }
+
+    // Destroy existing chart if any
     if (categoryChart) {
         categoryChart.destroy();
     }
-    
-    const data = MOCK_DATA.categoryDistribution;
-    
+
+    // Use the correct variable name from PHP
+    const data = categoryData;
+    if (!Array.isArray(data) || data.length === 0) {
+        console.error("❌ Invalid or empty categoryData", data);
+        return;
+    }
+
+    // Generate random colors (optional)
+    const colors = data.map(() => `hsl(${Math.random() * 360}, 70%, 60%)`);
+
+    // Create doughnut chart
     categoryChart = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: data.map(d => d.category),
+            labels: data.map(d => d.category || 'Unknown'),
             datasets: [{
-                data: data.map(d => d.count),
-                backgroundColor: data.map(d => d.color),
+                data: data.map(d => d.total), // ✅ use d.total instead of d.count
+                backgroundColor: colors,
                 borderWidth: 0
             }]
         },
         options: {
             responsive: true,
-            maintainAspectRatio: true,
+            maintainAspectRatio: false,
             plugins: {
                 legend: {
                     position: 'bottom'
@@ -508,6 +524,14 @@ function loadCategoryChart() {
         }
     });
 }
+
+// Run after page loads
+window.addEventListener('load', loadCategoryChart);
+
+
+// Load on page ready
+document.addEventListener('DOMContentLoaded', loadCategoryChart);
+
 
 function loadActivity() {
     const activities = MOCK_DATA.recentActivity;

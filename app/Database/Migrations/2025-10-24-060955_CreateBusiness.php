@@ -36,10 +36,6 @@ class CreateBusiness extends Migration
             'business_address' => [
                 'type'       => 'TEXT',
             ],
-            'tax_id' => [
-                'type'       => 'VARCHAR',
-                'constraint' => '50',
-            ],
             'logo_url' => [
                 'type'       => 'TEXT',
                 'null'       => true,
@@ -62,7 +58,6 @@ class CreateBusiness extends Migration
         $this->forge->addKey('business_id', true);
         $this->forge->addForeignKey('user_id', 'users', 'UserID', 'CASCADE', 'CASCADE');
         $this->forge->createTable('businesses');
-
     }
 
     public function down()
