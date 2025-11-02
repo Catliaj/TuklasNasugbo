@@ -99,4 +99,17 @@ public function handleLogin()
         session()->destroy();
         return redirect()->to(base_url('/'))->with('success', 'You have been logged out.');
     }
+
+
+    public function signup()
+    {
+    
+        return view('Pages/signup');
+    }
+
+    public function handleSignup()
+    {
+        // Handle user registration logic here
+        return null;
+    }
 }

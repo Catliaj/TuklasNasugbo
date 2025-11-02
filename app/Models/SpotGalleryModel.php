@@ -6,13 +6,15 @@ use CodeIgniter\Model;
 
 class SpotGalleryModel extends Model
 {
-    protected $table            = 'spotgalleries';
-    protected $primaryKey       = 'id';
+    protected $table            = 'spot_gallery';
+    protected $primaryKey       = 'image_id';
     protected $useAutoIncrement = true;
     protected $returnType       = 'array';
     protected $useSoftDeletes   = false;
     protected $protectFields    = true;
-    protected $allowedFields    = [];
+    protected $allowedFields    = [
+        'spot_id', 'image'
+    ];
 
     protected bool $allowEmptyInserts = false;
     protected bool $updateOnlyChanged = true;

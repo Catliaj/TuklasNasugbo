@@ -65,4 +65,6 @@ class CreateBusiness extends Migration
         //
         $this->forge->dropTable('businesses');
     }
+
+    
 }

@@ -21,14 +21,16 @@ class CreateUserPreference extends Migration
                 'constraint' => 11,
                 'unsigned'   => true,
             ],
-            'category' => [
-                'type'       => 'ENUM',
-                'constraint' => ['Nature', 'History', 'Adventure', 'Culture', 'Relaxation', 'Food'],
+            'Days' => [
+                'type' => 'Date',
+                 'null' => true,
             ],
-            'weight' => [
-                'type'       => 'DECIMAL',
-                'constraint' => '5,2',
-                'default'    => 1.00,
+            'budget' => [
+                'type' => 'DECIMAL',
+                'constraint' => '15,2',
+            ],
+            'category' => [
+                'type'       => 'TEXT',
             ],
             'created_at' => [
                 'type'       => 'DATETIME',

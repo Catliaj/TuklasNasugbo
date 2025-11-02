@@ -60,18 +60,20 @@ class BookingModel extends Model
         $builder = $this->builder();
         $builder->where('DATE(booking_date)', date('Y-m-d'));
         return $builder->countAllResults();
+        }
+
+        //Monthly Bookings Trend loadBookingsChart function for Admin Dashboard chart data
+    public function getMonthlyBookingsTrend()
+    {
+        return $this
+            ->select('MONTH(booking_date) as month, COUNT(*) as total')
+            ->where('YEAR(booking_date)', date('Y')) // ✅ use the parameter instead of date('Y')
+            ->groupBy('MONTH(booking_date)')
+            ->orderBy('MONTH(booking_date)', 'ASC')
+            ->findAll();
     }
 
-    //Monthly Bookings Trend loadBookingsChart function for Admin Dashboard chart data
-public function getMonthlyBookingsTrend()
-{
-    return $this
-        ->select('MONTH(booking_date) as month, COUNT(*) as total')
-        ->where('YEAR(booking_date)', date('Y')) // ✅ use the parameter instead of date('Y')
-        ->groupBy('MONTH(booking_date)')
-        ->orderBy('MONTH(booking_date)', 'ASC')
-        ->findAll();
-}
+    
 
 
 

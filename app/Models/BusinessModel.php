@@ -52,4 +52,15 @@ class BusinessModel extends Model
     {
         return $this->where('status', 'pending')->countAllResults();
     }
+
+    //get all BusinessID by UserID
+    public function getBusinessIDByUserID($userID)
+    {
+        return $this->select('business_id')
+                    ->where('user_id', $userID)
+                    ->first();
+    }
+
+
+
 }

@@ -57,7 +57,7 @@
         </nav>
         
         <div class="sidebar-footer">
-            <a href="../logout.php" class="nav-item text-danger">
+            <a href="/" class="nav-item text-danger">
                 <i class="bi bi-box-arrow-left"></i>
                 <span>Logout</span>
             </a>
