@@ -54,18 +54,8 @@
                             <span>Bookings</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="/tourist/budget" class="nav-link">
-                            <i class="bi bi-wallet2"></i>
-                            <span>Budget Tracker</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="/tourist/favorites" class="nav-link">
-                            <i class="bi bi-heart"></i>
-                            <span>Favorites</span>
-                        </a>
-                    </li>
+                   
+                  
                     <li class="nav-item">
                         <a href="/tourist/visits" class="nav-link">
                             <i class="bi bi-geo-alt-fill"></i>
@@ -79,15 +69,9 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="/under-development" class="nav-link">
-                            <i class="bi bi-bell"></i>
-                            <span>Notifications</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="/tourist/profile" class="nav-link">
-                            <i class="bi bi-person-circle"></i>
-                            <span>Profile</span>
+                        <a href="/tourist/reviews" class="nav-link">
+                            <i class="bi bi-star"></i>
+                            <span>Logout</span>
                         </a>
                     </li>
                 </ul>

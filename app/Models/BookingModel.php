@@ -73,6 +73,83 @@ class BookingModel extends Model
             ->findAll();
     }
 
+
+    //select  count(bookings) group by month for chart from bookings inner join tourist spots on bookings.spot_id = tourist_spots.spot_id where business_id = ? 
+    public function getTotalBookingsThisMonthByBusiness($businessID)
+    {
+        $builder = $this->db->table('bookings b');
+        $builder->select('COUNT(DISTINCT b.booking_id) AS total_bookings');
+        $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
+        $builder->where('ts.business_id', $businessID);
+        $builder->where('MONTH(b.booking_date)', date('m'));
+        $builder->where('YEAR(b.booking_date)', date('Y'));
+        $builder->where('b.booking_status', 'Confirmed');
+
+        $result = $builder->get()->getRowArray();
+        return $result['total_bookings'] ?? 0;
+    }
+
+    //select sum(b.total_price) from bookings inner join tourist spots on bookings.spot_id = tourist_spots.spot_id where business_id = ? where booking is confirmed
+    public function getTotalRevenueByBusiness($businessID)
+    {
+        $builder = $this->builder(); 
+        $builder->select('SUM(DISTINCT b.total_price) AS total_revenue');
+        $builder->from('bookings b');
+        $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
+        $builder->where('ts.business_id', $businessID);
+        $builder->where('b.booking_status', 'Confirmed');
+        $result = $builder->get()->getRowArray();
+        return $result['total_revenue'] ?? 0;
+    }
+
+
+    public function getMonthlyBookingsTrendByBusiness($businessID)
+    {
+        $builder = $this->builder(); 
+        $builder->select('MONTH(b.booking_date) as month, COUNT(*) as total');
+        $builder->from('bookings b');
+        $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
+        $builder->where('ts.business_id', $businessID);
+        $builder->where('YEAR(b.booking_date)', date('Y'));
+        $builder->groupBy('MONTH(b.booking_date)');
+        $builder->orderBy('MONTH(b.booking_date)', 'ASC');
+        return $builder->get()->getResultArray();
+    }
+
+
+    //will get the name of the customer total_guestfrom users table by joining bookings.customer_id = users.user_id and get the booking by business id
+    public function getBookingsByBusinessID($businessID)
+    {
+        
+        $builder = $this->builder(); 
+        $builder->select('b.*, CONCAT(u.FirstName, " ", u.LastName) as customer_name', 'u.email', 'c.phone_number as phone');
+        $builder->from('bookings b');
+        $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
+        $builder->join('users u', 'b.customer_id = u.UserID');
+        $builder->join('customers c', 'b.customer_id = c.customer_id');
+        $builder->where('ts.business_id', $businessID);
+        $builder->groupBy('b.booking_id');
+
+        return $builder->get()->getResultArray();
+    }
+
+    //will get the name of the customer total_guestfrom users table by joining bookings.customer_id = users.user_id and get the booking by spot id email and phone number 
+    public function getBookingDetails($bookingID)
+    {
+        
+        $builder = $this->builder(); 
+        $builder->select('b.*, CONCAT(u.FirstName, " ", u.LastName) as customer_name, u.email as email, c.phone as phone');
+        $builder->from('bookings b');
+        $builder->join('users u', 'b.customer_id = u.UserID');
+        $builder->join('customers c', 'b.customer_id = c.customer_id');
+        $builder->where('b.booking_id', $bookingID);
+        $builder->groupBy('b.booking_id');
+
+        return $builder->get()->getRowArray();
+    }
+
+    
+
     
 
 

@@ -21,17 +21,26 @@ class SpotOwnerController extends BaseController
         $userID = session()->get('UserID');
          $businessModel = new BusinessModel();
         $touristSpotModel = new TouristSpotModel();
+        $bookingModel = new BookingModel();
 
         $userID = session()->get('UserID');
         $businessData = $businessModel->where('user_id', $userID)->first();
         $businessID = $businessData['business_id'];
         $spots = $touristSpotModel->getSpotsByBusinessID($businessID);
+        $totalspots = $touristSpotModel->getTotalSpotsByBusinessID($businessID);
+        $toatlbookings = $bookingModel->getTotalBookingsThisMonthByBusiness($businessID);
+        $totalrevenue = $bookingModel->getTotalRevenueByBusiness($businessID);
+
         $data['spots'] = $spots;
         
         return view('Pages/spotowner/home', [
             'userID' => $userID,
             'FullName' => session()->get('FirstName') . ' ' . session()->get('LastName'),
             'email' => session()->get('Email'),
+            'totalspots' => $totalspots,
+            'totalbookings' => $toatlbookings,
+            'totalrevenue' => $totalrevenue,
+            'spots' => $data['spots'],
         ]);
     }
 
@@ -229,6 +238,50 @@ class SpotOwnerController extends BaseController
                                     $galleryModel->where('spot_id', $id)->findAll());
 
         return $this->response->setJSON($spot);
+    }
+
+    public function getBookings()
+    {
+        $bookingModel = new BookingModel();
+        $businessModel = new BusinessModel(); // Assuming you have one
+
+        $userID = session()->get('UserID');
+
+        // Get the business ID linked to this user
+        $businessData = $businessModel->where('user_id', $userID)->first();
+        if (!$businessData) {
+            return $this->response->setJSON([]);
+        }
+
+        $businessID = $businessData['business_id'];
+
+        // Get bookings related to this business
+        $bookings = $bookingModel->getBookingsByBusinessID($businessID);
+
+        return $this->response->setJSON($bookings);
+    }
+
+
+    public function getBooking($id)
+    {
+        $model = new BookingModel();
+        $booking = $model->getBookingDetails($id);
+
+        return $this->response->setJSON($booking);
+    }
+
+    public function confirmBooking($id)
+    {
+        $model = new BookingModel();
+        $model->update($id, ['booking_status' => 'Confirmed']);
+        return $this->response->setJSON(['success' => true]);
+    }
+
+    public function rejectBooking($id)
+    {
+        $model = new BookingModel();
+        $model->update($id, ['booking_status' => 'Rejected']);
+        return $this->response->setJSON(['success' => true]);
     }
 
 
