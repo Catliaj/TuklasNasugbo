@@ -13,7 +13,7 @@ class TouristSpotModel extends Model
     protected $useSoftDeletes   = false;
     protected $protectFields    = true;
     protected $allowedFields    = [
-         'business_id', 'spot_name', 'description', 'category', 'location', 'latitude', 'longitude', 'capacity', 'opening_time', 'closing_time', 'operating_days', 'status', 'price_per_person', 'child_price', 'senior_price', 'group_discount_percent', 'primary_image', 'average_rating', 'total_reviews', 'popularity_score', 'created_at', 'updated_at'
+         'business_id', 'spot_name', 'description', 'latitude', 'longitude','category', 'location', 'capacity', 'opening_time', 'closing_time', 'operating_days', 'status', 'price_per_person', 'child_price', 'senior_price', 'group_discount_percent', 'primary_image', 'created_at', 'updated_at'
     ];
 
     protected bool $allowEmptyInserts = false;
@@ -60,4 +60,29 @@ class TouristSpotModel extends Model
                     ->findAll();
     }
 
+    public function getSpotsByBusinessID($businessID)
+    {
+        try {
+            // Check if business ID exists
+            $spots = $this->where('business_id', $businessID)
+                         ->orderBy('spot_name', 'ASC') // Order by spot name
+                         ->findAll();
+
+            if (empty($spots)) {
+                return ['status' => 'error', 'message' => 'No spots found for this business ID'];
+            }
+
+            // Get the gallery model
+            $galleryModel = new \App\Models\SpotGalleryModel();
+
+            // Enhance each spot with its gallery images
+            foreach ($spots as &$spot) {
+                $spot['gallery'] = $galleryModel->where('spot_id', $spot['spot_id'])->findAll();
+            }
+
+            return ['status' => 'success', 'data' => $spots];
+        } catch (\Exception $e) {
+            return ['status' => 'error', 'message' => 'Error retrieving tourist spots: ' . $e->getMessage()];
+        }
+    }
 }

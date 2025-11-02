@@ -68,7 +68,7 @@
             </div>
 
             <div class="sidebar-footer">
-                <a href="#" class="sidebar-link text-danger" id="logoutBtn">
+                <a href="/" class="sidebar-link text-danger" id="logoutBtn">
                     <i class="bi bi-box-arrow-right"></i>
                     <span>Logout</span>
                 </a>
@@ -198,6 +198,7 @@
     <!-- Custom JavaScript -->
     <script src="<?= base_url("assets/js/spotownerJS/shared-data.js")?>"></script>
     <!-- ✅ Fixed path -->
+  
     <script src="<?= base_url("assets/js/spotownerJS/home.js")?>"></script>
     
 </body>

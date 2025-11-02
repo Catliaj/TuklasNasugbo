@@ -28,6 +28,16 @@ class CreateTouristSpot extends Migration
             'description' => [
                 'type'       => 'TEXT',
             ],
+
+            'latitude' => [
+                'type' => 'DECIMAL',
+                'constraint' => '10,8',
+            ],
+            'longitude' => [
+                'type' => 'DECIMAL',
+                'constraint' => '11,8',
+            ],
+
             'category' => [
                 'type'       => 'ENUM',
                 'constraint' => ['Historical', 'Cultural', 'Natural', 'Recreational', 'Religious', 'Adventure', 'Ecotourism', 'Urban'],
@@ -35,14 +45,6 @@ class CreateTouristSpot extends Migration
             'location' => [
                 'type'       => 'VARCHAR',
                 'constraint' => '255',
-            ],
-            'latitude' => [
-                'type'       => 'DECIMAL',
-                'constraint' => '10,7',
-            ],
-            'longitude' => [
-                'type'       => 'DECIMAL',
-                'constraint' => '10,7',
             ],
             'capacity' => [
                 'type'       => 'INT',
@@ -60,8 +62,8 @@ class CreateTouristSpot extends Migration
             ],
             'status' => [
                 'type'       => 'ENUM',
-                'constraint' => ['Open', 'Closed', 'Under Maintenance'],
-                'default'    => 'Open',
+                'constraint' => ['pending', 'approved', 'rejected'],
+                'default'    => 'pending',
             ],
             'price_per_person' => [
                 'type'       => 'DECIMAL',
@@ -82,21 +84,6 @@ class CreateTouristSpot extends Migration
             'primary_image' => [
                 'type'       => 'TEXT',
                 'null'       => true,
-            ],
-            'average_rating' => [
-                'type'       => 'DECIMAL',
-                'constraint' => '3,2',
-                'default'    => 0.00,
-            ],
-            'total_reviews' => [
-                'type'       => 'INT',
-                'constraint' => 11,
-                'default'    => 0,
-            ],
-            'popularity_score' => [
-                'type'       => 'INT',
-                'constraint' => 11,
-                'default'    => 0,
             ],
             'created_at' => [
                 'type'       => 'DATETIME',

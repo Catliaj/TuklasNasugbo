@@ -68,7 +68,7 @@
             </div>
 
             <div class="sidebar-footer">
-                <a href="#" class="sidebar-link text-danger" id="logoutBtn">
+                <a href="/" class="sidebar-link text-danger" id="logoutBtn">
                     <i class="bi bi-box-arrow-right"></i>
                     <span>Logout</span>
                 </a>
