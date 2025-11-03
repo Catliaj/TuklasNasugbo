@@ -7,14 +7,21 @@ use CodeIgniter\Model;
 class BusinessModel extends Model
 {
     protected $table            = 'businesses';
-    protected $primaryKey       =  'business_id';
+    protected $primaryKey       = 'business_id';
     protected $useAutoIncrement = true;
     protected $returnType       = 'array';
     protected $useSoftDeletes   = false;
     protected $protectFields    = true;
+    
+    // ==========================================================
+    //  MAKE SURE 'status' AND 'rejection_reason' ARE ALLOWED
+    // ==========================================================
     protected $allowedFields    = [
-        'user_id', 'business_name', 'contact_email', 'contact_phone', 'business_address', 'logo_url', 'status', 'created_at', 'updated_at'
+        'user_id', 'business_name', 'contact_email', 'contact_phone', 
+        'business_address', 'logo_url', 'status', 'created_at', 'updated_at',
+        'rejection_reason'
     ];
+    // ==========================================================
 
     protected bool $allowEmptyInserts = false;
     protected bool $updateOnlyChanged = true;
@@ -23,7 +30,7 @@ class BusinessModel extends Model
     protected array $castHandlers = [];
 
     // Dates
-    protected $useTimestamps = false;
+    protected $useTimestamps = true;
     protected $dateFormat    = 'datetime';
     protected $createdField  = 'created_at';
     protected $updatedField  = 'updated_at';
@@ -61,6 +68,14 @@ class BusinessModel extends Model
                     ->first();
     }
 
-
-
+    /**
+     * Get all registrations and join with the users table to get the owner's name.
+     */
+    public function getAllRegistrations()
+    {
+        return $this->select('businesses.*, users.FirstName, users.LastName')
+                    ->join('users', 'users.UserID = businesses.user_id')
+                    ->orderBy('businesses.created_at', 'DESC')
+                    ->findAll();
+    }
 }
