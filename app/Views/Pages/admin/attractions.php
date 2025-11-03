@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tourism Admin Dashboard</title>
+    <title>Tourism Admin Dashboard - Attractions</title>
     
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -16,6 +16,15 @@
     
     <!-- Custom CSS -->
     <link rel="stylesheet" href="<?= base_url("assets/css/admin-style.css")?>">
+    
+    <!-- ========================================================== -->
+    <!-- REQUIRED META TAGS AND SCRIPT FOR API CALLS -->
+    <!-- ========================================================== -->
+    <meta name="csrf-token-name" content="<?= csrf_token() ?>">
+    <meta name="csrf-token-value" content="<?= csrf_hash() ?>">
+    <script>const BASE_URL = '<?= base_url() ?>';</script>
+    <!-- ========================================================== -->
+
 </head>
 <body>
     <!-- Sidebar -->
@@ -97,150 +106,148 @@
         <!-- Page Content Container -->
         <div class="container-fluid">
 
-
-<!-- Attractions Page Content -->
-<div class="page-header">
-    <div>
-        <h1 class="page-title">Attractions Management</h1>
-        <p class="text-muted mb-0">View and manage all tourist attractions</p>
-    </div>
-    <div class="d-flex gap-2">
-        <button class="btn btn-outline-primary" onclick="exportAttractions()">
-            <i class="bi bi-download me-2"></i>Export
-        </button>
-    </div>
-</div>
-
-<div class="card mb-3">
-    <div class="card-body">
-        <div class="row g-3">
-            <div class="col-md-4">
-                <input type="text" class="form-control" placeholder="Search attractions..." id="searchAttractions">
-            </div>
-            <div class="col-md-3">
-                <select class="form-select" id="filterCategory">
-                    <option value="">All Categories</option>
-                    <option value="beaches">Beaches & Resorts</option>
-                    <option value="waterfalls">Waterfalls & Rivers</option>
-                    <option value="mountains">Mountains & Hiking Trails</option>
-                    <option value="caves">Caves & Hidden Spots</option>
-                    <option value="viewpoints">Viewpoints & Nature Parks</option>
-                    <option value="camping">Camping & Glamping Sites</option>
-                    <option value="transportation">Transportation Hubs</option>
-                    <option value="eateries">Eateries & Restaurants</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <select class="form-select" id="filterStatus">
-                    <option value="">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="suspended">Suspended</option>
-                    <option value="pending">Pending</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <button class="btn btn-primary w-100" onclick="applyAttractionsFilter()">
-                    <i class="bi bi-funnel me-2"></i>Filter
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row" id="attractionsGrid">
-    <!-- Attraction cards will be loaded by JavaScript -->
-</div>
-
-<!-- View Attraction Modal -->
-<div class="modal fade" id="viewAttractionModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Attraction Details</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="viewAttractionContent">
-                <!-- Content will be loaded by JavaScript -->
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Suspend Modal -->
-<div class="modal fade" id="suspendModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-warning">
-                <h5 class="modal-title">Suspend Attraction</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>Are you sure you want to suspend this attraction?</p>
-                <div class="mb-3">
-                    <label class="form-label">Reason for Suspension:</label>
-                    <textarea class="form-control" rows="3" id="suspendReason" placeholder="Enter reason for suspension..."></textarea>
+            <!-- Attractions Page Content -->
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">Attractions Management</h1>
+                    <p class="text-muted mb-0">View and manage all tourist attractions</p>
                 </div>
-                <div class="alert alert-warning">
-                    <i class="bi bi-exclamation-triangle me-2"></i>
-                    This attraction will be hidden from users until reactivated.
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary" onclick="exportAttractions_API()">
+                        <i class="bi bi-download me-2"></i>Export
+                    </button>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-warning" onclick="confirmSuspend()">
-                    <i class="bi bi-pause-circle me-2"></i>Suspend
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Delete Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title">Delete Attraction</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p class="text-danger fw-bold">⚠️ Warning: This action cannot be undone!</p>
-                <p>Are you sure you want to permanently delete this attraction?</p>
-                <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-octagon me-2"></i>
-                    All associated data including bookings and reviews will be deleted.
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <input type="text" class="form-control" placeholder="Search attractions by name or location..." id="searchAttractions">
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select" id="filterCategory">
+                                <option value="">All Categories</option>
+                                <!-- These values should match your database category names exactly -->
+                                <option value="Beaches & Resorts">Beaches & Resorts</option>
+                                <option value="Waterfalls & Rivers">Waterfalls & Rivers</option>
+                                <option value="Mountains & Hiking Trails">Mountains & Hiking Trails</option>
+                                <option value="Caves & Hidden Spots">Caves & Hidden Spots</option>
+                                <option value="Viewpoints & Nature Parks">Viewpoints & Nature Parks</option>
+                                <option value="Camping & Glamping Sites">Camping & Glamping Sites</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select" id="filterStatus">
+                                <option value="">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="suspended">Suspended</option>
+                                <option value="pending">Pending</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-primary w-100" onclick="applyAttractionsFilter_API()">
+                                <i class="bi bi-funnel me-2"></i>Filter
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">Type "DELETE" to confirm:</label>
-                    <input type="text" class="form-control" id="deleteConfirmText" placeholder="DELETE">
+            </div>
+
+            <div class="row" id="attractionsGrid">
+                <!-- Attraction cards will be loaded by JavaScript -->
+            </div>
+
+            <!-- View Attraction Modal -->
+            <div class="modal fade" id="viewAttractionModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Attraction Details</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body" id="viewAttractionContent">
+                            <!-- Content will be loaded by JavaScript -->
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-danger" onclick="confirmDelete()">
-                    <i class="bi bi-trash me-2"></i>Delete Permanently
-                </button>
+
+            <!-- Suspend Modal -->
+            <div class="modal fade" id="suspendModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header bg-warning">
+                            <h5 class="modal-title">Suspend Attraction</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Are you sure you want to suspend this attraction?</p>
+                            <div class="mb-3">
+                                <label class="form-label">Reason for Suspension:</label>
+                                <textarea class="form-control" rows="3" id="suspendReason" placeholder="Enter reason for suspension..."></textarea>
+                            </div>
+                            <div class="alert alert-warning">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                This attraction will be hidden from users until reactivated.
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-warning" onclick="confirmSuspend_API()">
+                                <i class="bi bi-pause-circle me-2"></i>Suspend
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
-</div>
 
-<script>
-// Initialize attractions page
-document.addEventListener('DOMContentLoaded', function() {
-    initSidebar();
-    loadAttractions();
-});
-</script>
+            <!-- Delete Modal -->
+            <div class="modal fade" id="deleteModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header bg-danger text-white">
+                            <h5 class="modal-title">Delete Attraction</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="text-danger fw-bold">⚠️ Warning: This action cannot be undone!</p>
+                            <p>Are you sure you want to permanently delete this attraction?</p>
+                            <div class="alert alert-danger">
+                                <i class="bi bi-exclamation-octagon me-2"></i>
+                                All associated data including bookings and reviews will be deleted.
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Type "DELETE" to confirm:</label>
+                                <input type="text" class="form-control" id="deleteConfirmText" placeholder="DELETE">
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-danger" onclick="confirmDelete_API()">
+                                <i class="bi bi-trash me-2"></i>Delete Permanently
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-    </div>
-    <!-- End Main Content -->
+        </div> <!-- End Container Fluid -->
+    </div> <!-- End Main Content -->
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <!-- Custom JavaScript -->
     <script src="<?= base_url("assets/js/admin-script.js")?>"></script>
+
+    <!-- Initializer script for this page -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // initSidebarToggle is already in the main script, so we don't need to call it again.
+            // This call will fetch the data from the database and display it.
+            loadAttractions_API();
+        });
+    </script>
 </body>
 </html>
-

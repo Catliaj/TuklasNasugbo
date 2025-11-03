@@ -12,9 +12,14 @@ class TouristSpotModel extends Model
     protected $returnType       = 'array';
     protected $useSoftDeletes   = false;
     protected $protectFields    = true;
+
+    // ==========================================================
+    // ADD 'suspension_reason' TO ALLOWED FIELDS (NEWLY ADDED)
+    // ==========================================================
     protected $allowedFields    = [
-         'business_id', 'spot_name', 'description', 'latitude', 'longitude','category', 'location', 'capacity', 'opening_time', 'closing_time', 'operating_days', 'status', 'price_per_person', 'child_price', 'senior_price', 'group_discount_percent', 'primary_image', 'created_at', 'updated_at'
+         'business_id', 'spot_name', 'description', 'latitude', 'longitude','category', 'location', 'capacity', 'opening_time', 'closing_time', 'operating_days', 'status', 'price_per_person', 'child_price', 'senior_price', 'group_discount_percent', 'primary_image', 'created_at', 'updated_at', 'suspension_reason'
     ];
+    // ==========================================================
 
     protected bool $allowEmptyInserts = false;
     protected bool $updateOnlyChanged = true;
@@ -23,7 +28,7 @@ class TouristSpotModel extends Model
     protected array $castHandlers = [];
 
     // Dates
-    protected $useTimestamps = false;
+    protected $useTimestamps = true; // Changed to true to manage created_at/updated_at automatically
     protected $dateFormat    = 'datetime';
     protected $createdField  = 'created_at';
     protected $updatedField  = 'updated_at';
@@ -63,26 +68,36 @@ class TouristSpotModel extends Model
     public function getSpotsByBusinessID($businessID)
     {
         try {
-            // Check if business ID exists
             $spots = $this->where('business_id', $businessID)
-                         ->orderBy('spot_name', 'ASC') // Order by spot name
+                         ->orderBy('spot_name', 'ASC')
                          ->findAll();
-
             if (empty($spots)) {
                 return ['status' => 'error', 'message' => 'No spots found for this business ID'];
             }
-
-            // Get the gallery model
             $galleryModel = new \App\Models\SpotGalleryModel();
-
-            // Enhance each spot with its gallery images
             foreach ($spots as &$spot) {
                 $spot['gallery'] = $galleryModel->where('spot_id', $spot['spot_id'])->findAll();
             }
-
             return ['status' => 'success', 'data' => $spots];
         } catch (\Exception $e) {
             return ['status' => 'error', 'message' => 'Error retrieving tourist spots: ' . $e->getMessage()];
         }
     }
+
+    // ==========================================================
+    //  FUNCTION TO GET ALL SPOTS FOR ADMIN (NEWLY ADDED)
+    // ==========================================================
+    /**
+     * Retrieves all tourist spots, joining with businesses and users tables
+     * to get the business name and owner's name.
+     */
+    public function getAllTouristSpots()
+    {
+        return $this->select('tourist_spots.*, businesses.business_name, users.FirstName, users.LastName')
+                    ->join('businesses', 'businesses.business_id = tourist_spots.business_id')
+                    ->join('users', 'users.UserID = businesses.user_id')
+                    ->orderBy('tourist_spots.created_at', 'DESC')
+                    ->findAll();
+    }
+    // ==========================================================
 }

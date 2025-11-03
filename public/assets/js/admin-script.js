@@ -107,78 +107,9 @@ const MOCK_DATA = {
     ],
     
     attractions: [
-        {
-            id: 1,
-            name: 'Canyon Cove Beach Resort',
-            category: 'Beaches & Resorts',
-            location: 'Barangay Wawa, Nasugbu',
-            owner: 'Juan Dela Cruz',
-            rating: 4.8,
-            reviews: 24,
-            bookings: 156,
-            status: 'active',
-            image: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400'
-        },
-        {
-            id: 2,
-            name: 'Malabrigo Falls',
-            category: 'Waterfalls & Rivers',
-            location: 'Barangay Looc, Nasugbu',
-            owner: 'Maria Santos',
-            rating: 4.6,
-            reviews: 18,
-            bookings: 98,
-            status: 'active',
-            image: 'https://images.unsplash.com/photo-1523712999610-f77fbcfc3843?w=400'
-        },
-        {
-            id: 3,
-            name: 'Mt. Batulao Hiking Trail',
-            category: 'Mountains & Hiking Trails',
-            location: 'Barangay Alto, Nasugbu',
-            owner: 'Pedro Reyes',
-            rating: 4.9,
-            reviews: 32,
-            bookings: 203,
-            status: 'active',
-            image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400'
-        },
-        {
-            id: 4,
-            name: 'Kaybiang Tunnel Viewpoint',
-            category: 'Viewpoints & Nature Parks',
-            location: 'Barangay Nasasa, Nasugbu',
-            owner: 'Ana Garcia',
-            rating: 4.5,
-            reviews: 15,
-            bookings: 67,
-            status: 'active',
-            image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400'
-        },
-        {
-            id: 5,
-            name: 'Fortune Island Beach',
-            category: 'Beaches & Resorts',
-            location: 'Barangay Wawa, Nasugbu',
-            owner: 'Carlos Rivera',
-            rating: 4.7,
-            reviews: 28,
-            bookings: 145,
-            status: 'active',
-            image: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400'
-        },
-        {
-            id: 6,
-            name: 'Mt. Talamitam Base Camp',
-            category: 'Camping & Glamping Sites',
-            location: 'Barangay Aga, Nasugbu',
-            owner: 'Elena Cruz',
-            rating: 4.6,
-            reviews: 12,
-            bookings: 45,
-            status: 'active',
-            image: 'https://images.unsplash.com/photo-1478131143081-80f7f84ca84d?w=400'
-        }
+        { id: 1, name: 'Canyon Cove Beach Resort', category: 'Beaches & Resorts', location: 'Barangay Wawa, Nasugbu', owner: 'Juan Dela Cruz', rating: 4.8, reviews: 24, bookings: 156, status: 'active', image: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400' },
+        { id: 2, name: 'Malabrigo Falls', category: 'Waterfalls & Rivers', location: 'Barangay Looc, Nasugbu', owner: 'Maria Santos', rating: 4.6, reviews: 18, bookings: 98, status: 'active', image: 'https://images.unsplash.com/photo-1523712999610-f77fbcfc3843?w=400' },
+        { id: 3, name: 'Mt. Batulao Hiking Trail', category: 'Mountains & Hiking Trails', location: 'Barangay Alto, Nasugbu', owner: 'Pedro Reyes', rating: 4.9, reviews: 32, bookings: 203, status: 'active', image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400' }
     ],
     
     reviews: [
@@ -222,6 +153,7 @@ let bookingsChart = null;
 let currentAttractionId = null;
 let currentRegistrationId = null;
 let allRegistrations = []; // Global cache for new backend-driven functions
+let allAttractions = []; // Cache for attractions
 
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize sidebar toggle
@@ -327,30 +259,26 @@ function closeMobileSidebar() {
 }
 
 function showSection(sectionName) {
-    document.querySelectorAll('.content-section').forEach(section => {
-        section.classList.remove('active');
-    });
-    
+    document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
     const section = document.getElementById(`${sectionName}-section`);
-    if (section) {
-        section.classList.add('active');
-    }
+    if (section) section.classList.add('active');
     
     switch(sectionName) {
         case 'dashboard':
-            loadDashboard();
+            // Call dashboard specific load function if it exists
             break;
         case 'registrations':
-            loadRegistrations_API(); 
+            if (typeof loadRegistrations_API === 'function') loadRegistrations_API(); 
             break;
         case 'attractions':
-            loadAttractions();
+            if (typeof loadAttractions_API === 'function') loadAttractions_API();
             break;
         case 'reports':
-            loadReports();
+            // Call reports specific load function if it exists
             break;
     }
 }
+
 
 // ========================================
 // DASHBOARD
@@ -921,6 +849,212 @@ function loadAttractions() {
     
     document.getElementById('attractionsGrid').innerHTML = gridHTML;
 }
+
+/**
+ * Fetches attraction data from the backend and renders it.
+ */
+async function loadAttractions_API() {
+    const attractionsGrid = document.getElementById('attractionsGrid');
+    if (!attractionsGrid) return;
+    attractionsGrid.innerHTML = `<div class="col-12 text-center p-5"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>`;
+
+    try {
+        const response = await fetch(`${BASE_URL}/admin/attractions/list`);
+        if (!response.ok) throw new Error('Failed to fetch attractions.');
+        allAttractions = await response.json();
+        renderAttractions_API(allAttractions);
+    } catch (error) {
+        console.error('Load Attractions Error:', error);
+        attractionsGrid.innerHTML = `<div class="col-12 text-center p-5 text-danger">Could not load attractions.</div>`;
+    }
+}
+
+/**
+ * Renders an array of attraction objects into the grid.
+ */
+function renderAttractions_API(attractions) {
+    const attractionsGrid = document.getElementById('attractionsGrid');
+    if (!attractionsGrid) return;
+    if (!attractions || attractions.length === 0) {
+        attractionsGrid.innerHTML = `<div class="col-12 text-center p-5 text-muted">No attractions found.</div>`;
+        return;
+    }
+
+    attractionsGrid.innerHTML = attractions.map(attraction => `
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="card attraction-card h-100">
+                <img src="${attraction.primary_image || 'https://via.placeholder.com/400x300'}" class="card-img-top" alt="${attraction.spot_name}">
+                <div class="card-body d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <span class="badge bg-primary mb-2">${attraction.category || 'N/A'}</span>
+                        <span class="badge ${getStatusClass(attraction.status)}">${capitalize(attraction.status)}</span>
+                    </div>
+                    <h5 class="card-title">${attraction.spot_name || 'Unnamed Spot'}</h5>
+                    <p class="text-muted small mb-2 flex-grow-1">
+                        <i class="bi bi-geo-alt me-1"></i>${attraction.location || 'No location'}
+                        <br>
+                        <i class="bi bi-person me-1"></i>Owner: ${(attraction.FirstName || '') + ' ' + (attraction.LastName || '')}
+                    </p>
+                    <div class="d-flex gap-2 mt-auto">
+                        <button class="btn btn-sm btn-outline-info flex-fill" onclick="viewAttraction_API(${attraction.spot_id})">
+                            <i class="bi bi-eye me-1"></i>View
+                        </button>
+                        <button class="btn btn-sm btn-outline-warning" onclick="openSuspendModal_API(${attraction.spot_id})">
+                            <i class="bi bi-pause"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="openDeleteModal_API(${attraction.spot_id})">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+/**
+ * Fetches and displays details for a single attraction.
+ */
+async function viewAttraction_API(id) {
+    const contentArea = document.getElementById('viewAttractionContent');
+    contentArea.innerHTML = '<div class="text-center p-5">Loading...</div>';
+    const viewModal = new bootstrap.Modal(document.getElementById('viewAttractionModal'));
+    viewModal.show();
+    
+    try {
+        const response = await fetch(`${BASE_URL}/admin/attractions/view/${id}`);
+        if (!response.ok) throw new Error('Attraction details not found.');
+        const attraction = await response.json();
+        const detailsHTML = `
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <img src="${attraction.primary_image || 'https://via.placeholder.com/400x300'}" class="img-fluid rounded" alt="${attraction.spot_name}">
+                </div>
+                <div class="col-md-6">
+                    <h4>${attraction.spot_name}</h4>
+                    <p><span class="badge bg-primary">${attraction.category}</span></p>
+                    <p><strong>Owner:</strong> ${(attraction.FirstName || '') + ' ' + (attraction.LastName || '')}</p>
+                    <p><strong>Location:</strong> ${attraction.location}</p>
+                    <p><strong>Capacity:</strong> ${attraction.capacity} people</p>
+                    <p><strong>Price:</strong> ₱${attraction.price_per_person} per person</p>
+                    <p><strong>Status:</strong> <span class="badge ${getStatusClass(attraction.status)}">${capitalize(attraction.status)}</span></p>
+                </div>
+            </div>
+        `;
+        contentArea.innerHTML = detailsHTML;
+    } catch (error) {
+        console.error('View Attraction Error:', error);
+        contentArea.innerHTML = '<p class="text-danger">Could not load attraction details.</p>';
+    }
+}
+
+/**
+ * Opens the suspend modal and sets the current ID.
+ */
+function openSuspendModal_API(id) {
+    currentAttractionId = id;
+    document.getElementById('suspendReason').value = '';
+    const suspendModal = new bootstrap.Modal(document.getElementById('suspendModal'));
+    suspendModal.show();
+}
+
+/**
+ * Opens the delete modal and sets the current ID.
+ */
+function openDeleteModal_API(id) {
+    currentAttractionId = id;
+    document.getElementById('deleteConfirmText').value = '';
+    const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    deleteModal.show();
+}
+
+/**
+ * Sends the suspension request to the backend.
+ */
+async function confirmSuspend_API() {
+    const reason = document.getElementById('suspendReason').value.trim();
+    if (!reason) {
+        alert('A reason for suspension is required.');
+        return;
+    }
+
+    try {
+        const tokenName = document.querySelector('meta[name="csrf-token-name"]').getAttribute('content');
+        const tokenValue = document.querySelector('meta[name="csrf-token-value"]').getAttribute('content');
+        const formData = new FormData();
+        formData.append('reason', reason);
+        formData.append(tokenName, tokenValue);
+
+        const response = await fetch(`${BASE_URL}/admin/attractions/suspend/${currentAttractionId}`, {
+            method: 'POST',
+            body: formData,
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Failed to suspend attraction.');
+        
+        bootstrap.Modal.getInstance(document.getElementById('suspendModal')).hide();
+        await loadAttractions_API();
+        showToast('Attraction has been suspended.', 'warning');
+    } catch (error) {
+        console.error('Suspend Error:', error);
+        alert(`Error: ${error.message}`);
+    }
+}
+
+/**
+ * Sends the delete request to the backend.
+ */
+async function confirmDelete_API() {
+    const confirmText = document.getElementById('deleteConfirmText').value;
+    if (confirmText !== 'DELETE') {
+        alert('You must type "DELETE" to confirm permanent deletion.');
+        return;
+    }
+
+    try {
+        const tokenName = document.querySelector('meta[name="csrf-token-name"]').getAttribute('content');
+        const tokenValue = document.querySelector('meta[name="csrf-token-value"]').getAttribute('content');
+        const formData = new FormData();
+        formData.append(tokenName, tokenValue);
+
+        const response = await fetch(`${BASE_URL}/admin/attractions/delete/${currentAttractionId}`, {
+            method: 'POST',
+            body: formData,
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Failed to delete attraction.');
+        
+        bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+        await loadAttractions_API();
+        showToast('Attraction permanently deleted.', 'danger');
+    } catch (error) {
+        console.error('Delete Error:', error);
+        alert(`Error: ${error.message}`);
+    }
+}
+
+function applyAttractionsFilter_API() {
+    const searchTerm = document.getElementById('searchAttractions').value.toLowerCase();
+    const category = document.getElementById('filterCategory').value;
+    const status = document.getElementById('filterStatus').value;
+
+    const filteredData = allAttractions.filter(attraction => {
+        const matchesSearch = !searchTerm || attraction.spot_name.toLowerCase().includes(searchTerm) || attraction.location.toLowerCase().includes(searchTerm);
+        const matchesCategory = !category || attraction.category === category;
+        const matchesStatus = !status || attraction.status === status;
+        return matchesSearch && matchesCategory && matchesStatus;
+    });
+
+    renderAttractions_API(filteredData);
+}
+
+function exportAttractions_API() {
+    showToast('Exporting attractions data...', 'info');
+    // Implement actual export logic here, e.g., converting `allAttractions` to CSV
+}
+
 
 function viewAttraction(id) {
     const attraction = MOCK_DATA.attractions.find(a => a.id === id);

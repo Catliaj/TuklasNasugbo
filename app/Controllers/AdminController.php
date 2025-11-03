@@ -31,23 +31,17 @@ class AdminController extends BaseController
         $BookingData = array_fill(1, 12, ['month' => '', 'total_bookings' => 0]);
 
         foreach (range(1, 12) as $m) {
-            $BookingData[$m] = [
-                'month' => date('F', mktime(0, 0, 0, $m, 1)),
-                'total_bookings' => 0
-            ];
+            $BookingData[$m] = ['month' => date('F', mktime(0, 0, 0, $m, 1)), 'total_bookings' => 0];
         }
-
         foreach ($getTotalBookingsByMonth as $row) {
             $month = (int)$row['month'];
             $BookingData[$month]['total_bookings'] = (int)$row['total'];
         }
-
         $currentMonth = (int)date('n');
         $BookingData = array_slice($BookingData, 0, $currentMonth, true);
 
         $data['monthlyBookingsTrend'] = json_encode(array_values($BookingData), JSON_NUMERIC_CHECK);
         $data['totalCategoriesJSON'] = json_encode($data['totalCategories'], JSON_NUMERIC_CHECK);
-
 
         return view('Pages/admin/dashboard', [
             'data' => $data,
@@ -85,12 +79,8 @@ class AdminController extends BaseController
     }
 
     // ==========================================================
-    //  API METHODS FOR THE REGISTRATIONS PAGE
+    //  REGISTRATIONS API METHODS
     // ==========================================================
-
-    /**
-     * API endpoint to fetch all registration data.
-     */
     public function getRegistrationList()
     {
         $businessModel = new BusinessModel();
@@ -98,59 +88,88 @@ class AdminController extends BaseController
         return $this->response->setJSON($data);
     }
 
-    /**
-     * API endpoint to fetch details for a single registration.
-     */
     public function viewRegistration($id = null)
     {
         $businessModel = new BusinessModel();
         $registration = $businessModel->find($id);
-
         if ($registration) {
             return $this->response->setJSON($registration);
         }
-
         return $this->response->setStatusCode(404)->setJSON(['error' => 'Registration not found']);
     }
 
-    /**
-     * API endpoint to handle APPROVING a registration.
-     */
     public function approveRegistration($id = null)
     {
         $businessModel = new BusinessModel();
-        $data = ['status' => 'approved', 'rejection_reason' => null]; // Also clear any previous rejection reason
-
+        $data = ['status' => 'approved', 'rejection_reason' => null];
         if ($businessModel->update($id, $data)) {
-            // Optional: Add logic here to send an "Approved" email notification.
             return $this->response->setJSON(['success' => 'Registration approved successfully.']);
         }
-
         return $this->response->setStatusCode(500)->setJSON(['error' => 'Failed to approve registration in the database.']);
     }
 
-    /**
-     * API endpoint to handle REJECTING a registration.
-     */
     public function rejectRegistration($id = null)
     {
         $businessModel = new BusinessModel();
         $reason = $this->request->getPost('reason');
-
         if (empty($reason)) {
             return $this->response->setStatusCode(400)->setJSON(['error' => 'Reason for rejection is required.']);
         }
-
-        $data = [
-            'status' => 'rejected',
-            'rejection_reason' => $reason
-        ];
-
+        $data = ['status' => 'rejected', 'rejection_reason' => $reason];
         if ($businessModel->update($id, $data)) {
-            // Optional: Add logic here to send a "Rejected" email notification with the reason.
             return $this->response->setJSON(['success' => 'Registration rejected successfully.']);
         }
-
         return $this->response->setStatusCode(500)->setJSON(['error' => 'Failed to reject registration in the database.']);
+    }
+
+    // ==========================================================
+    //  ATTRACTIONS API METHODS (NEWLY ADDED)
+    // ==========================================================
+    public function getAttractionList()
+    {
+        $spotModel = new TouristSpotModel();
+        $data = $spotModel->getAllTouristSpots();
+        return $this->response->setJSON($data);
+    }
+
+    public function viewAttraction($id = null)
+    {
+        $spotModel = new TouristSpotModel();
+        // Use the same getAllTouristSpots logic but filter by spot_id to get all joined data
+        $attraction = $spotModel->select('tourist_spots.*, businesses.business_name, users.FirstName, users.LastName')
+            ->join('businesses', 'businesses.business_id = tourist_spots.business_id')
+            ->join('users', 'users.UserID = businesses.user_id')
+            ->where('tourist_spots.spot_id', $id)
+            ->first();
+        
+        if ($attraction) {
+            return $this->response->setJSON($attraction);
+        }
+        return $this->response->setStatusCode(404)->setJSON(['error' => 'Attraction not found']);
+    }
+
+    public function suspendAttraction($id = null)
+    {
+        $spotModel = new TouristSpotModel();
+        $reason = $this->request->getPost('reason');
+        if (empty($reason)) {
+            return $this->response->setStatusCode(400)->setJSON(['error' => 'Reason for suspension is required.']);
+        }
+        $data = ['status' => 'suspended', 'suspension_reason' => $reason];
+        if ($spotModel->update($id, $data)) {
+            return $this->response->setJSON(['success' => 'Attraction suspended successfully.']);
+        }
+        return $this->response->setStatusCode(500)->setJSON(['error' => 'Failed to suspend the attraction.']);
+    }
+
+    public function deleteAttraction($id = null)
+    {
+        $spotModel = new TouristSpotModel();
+        // NOTE: For a real application, you should also delete related bookings, reviews, gallery images, etc.
+        // This is a basic delete for now.
+        if ($spotModel->delete($id)) {
+            return $this->response->setJSON(['success' => 'Attraction has been permanently deleted.']);
+        }
+        return $this->response->setStatusCode(500)->setJSON(['error' => 'Failed to delete the attraction.']);
     }
 }
