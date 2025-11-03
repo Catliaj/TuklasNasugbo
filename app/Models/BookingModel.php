@@ -84,7 +84,6 @@ class BookingModel extends Model
         $builder->where('MONTH(b.booking_date)', date('m'));
         $builder->where('YEAR(b.booking_date)', date('Y'));
         $builder->where('b.booking_status', 'Confirmed');
-
         $result = $builder->get()->getRowArray();
         return $result['total_bookings'] ?? 0;
     }
@@ -101,7 +100,6 @@ class BookingModel extends Model
         $result = $builder->get()->getRowArray();
         return $result['total_revenue'] ?? 0;
     }
-
 
     public function getMonthlyBookingsTrendByBusiness($businessID)
     {
@@ -147,6 +145,24 @@ class BookingModel extends Model
 
         return $builder->get()->getRowArray();
     }
+
+    //get total visitors where booking is confirmed
+    public function getTotalVisitor($businessID)
+    {
+        $builder = $this->db->table('bookings b');
+        $builder->selectSum('b.total_guests', 'total');
+        $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
+        $builder->where([
+            'ts.business_id' => $businessID,
+            'b.booking_status' => 'Confirmed'
+        ]);
+        $builder->where('MONTH(b.booking_date)', date('m'));
+        $builder->where('YEAR(b.booking_date)', date('Y'));
+
+        $result = $builder->get()->getRowArray();
+        return isset($result['total']) ? (int)$result['total'] : 0;
+    }
+
 
     
 

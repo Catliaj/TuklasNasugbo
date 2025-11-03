@@ -103,7 +103,7 @@
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div>
                                         <div class="stat-label">Total Bookings</div>
-                                        <div class="stat-value">6</div>
+                                        <div class="stat-value"><?= $totalbookings?></div>
                                         <div class="stat-description">4 confirmed</div>
                                     </div>
                                     <div class="stat-icon">
@@ -118,7 +118,7 @@
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div>
                                         <div class="stat-label">Total Visitors</div>
-                                        <div class="stat-value">22</div>
+                                        <div class="stat-value"><?= $totalvisitors?></div>
                                         <div class="stat-description">Expected visitors</div>
                                     </div>
                                     <div class="stat-icon">
@@ -133,7 +133,7 @@
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div>
                                         <div class="stat-label">Total Revenue</div>
-                                        <div class="stat-value">₱2,750</div>
+                                        <div class="stat-value">₱<?=$totalrevenue?></div>
                                         <div class="stat-description">From active bookings</div>
                                     </div>
                                     <div class="stat-icon">

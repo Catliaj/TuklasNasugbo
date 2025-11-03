@@ -14,6 +14,7 @@ class SpotOwnerController extends BaseController
 {
     public function dashboard()
     {
+
         if (!session()->get('isLoggedIn') || session()->get('Role') !== 'Spot Owner') {
         return redirect()->to(base_url('/login'))->with('error', 'Please log in as Spot Owner to access the Spot Owner dashboard.');
         }
@@ -67,7 +68,20 @@ class SpotOwnerController extends BaseController
 
     public function bookings()
     {
-        return view('Pages/spotowner/bookings');
+
+        $userID = session()->get('UserID');
+        $businessModel = new BusinessModel();
+        $businessData = $businessModel->where('user_id', $userID)->first();
+        $businessID = $businessData['business_id'];
+        $bookingModel = new BookingModel();
+        $toatlbookings = $bookingModel->getTotalBookingsThisMonthByBusiness($businessID);
+        $totalVisitor = $bookingModel->getTotalVisitor($businessID);
+         $totalrevenue = $bookingModel->getTotalRevenueByBusiness($businessID);
+        return view('Pages/spotowner/bookings', [
+            'totalbookings' => $toatlbookings,
+            'totalvisitors'=> $totalVisitor,
+            'totalrevenue'=> $totalrevenue
+        ]);
     }
 
     public function earnings()
