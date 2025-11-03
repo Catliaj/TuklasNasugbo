@@ -3,6 +3,13 @@
 // Backend developers: Replace mock data with actual API calls
 
 // ========================================
+// IMPORTANT: BASE_URL SETUP
+// ========================================
+// This script requires a global JavaScript variable named `BASE_URL`.
+// Please ensure it is defined in your main view/layout file BEFORE this script is loaded.
+// Example (in the <head> tag of your HTML): <script>const BASE_URL = '<?= base_url() ?>';</script>
+
+// ========================================
 // MOCK DATA (Replace with API calls)
 // ========================================
 
@@ -212,9 +219,9 @@ const MOCK_DATA = {
 // ========================================
 
 let bookingsChart = null;
-
 let currentAttractionId = null;
 let currentRegistrationId = null;
+let allRegistrations = []; // Global cache for new backend-driven functions
 
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize sidebar toggle
@@ -236,46 +243,37 @@ function initSidebarToggle() {
     const sidebarToggle = document.getElementById('sidebarToggle');
     const mainContent = document.querySelector('.main-content');
     
-    // Create overlay for mobile
     const overlay = document.createElement('div');
     overlay.className = 'sidebar-overlay';
     document.body.appendChild(overlay);
     
-    // Check screen size
     function isMobile() {
         return window.innerWidth < 992;
     }
     
-    // Toggle sidebar
     if (sidebarToggle) {
         sidebarToggle.addEventListener('click', function() {
             if (isMobile()) {
-                // Mobile: Toggle active class (slide in/out)
                 sidebar.classList.toggle('active');
                 overlay.classList.toggle('active');
                 document.body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : '';
             } else {
-                // Desktop: Toggle hidden class (expand/collapse)
                 sidebar.classList.toggle('hidden');
                 mainContent.classList.toggle('expanded');
             }
         });
     }
     
-    // Close sidebar when clicking overlay (mobile only)
     overlay.addEventListener('click', function() {
         closeMobileSidebar();
     });
     
-    // Handle window resize
     window.addEventListener('resize', function() {
         if (window.innerWidth >= 992) {
-            // Desktop: Reset mobile states
             sidebar.classList.remove('active');
             overlay.classList.remove('active');
             document.body.style.overflow = '';
         } else {
-            // Mobile: Reset desktop states
             sidebar.classList.remove('hidden');
             mainContent.classList.remove('expanded');
         }
@@ -288,22 +286,18 @@ function initNavigation() {
     
     navItems.forEach(item => {
         item.addEventListener('click', function(e) {
-            // Prevent default for internal links
             const href = this.getAttribute('href');
             if (href && href.startsWith('#')) {
                 e.preventDefault();
             }
             
-            // Update active state FIRST
             navItems.forEach(n => n.classList.remove('active'));
             this.classList.add('active');
             
-            // AUTO-CLOSE SIDEBAR ON MOBILE BEFORE navigation
             if (window.innerWidth < 992) {
                 closeMobileSidebar();
             }
             
-            // Handle navigation
             if (href === '#dashboard') {
                 showSection('dashboard');
             } else if (href === '#registrations') {
@@ -333,24 +327,21 @@ function closeMobileSidebar() {
 }
 
 function showSection(sectionName) {
-    // Hide all sections
     document.querySelectorAll('.content-section').forEach(section => {
         section.classList.remove('active');
     });
     
-    // Show selected section
     const section = document.getElementById(`${sectionName}-section`);
     if (section) {
         section.classList.add('active');
     }
     
-    // Load section data
     switch(sectionName) {
         case 'dashboard':
             loadDashboard();
             break;
         case 'registrations':
-            loadRegistrations();
+            loadRegistrations_API(); 
             break;
         case 'attractions':
             loadAttractions();
@@ -368,62 +359,24 @@ function showSection(sectionName) {
 function loadDashboard() {
     loadCharts();
     loadActivity();
-    
 }
 
 function loadStats() {
     const stats = MOCK_DATA.stats;
-    
     const statsHTML = `
         <div class="col-sm-6 col-lg-3 mb-3">
-            <div class="stats-card primary">
-                <div class="stats-card-icon">
-                    <i class="bi bi-person-plus"></i>
-                </div>
-                <div class="stats-card-content">
-                    <h3>${stats.pending_requests}</h3>
-                    <p>Pending Requests</p>
-                </div>
-            </div>
+            <div class="stats-card primary"><div class="stats-card-icon"><i class="bi bi-person-plus"></i></div><div class="stats-card-content"><h3>${stats.pending_requests}</h3><p>Pending Requests</p></div></div>
         </div>
-        
         <div class="col-sm-6 col-lg-3 mb-3">
-            <div class="stats-card success">
-                <div class="stats-card-icon">
-                    <i class="bi bi-geo-alt"></i>
-                </div>
-                <div class="stats-card-content">
-                    <h3>${stats.total_attractions}</h3>
-                    <p>Total Attractions</p>
-                </div>
-            </div>
+            <div class="stats-card success"><div class="stats-card-icon"><i class="bi bi-geo-alt"></i></div><div class="stats-card-content"><h3>${stats.total_attractions}</h3><p>Total Attractions</p></div></div>
         </div>
-        
         <div class="col-sm-6 col-lg-3 mb-3">
-            <div class="stats-card info">
-                <div class="stats-card-icon">
-                    <i class="bi bi-calendar-check"></i>
-                </div>
-                <div class="stats-card-content">
-                    <h3>${stats.total_bookings}</h3>
-                    <p>Total Bookings</p>
-                </div>
-            </div>
+            <div class="stats-card info"><div class="stats-card-icon"><i class="bi bi-calendar-check"></i></div><div class="stats-card-content"><h3>${stats.total_bookings}</h3><p>Total Bookings</p></div></div>
         </div>
-        
         <div class="col-sm-6 col-lg-3 mb-3">
-            <div class="stats-card revenue">
-                <div class="stats-card-icon">
-                    <i class="bi bi-currency-dollar"></i>
-                </div>
-                <div class="stats-card-content">
-                    <h3>${stats.today_bookings}</h3>
-                    <p>Today's Bookings</p>
-                </div>
-            </div>
+            <div class="stats-card revenue"><div class="stats-card-icon"><i class="bi bi-currency-dollar"></i></div><div class="stats-card-content"><h3>${stats.today_bookings}</h3><p>Today's Bookings</p></div></div>
         </div>
     `;
-    
     document.getElementById('statsContainer').innerHTML = statsHTML;
 }
 
@@ -435,20 +388,15 @@ function loadCharts() {
 function loadBookingsChart() {
   const ctx = document.getElementById('bookingsChart');
   if (!ctx) return;
-
-  // ✅ Destroy safely
   if (window.bookingsChart && typeof window.bookingsChart.destroy === 'function') {
     window.bookingsChart.destroy();
   }
-
   const data = window.monthlyBookingsTrend;
   console.log('📊 Chart data received:', data);
-
   if (!Array.isArray(data)) {
     console.error('❌ Invalid chart data:', data);
     return;
   }
-
   window.bookingsChart = new Chart(ctx, {
     type: 'line',
     data: {
@@ -462,112 +410,57 @@ function loadBookingsChart() {
         fill: true
       }]
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false }
-      },
-      scales: {
-        y: { beginAtZero: true }
-      }
-    }
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
   });
 }
 
-
-
-
-let categoryChart; // global chart variable
+let categoryChart;
 
 function loadCategoryChart() {
     const ctx = document.getElementById('categoryChart');
-    if (!ctx) {
-        console.error("❌ categoryChart canvas not found");
-        return;
-    }
-
-    // Destroy existing chart if any
-    if (categoryChart) {
-        categoryChart.destroy();
-    }
-
-    // Use the correct variable name from PHP
+    if (!ctx) return;
+    if (categoryChart) categoryChart.destroy();
     const data = categoryData;
-    if (!Array.isArray(data) || data.length === 0) {
-        console.error("❌ Invalid or empty categoryData", data);
-        return;
-    }
-
-    // Generate random colors (optional)
+    if (!Array.isArray(data) || data.length === 0) return;
     const colors = data.map(() => `hsl(${Math.random() * 360}, 70%, 60%)`);
-
-    // Create doughnut chart
     categoryChart = new Chart(ctx, {
         type: 'doughnut',
         data: {
             labels: data.map(d => d.category || 'Unknown'),
             datasets: [{
-                data: data.map(d => d.total), // ✅ use d.total instead of d.count
+                data: data.map(d => d.total),
                 backgroundColor: colors,
                 borderWidth: 0
             }]
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom'
-                }
-            }
-        }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
     });
 }
 
-// Run after page loads
 window.addEventListener('load', loadCategoryChart);
-
-
-// Load on page ready
 document.addEventListener('DOMContentLoaded', loadCategoryChart);
-
 
 function loadActivity() {
     const activities = MOCK_DATA.recentActivity;
-    
     const activityHTML = activities.map(activity => `
         <div class="activity-item">
-            <div class="activity-icon bg-${activity.color}">
-                <i class="${activity.icon}"></i>
-            </div>
-            <div class="activity-content">
-                <p class="activity-title mb-1">${activity.title}</p>
-                <p class="activity-description mb-0">${activity.description}</p>
-            </div>
-            <div class="activity-time">
-                <small class="text-muted">${activity.time}</small>
-            </div>
+            <div class="activity-icon bg-${activity.color}"><i class="${activity.icon}"></i></div>
+            <div class="activity-content"><p class="activity-title mb-1">${activity.title}</p><p class="activity-description mb-0">${activity.description}</p></div>
+            <div class="activity-time"><small class="text-muted">${activity.time}</small></div>
         </div>
     `).join('');
-    
     document.getElementById('activityFeed').innerHTML = activityHTML;
 }
 
 function refreshDashboard() {
-    // Show loading state
     const btn = event.target.closest('button');
     const originalHTML = btn.innerHTML;
     btn.innerHTML = '<i class="bi bi-arrow-clockwise spinner-border spinner-border-sm me-2"></i>Refreshing...';
     btn.disabled = true;
-    
-    // Simulate API call
     setTimeout(() => {
         loadDashboard();
         btn.innerHTML = originalHTML;
         btn.disabled = false;
-        
-        // Show success message
         showToast('Dashboard refreshed successfully!', 'success');
     }, 1000);
 }
@@ -576,6 +469,8 @@ function refreshDashboard() {
 // REGISTRATIONS
 // ========================================
 
+// --- START: Original Mock Data Functions (Commented Out for Preservation) ---
+/*
 function loadRegistrations() {
     const registrations = MOCK_DATA.registrations;
     
@@ -615,7 +510,7 @@ function loadRegistrations() {
                     </button>
                     <button class="btn btn-outline-success" onclick="approveRegistration(${reg.id})" title="Approve">
                         <i class="bi bi-check-lg"></i>
-                    </button>
+                     </button>
                     <button class="btn btn-outline-danger" onclick="rejectRegistration(${reg.id})" title="Reject">
                         <i class="bi bi-x-lg"></i>
                     </button>
@@ -686,31 +581,14 @@ function viewRegistration(id) {
     
     currentRegistrationId = id;
     
-    // Build documents HTML with improved card design
     const documentsHTML = Object.entries(reg.documents).map(([key, url]) => {
         const docName = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
         return `
             <div class="col-md-6 mb-4">
                 <div class="document-card">
-                    <div class="document-card-header">
-                        <i class="bi bi-file-earmark-text"></i>
-                        <strong>${docName}</strong>
-                    </div>
-                    <div class="document-card-body">
-                        <div class="document-image-container">
-                            <img src="${url}" 
-                                 class="document-image" 
-                                 alt="${docName}" 
-                                 onclick="window.open('${url}', '_blank')"
-                                 onerror="this.parentElement.innerHTML='<div class=\\'document-placeholder\\'><i class=\\'bi bi-file-earmark\\'></i><span>Document Preview</span></div>'">
-                        </div>
-                    </div>
-                    <div class="document-card-footer">
-                        <button class="btn-view-document" onclick="window.open('${url}', '_blank')">
-                            <i class="bi bi-eye"></i>
-                            View Full Size
-                        </button>
-                    </div>
+                    <div class="document-card-header"><i class="bi bi-file-earmark-text"></i><strong>${docName}</strong></div>
+                    <div class="document-card-body"><div class="document-image-container"><img src="${url}" class="document-image" alt="${docName}" onclick="window.open('${url}', '_blank')" onerror="this.parentElement.innerHTML='<div class=\\'document-placeholder\\'><i class=\\'bi bi-file-earmark\\'></i><span>Document Preview</span></div>'"></div></div>
+                    <div class="document-card-footer"><button class="btn-view-document" onclick="window.open('${url}', '_blank')"><i class="bi bi-eye"></i> View Full Size</button></div>
                 </div>
             </div>
         `;
@@ -718,93 +596,27 @@ function viewRegistration(id) {
     
     const detailsHTML = `
         <div class="info-section">
-            <div class="info-section-title">
-                <i class="bi bi-building"></i>
-                Business Information
-            </div>
+            <div class="info-section-title"><i class="bi bi-building"></i> Business Information</div>
             <div class="row">
-                <div class="col-md-6 mb-3">
-                    <div class="info-item">
-                        <span class="info-item-label">Business Name:</span>
-                        <div class="info-item-value">${reg.businessName}</div>
-                    </div>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <div class="info-item">
-                        <span class="info-item-label">Category:</span>
-                        <div class="info-item-value">
-                            <span class="badge bg-primary">${reg.category}</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-12 mb-3">
-                    <div class="info-item">
-                        <span class="info-item-label">Description:</span>
-                        <div class="info-item-value">${reg.description}</div>
-                    </div>
-                </div>
-                <div class="col-12">
-                    <div class="info-item">
-                        <span class="info-item-label">Location:</span>
-                        <div class="info-item-value">
-                            <i class="bi bi-geo-alt"></i>${reg.location}
-                        </div>
-                    </div>
-                </div>
+                <div class="col-md-6 mb-3"><div class="info-item"><span class="info-item-label">Business Name:</span><div class="info-item-value">${reg.businessName}</div></div></div>
+                <div class="col-md-6 mb-3"><div class="info-item"><span class="info-item-label">Category:</span><div class="info-item-value"><span class="badge bg-primary">${reg.category}</span></div></div></div>
+                <div class="col-12 mb-3"><div class="info-item"><span class="info-item-label">Description:</span><div class="info-item-value">${reg.description}</div></div></div>
+                <div class="col-12"><div class="info-item"><span class="info-item-label">Location:</span><div class="info-item-value"><i class="bi bi-geo-alt"></i>${reg.location}</div></div></div>
             </div>
         </div>
-        
         <div class="info-section">
-            <div class="info-section-title">
-                <i class="bi bi-person"></i>
-                Owner Information
-            </div>
+            <div class="info-section-title"><i class="bi bi-person"></i> Owner Information</div>
             <div class="row">
-                <div class="col-md-6 mb-3">
-                    <div class="info-item">
-                        <span class="info-item-label">Owner Name:</span>
-                        <div class="info-item-value">${reg.ownerName}</div>
-                    </div>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <div class="info-item">
-                        <span class="info-item-label">Email:</span>
-                        <div class="info-item-value">
-                            <i class="bi bi-envelope"></i>${reg.email}
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <div class="info-item">
-                        <span class="info-item-label">Phone:</span>
-                        <div class="info-item-value">
-                            <i class="bi bi-telephone"></i>${reg.phone}
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <div class="info-item">
-                        <span class="info-item-label">Submitted:</span>
-                        <div class="info-item-value">
-                            <i class="bi bi-calendar"></i>${formatDate(reg.submitted)}
-                        </div>
-                    </div>
-                </div>
+                <div class="col-md-6 mb-3"><div class="info-item"><span class="info-item-label">Owner Name:</span><div class="info-item-value">${reg.ownerName}</div></div></div>
+                <div class="col-md-6 mb-3"><div class="info-item"><span class="info-item-label">Email:</span><div class="info-item-value"><i class="bi bi-envelope"></i>${reg.email}</div></div></div>
+                <div class="col-md-6 mb-3"><div class="info-item"><span class="info-item-label">Phone:</span><div class="info-item-value"><i class="bi bi-telephone"></i>${reg.phone}</div></div></div>
+                <div class="col-md-6 mb-3"><div class="info-item"><span class="info-item-label">Submitted:</span><div class="info-item-value"><i class="bi bi-calendar"></i>${formatDate(reg.submitted)}</div></div></div>
             </div>
         </div>
-        
         <div class="info-section">
-            <div class="info-section-title">
-                <i class="bi bi-file-earmark-check"></i>
-                Business Permits & Requirements
-            </div>
-            <div class="alert-info-custom">
-                <i class="bi bi-info-circle me-2"></i>
-                <strong>Verification Required:</strong> Please review all documents carefully to ensure compliance with business regulations.
-            </div>
-            <div class="row">
-                ${documentsHTML}
-            </div>
+            <div class="info-section-title"><i class="bi bi-file-earmark-check"></i> Business Permits & Requirements</div>
+            <div class="alert-info-custom"><i class="bi bi-info-circle me-2"></i><strong>Verification Required:</strong> Please review all documents carefully to ensure compliance with business regulations.</div>
+            <div class="row">${documentsHTML}</div>
         </div>
     `;
     
@@ -818,11 +630,8 @@ function approveRegistration(id) {
     if (id) currentRegistrationId = id;
     
     if (confirm('Are you sure you want to approve this registration?')) {
-        // TODO: Backend should implement approval logic here
         showToast('Registration approved successfully!', 'success');
         loadRegistrations();
-        
-        // Close modal if open
         const modal = bootstrap.Modal.getInstance(document.getElementById('viewRegistrationModal'));
         if (modal) modal.hide();
     }
@@ -831,15 +640,12 @@ function approveRegistration(id) {
 function rejectRegistration(id) {
     if (id) currentRegistrationId = id;
     
-    // Close view modal first
     const viewModal = bootstrap.Modal.getInstance(document.getElementById('viewRegistrationModal'));
     if (viewModal) viewModal.hide();
     
-    // Open reject modal
     const rejectModal = new bootstrap.Modal(document.getElementById('rejectRegistrationModal'));
     rejectModal.show();
     
-    // Clear previous inputs
     document.getElementById('rejectReason').value = '';
     document.getElementById('rejectDetails').value = '';
     document.getElementById('allowResubmit').checked = true;
@@ -859,18 +665,229 @@ function confirmRejectRegistration() {
         return;
     }
     
-    // TODO: Backend API call here
-    // Send: currentRegistrationId, reason, details, allowResubmit checkbox value
-    
     showToast('Registration rejected. Owner has been notified.', 'danger');
     
-    // Close modal
     const modal = bootstrap.Modal.getInstance(document.getElementById('rejectRegistrationModal'));
     if (modal) modal.hide();
     
-    // Reload registrations
     loadRegistrations();
 }
+*/
+// --- END: Original Mock Data Functions ---
+
+
+// --- START: New Backend-Connected Functions ---
+
+/**
+ * Fetches registration data from the backend API.
+ */
+async function loadRegistrations_API() {
+    const tableBody = document.getElementById('registrationsTable');
+    if (!tableBody) return;
+    tableBody.innerHTML = `<tr><td colspan="9" class="text-center p-4">Loading registrations...</td></tr>`;
+
+    try {
+        const response = await fetch(`${BASE_URL}/admin/registrations/list`);
+        if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+        allRegistrations = await response.json();
+        renderRegistrations_API(allRegistrations);
+    } catch (error) {
+        console.error('Failed to load registrations:', error);
+        tableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger p-4">Could not load registration data. Please try again.</td></tr>`;
+    }
+}
+
+/**
+ * Renders data from the API into the HTML table.
+ */
+function renderRegistrations_API(registrations) {
+    const tableBody = document.getElementById('registrationsTable');
+    if (!tableBody) return;
+
+    if (!registrations || registrations.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="9" class="text-center p-4">No registrations found.</td></tr>`;
+        return;
+    }
+
+    tableBody.innerHTML = registrations.map((reg, index) => `
+        <tr>
+            <td class="text-muted">${index + 1}</td>
+            <td>
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-building me-2 text-primary"></i>
+                    <strong>${reg.business_name || 'N/A'}</strong>
+                </div>
+            </td>
+            <td>${(reg.FirstName || '') + ' ' + (reg.LastName || '')}</td>
+            <td><small class="text-muted"><i class="bi bi-envelope me-1"></i>${reg.contact_email || 'N/A'}</small></td>
+            <td><small class="text-muted"><i class="bi bi-telephone me-1"></i>${reg.contact_phone || 'N/A'}</small></td>
+            <td><small class="text-muted"><i class="bi bi-geo-alt me-1"></i>${reg.business_address || 'N/A'}</small></td>
+            <td><small>${formatDate(reg.created_at)}</small></td>
+            <td class="text-center">
+                <span class="badge ${getStatusClass(reg.status)}">${capitalize(reg.status)}</span>
+            </td>
+            <td class="text-center">
+                <div class="btn-group btn-group-sm" role="group">
+                    <button class="btn btn-outline-primary" onclick="viewRegistrationDetails_API(${reg.business_id})" title="View Details">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                    ${reg.status.toLowerCase() === 'pending' ? `
+                    <button class="btn btn-outline-success" onclick="openApproveModal_API(${reg.business_id})" title="Approve">
+                        <i class="bi bi-check-circle"></i>
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="openRejectModal_API(${reg.business_id})" title="Reject">
+                        <i class="bi bi-x-circle"></i>
+                    </button>
+                    ` : ''}
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+/**
+ * Filters the displayed registrations based on API data.
+ */
+function filterRegistrations_API(status) {
+    let filteredData = allRegistrations;
+    if (status !== 'all') {
+        filteredData = allRegistrations.filter(reg => reg.status === status);
+    }
+    renderRegistrations_API(filteredData);
+}
+
+/**
+ * Fetches and displays details of a single registration from the API.
+ */
+async function viewRegistrationDetails_API(id) {
+    const contentArea = document.getElementById('viewRegistrationContent');
+    contentArea.innerHTML = '<div class="text-center p-5">Loading details...</div>';
+    
+    const viewModal = new bootstrap.Modal(document.getElementById('viewRegistrationModal'));
+    viewModal.show();
+
+    try {
+        const response = await fetch(`${BASE_URL}/admin/registrations/view/${id}`);
+        if (!response.ok) throw new Error('Registration not found.');
+        
+        const reg = await response.json();
+        const detailsHTML = `
+            <h5>Business Information</h5>
+            <p><strong>Business Name:</strong> ${reg.business_name || 'N/A'}</p>
+            <p><strong>Location:</strong> ${reg.business_address || 'N/A'}</p>
+            <hr/>
+            <h5>Owner Information</h5>
+            <p><strong>Email:</strong> ${reg.contact_email || 'N/A'}</p>
+            <p><strong>Phone:</strong> ${reg.contact_phone || 'N/A'}</p>
+            <hr/>
+            <h5>Status & History</h5>
+            <p><strong>Submitted:</strong> ${formatDate(reg.created_at)}</p>
+            <p><strong>Status:</strong> <span class="badge ${getStatusClass(reg.status)}">${capitalize(reg.status)}</span></p>
+            ${reg.status === 'rejected' ? `<p class="text-danger"><strong>Rejection Reason:</strong> ${reg.rejection_reason || 'No reason provided.'}</p>` : ''}
+        `;
+        contentArea.innerHTML = detailsHTML;
+    } catch (error) {
+        console.error('Failed to fetch registration details:', error);
+        contentArea.innerHTML = '<div class="text-center p-5 text-danger">Could not load details.</div>';
+    }
+}
+
+/**
+ * Opens the approval confirmation modal.
+ */
+function openApproveModal_API(id) {
+    currentRegistrationId = id;
+    const approveModal = new bootstrap.Modal(document.getElementById('approveModal'));
+    approveModal.show();
+}
+
+/**
+ * Opens the rejection modal.
+ */
+function openRejectModal_API(id) {
+    currentRegistrationId = id;
+    document.getElementById('rejectReason').value = '';
+    const rejectModal = new bootstrap.Modal(document.getElementById('rejectModal'));
+    rejectModal.show();
+}
+
+/**
+ * Sends the approval request to the server, now including the CSRF token.
+ */
+async function confirmApprove_API() {
+    if (!currentRegistrationId) return;
+    try {
+        const tokenName = document.querySelector('meta[name="csrf-token-name"]').getAttribute('content');
+        const tokenValue = document.querySelector('meta[name="csrf-token-value"]').getAttribute('content');
+
+        const formData = new FormData();
+        formData.append(tokenName, tokenValue);
+
+        const response = await fetch(`${BASE_URL}/admin/registrations/approve/${currentRegistrationId}`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest' // Important for CodeIgniter to recognize it as an AJAX request
+            }
+        });
+        
+        const result = await response.json();
+        if (!response.ok) {
+            // Try to get a more specific error message from the backend if available
+            throw new Error(result.message || result.error || 'Failed to approve.');
+        }
+        
+        bootstrap.Modal.getInstance(document.getElementById('approveModal')).hide();
+        await loadRegistrations_API();
+        showToast('Registration approved successfully!', 'success');
+    } catch (error) {
+        console.error('Approval Error:', error);
+        alert(`Error: ${error.message}`);
+    }
+}   
+
+/**
+ * Sends the rejection request to the server, now including the CSRF token.
+ */
+async function confirmReject_API() {
+    if (!currentRegistrationId) return;
+    const reason = document.getElementById('rejectReason').value.trim();
+    if (!reason) {
+        alert('A reason for rejection is required.');
+        return;
+    }
+
+    try {
+        const tokenName = document.querySelector('meta[name="csrf-token-name"]').getAttribute('content');
+        const tokenValue = document.querySelector('meta[name="csrf-token-value"]').getAttribute('content');
+
+        const formData = new FormData();
+        formData.append('reason', reason);
+        formData.append(tokenName, tokenValue); // Add the CSRF token to the form data
+
+        const response = await fetch(`${BASE_URL}/admin/registrations/reject/${currentRegistrationId}`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest' // Important header
+            }
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.message || result.error || 'Failed to reject.');
+        }
+        
+        bootstrap.Modal.getInstance(document.getElementById('rejectModal')).hide();
+        await loadRegistrations_API();
+        showToast('Registration has been rejected.', 'danger');
+    } catch (error) {
+        console.error('Rejection Error:', error);
+        alert(`Error: ${error.message}`);
+    }
+}
+
+// --- END: New Backend-Connected Functions ---
 
 // ========================================
 // ATTRACTIONS
@@ -886,33 +903,16 @@ function loadAttractions() {
                 <div class="card-body">
                     <span class="badge bg-primary mb-2">${attraction.category}</span>
                     <h5 class="card-title">${attraction.name}</h5>
-                    <p class="text-muted small mb-2">
-                        <i class="bi bi-geo-alt me-1"></i>${attraction.location}
-                    </p>
-                    <p class="text-muted small mb-2">
-                        <i class="bi bi-person me-1"></i>Owner: ${attraction.owner}
-                    </p>
+                    <p class="text-muted small mb-2"><i class="bi bi-geo-alt me-1"></i>${attraction.location}</p>
+                    <p class="text-muted small mb-2"><i class="bi bi-person me-1"></i>Owner: ${attraction.owner}</p>
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <div>
-                            <i class="bi bi-star-fill text-warning"></i>
-                            <span>${attraction.rating}</span>
-                            <small class="text-muted">(${attraction.reviews})</small>
-                        </div>
-                        <div>
-                            <i class="bi bi-calendar-check text-primary"></i>
-                            <span>${attraction.bookings} bookings</span>
-                        </div>
+                        <div><i class="bi bi-star-fill text-warning"></i><span>${attraction.rating}</span><small class="text-muted">(${attraction.reviews})</small></div>
+                        <div><i class="bi bi-calendar-check text-primary"></i><span>${attraction.bookings} bookings</span></div>
                     </div>
                     <div class="d-flex gap-2">
-                        <button class="btn btn-sm btn-primary flex-fill" onclick="viewAttraction(${attraction.id})">
-                            <i class="bi bi-eye me-1"></i>View
-                        </button>
-                        <button class="btn btn-sm btn-warning" onclick="suspendAttraction(${attraction.id})">
-                            <i class="bi bi-pause"></i>
-                        </button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteAttraction(${attraction.id})">
-                            <i class="bi bi-trash"></i>
-                        </button>
+                        <button class="btn btn-sm btn-primary flex-fill" onclick="viewAttraction(${attraction.id})"><i class="bi bi-eye me-1"></i>View</button>
+                        <button class="btn btn-sm btn-warning" onclick="suspendAttraction(${attraction.id})"><i class="bi bi-pause"></i></button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteAttraction(${attraction.id})"><i class="bi bi-trash"></i></button>
                     </div>
                 </div>
             </div>
@@ -925,14 +925,10 @@ function loadAttractions() {
 function viewAttraction(id) {
     const attraction = MOCK_DATA.attractions.find(a => a.id === id);
     if (!attraction) return;
-    
     currentAttractionId = id;
-    
     const detailsHTML = `
         <div class="row">
-            <div class="col-md-6 mb-3">
-                <img src="${attraction.image}" class="img-fluid rounded" alt="${attraction.name}">
-            </div>
+            <div class="col-md-6 mb-3"><img src="${attraction.image}" class="img-fluid rounded" alt="${attraction.name}"></div>
             <div class="col-md-6">
                 <h4>${attraction.name}</h4>
                 <p><span class="badge bg-primary">${attraction.category}</span></p>
@@ -944,23 +940,16 @@ function viewAttraction(id) {
             </div>
         </div>
     `;
-    
     document.getElementById('attractionDetails').innerHTML = detailsHTML;
-    
     const modal = new bootstrap.Modal(document.getElementById('viewAttractionModal'));
     modal.show();
 }
 
 function openSuspendModal() {
-    // Close attraction details modal first
     const viewModal = bootstrap.Modal.getInstance(document.getElementById('viewAttractionModal'));
     if (viewModal) viewModal.hide();
-    
-    // Open suspend modal
     const suspendModal = new bootstrap.Modal(document.getElementById('suspendAttractionModal'));
     suspendModal.show();
-    
-    // Clear previous inputs
     document.getElementById('suspendReason').value = '';
     document.getElementById('suspendDetails').value = '';
     document.getElementById('allowReactivation').checked = true;
@@ -969,40 +958,25 @@ function openSuspendModal() {
 function confirmSuspendAttraction() {
     const reason = document.getElementById('suspendReason').value;
     const details = document.getElementById('suspendDetails').value;
-    
     if (!reason) {
         showToast('Please select a reason for suspension', 'error');
         return;
     }
-    
     if (!details.trim()) {
         showToast('Please provide additional details', 'error');
         return;
     }
-    
-    // TODO: Backend API call here
-    // Send: currentAttractionId, reason, details, allowReactivation checkbox value
-    
     showToast('Attraction suspended successfully. Owner has been notified.', 'warning');
-    
-    // Close modal
     const modal = bootstrap.Modal.getInstance(document.getElementById('suspendAttractionModal'));
     if (modal) modal.hide();
-    
-    // Reload attractions
     loadAttractions();
 }
 
 function openDeleteModal() {
-    // Close attraction details modal first
     const viewModal = bootstrap.Modal.getInstance(document.getElementById('viewAttractionModal'));
     if (viewModal) viewModal.hide();
-    
-    // Open delete modal
     const deleteModal = new bootstrap.Modal(document.getElementById('deleteAttractionModal'));
     deleteModal.show();
-    
-    // Clear previous inputs
     document.getElementById('deleteReason').value = '';
     document.getElementById('deleteDetails').value = '';
     document.getElementById('deleteBookings').checked = false;
@@ -1011,31 +985,20 @@ function openDeleteModal() {
 function confirmDeleteAttraction() {
     const reason = document.getElementById('deleteReason').value;
     const details = document.getElementById('deleteDetails').value;
-    
     if (!reason) {
         showToast('Please select a reason for deletion', 'error');
         return;
     }
-    
     if (!details.trim()) {
         showToast('Please provide additional details', 'error');
         return;
     }
-    
-    // TODO: Backend API call here
-    // Send: currentAttractionId, reason, details, deleteBookings checkbox value
-    
     showToast('Attraction deleted successfully. Owner has been notified.', 'danger');
-    
-    // Close modal
     const modal = bootstrap.Modal.getInstance(document.getElementById('deleteAttractionModal'));
     if (modal) modal.hide();
-    
-    // Reload attractions
     loadAttractions();
 }
 
-// Keep old functions for backward compatibility with grid buttons
 function suspendAttraction(id) {
     currentAttractionId = id;
     openSuspendModal();
@@ -1047,13 +1010,11 @@ function deleteAttraction(id) {
 }
 
 function applyAttractionsFilter() {
-    // TODO: Backend should implement filtering logic
     showToast('Filters applied!', 'info');
     loadAttractions();
 }
 
 function exportAttractions() {
-    // TODO: Backend should implement export logic
     showToast('Exporting attractions data...', 'info');
 }
 
@@ -1074,13 +1035,11 @@ function loadReports() {
 function setDefaultDateRange() {
     const today = new Date();
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-    
     document.getElementById('reportFromDate').valueAsDate = firstDay;
     document.getElementById('reportToDate').valueAsDate = today;
 }
 
 function loadReportAnalytics() {
-    // Update analytics cards with mock data
     document.getElementById('totalBookings').textContent = '245';
     document.getElementById('totalAttractions').textContent = '8';
     document.getElementById('avgRating').textContent = '4.7';
@@ -1088,11 +1047,9 @@ function loadReportAnalytics() {
 }
 
 function loadReportCharts() {
-    // Bookings Trend Chart
     const bookingsCtx = document.getElementById('bookingsTrendChart');
     if (bookingsCtx) {
         if (reportBookingsChart) reportBookingsChart.destroy();
-        
         reportBookingsChart = new Chart(bookingsCtx, {
             type: 'line',
             data: {
@@ -1106,21 +1063,12 @@ function loadReportCharts() {
                     fill: true
                 }]
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false }
-                }
-            }
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
         });
     }
-    
-    // Category Distribution Chart
     const categoryCtx = document.getElementById('categoryDistChart');
     if (categoryCtx) {
         if (reportCategoryChart) reportCategoryChart.destroy();
-        
         reportCategoryChart = new Chart(categoryCtx, {
             type: 'doughnut',
             data: {
@@ -1130,13 +1078,7 @@ function loadReportCharts() {
                     backgroundColor: ['#3b82f6', '#10b981', '#06b6d4', '#f59e0b']
                 }]
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'bottom' }
-                }
-            }
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
         });
     }
 }
@@ -1149,25 +1091,16 @@ function loadTopAttractions() {
         { rank: 4, name: 'Kaybiang Tunnel Viewpoint', category: 'Viewpoints', bookings: 67, revenue: '₱15,800', rating: 4.5 },
         { rank: 5, name: 'Fortune Island Beach', category: 'Beaches & Resorts', bookings: 65, revenue: '₱18,900', rating: 4.7 }
     ];
-    
     const tableHTML = topAttractions.map(attr => `
         <tr>
-            <td>
-                <span class="badge bg-${attr.rank === 1 ? 'warning' : attr.rank === 2 ? 'secondary' : attr.rank === 3 ? 'info' : 'light text-dark'}">
-                    #${attr.rank}
-                </span>
-            </td>
+            <td><span class="badge bg-${attr.rank === 1 ? 'warning' : attr.rank === 2 ? 'secondary' : attr.rank === 3 ? 'info' : 'light text-dark'}">#${attr.rank}</span></td>
             <td><strong>${attr.name}</strong></td>
             <td><span class="badge bg-primary">${attr.category}</span></td>
             <td>${attr.bookings}</td>
             <td>${attr.revenue}</td>
-            <td>
-                <i class="bi bi-star-fill text-warning"></i>
-                ${attr.rating}
-            </td>
+            <td><i class="bi bi-star-fill text-warning"></i> ${attr.rating}</td>
         </tr>
     `).join('');
-    
     document.getElementById('topAttractionsTable').innerHTML = tableHTML;
 }
 
@@ -1175,13 +1108,10 @@ function applyReportFilter() {
     const fromDate = document.getElementById('reportFromDate').value;
     const toDate = document.getElementById('reportToDate').value;
     const reportType = document.getElementById('reportType').value;
-    
     if (!fromDate || !toDate) {
         showToast('Please select both from and to dates', 'error');
         return;
     }
-    
-    // TODO: Backend should filter data based on date range and type
     showToast(`Filtering ${reportType} data from ${fromDate} to ${toDate}...`, 'info');
     loadReports();
 }
@@ -1192,35 +1122,14 @@ function refreshReports() {
 }
 
 function downloadReport(type) {
-    const fromDate = document.getElementById('reportFromDate').value;
-    const toDate = document.getElementById('reportToDate').value;
-    const reportType = document.getElementById('reportType').value;
-    
-    // TODO: Backend should generate and download actual files
-    // Example backend endpoint: /api/reports/download?type=excel&from=2024-01-01&to=2024-12-31&reportType=all
-    
     let message = '';
     switch(type) {
-        case 'excel':
-            message = 'Downloading Excel report with full analytics data...';
-            // window.location.href = `/api/reports/download?type=excel&from=${fromDate}&to=${toDate}&reportType=${reportType}`;
-            break;
-        case 'pdf':
-            message = 'Generating PDF report with charts and graphs...';
-            // window.location.href = `/api/reports/download?type=pdf&from=${fromDate}&to=${toDate}&reportType=${reportType}`;
-            break;
-        case 'csv':
-            message = 'Downloading CSV data for custom analysis...';
-            // window.location.href = `/api/reports/download?type=csv&from=${fromDate}&to=${toDate}&reportType=${reportType}`;
-            break;
+        case 'excel': message = 'Downloading Excel report...'; break;
+        case 'pdf': message = 'Generating PDF report...'; break;
+        case 'csv': message = 'Downloading CSV data...'; break;
     }
-    
     showToast(message, 'success');
-    
-    // Simulate download
-    setTimeout(() => {
-        showToast(`${type} report downloaded!`, 'success');
-    }, 1500);
+    setTimeout(() => { showToast(`${type} report downloaded!`, 'success'); }, 1500);
 }
 
 // ========================================
@@ -1228,12 +1137,10 @@ function downloadReport(type) {
 // ========================================
 
 function saveProfile() {
-    // TODO: Backend should implement profile saving
     showToast('Profile updated successfully!', 'success');
 }
 
 function changePassword() {
-    // TODO: Backend should implement password change
     showToast('Password changed successfully!', 'success');
 }
 
@@ -1242,12 +1149,12 @@ function changePassword() {
 // ========================================
 
 function formatDate(dateString) {
+    if (!dateString) return 'N/A';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 function showToast(message, type = 'info') {
-    // Create toast container if it doesn't exist
     let container = document.getElementById('toastContainer');
     if (!container) {
         container = document.createElement('div');
@@ -1256,34 +1163,28 @@ function showToast(message, type = 'info') {
         container.style.zIndex = '9999';
         document.body.appendChild(container);
     }
-    
     const toastId = 'toast-' + Date.now();
-    const bgClass = type === 'success' ? 'bg-success' : 
-                    type === 'danger' ? 'bg-danger' : 
-                    type === 'warning' ? 'bg-warning' : 
-                    'bg-primary';
-    
-    const toastHTML = `
-        <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0" role="alert">
-            <div class="d-flex">
-                <div class="toast-body">
-                    ${message}
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-            </div>
-        </div>
-    `;
-    
+    const bgClass = type === 'success' ? 'bg-success' : type === 'danger' ? 'bg-danger' : type === 'warning' ? 'bg-warning' : 'bg-primary';
+    const toastHTML = `<div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0" role="alert"><div class="d-flex"><div class="toast-body">${message}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>`;
     container.insertAdjacentHTML('beforeend', toastHTML);
-    
     const toastElement = document.getElementById(toastId);
     const toast = new bootstrap.Toast(toastElement, { autohide: true, delay: 3000 });
     toast.show();
-    
-    // Remove toast after it's hidden
-    toastElement.addEventListener('hidden.bs.toast', () => {
-        toastElement.remove();
-    });
+    toastElement.addEventListener('hidden.bs.toast', () => { toastElement.remove(); });
+}
+
+function getStatusClass(status) {
+    switch (status) {
+        case 'approved': return 'bg-success';
+        case 'pending': return 'bg-warning text-dark';
+        case 'rejected': return 'bg-danger';
+        default: return 'bg-secondary';
+    }
+}
+
+function capitalize(s) {
+    if (typeof s !== 'string' || s.length === 0) return '';
+    return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 // ========================================
@@ -1360,8 +1261,9 @@ async function loadStats() {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Initializing Admin Dashboard...');
     
-    // Initialize sidebar functionality
-    initSidebar();
+    // This function seems to be missing in your original code, but initSidebarToggle() is present.
+    // I am assuming initSidebarToggle() is the correct one to call.
+    // initSidebar(); 
     
     // Initialize navigation with mobile auto-close
     initNavigation();
