@@ -35,27 +35,23 @@
             <span>Tourism Admin</span>
         </div>
         
-        <nav class="sidebar-nav">
-            <a href="/admin/dashboard" class="nav-item">
+                <nav class="sidebar-nav">
+            <a href="/admin/dashboard" class="nav-item ">
                 <i class="bi bi-grid"></i>
                 <span>Dashboard</span>
             </a>
-            <a href="/admin/registrations" class="nav-item active">
+            <a href="/admin/registrations" class="nav-item">
                 <i class="bi bi-person-plus"></i>
                 <span>Registrations</span>
                 <span class="badge">12</span>
             </a>
-            <a href="/admin/attractions" class="nav-item">
+            <a href="/admin/attractions" class="nav-item active">
                 <i class="bi bi-geo-alt"></i>
                 <span>Attractions</span>
             </a>
             <a href="/admin/reports" class="nav-item">
                 <i class="bi bi-file-bar-graph"></i>
                 <span>Reports & Analytics</span>
-            </a>
-            <a href="/admin/settings" class="nav-item">
-                <i class="bi bi-gear"></i>
-                <span>Settings</span>
             </a>
         </nav>
         

@@ -52,10 +52,6 @@
                 <i class="bi bi-file-bar-graph"></i>
                 <span>Reports & Analytics</span>
             </a>
-            <a href="/admin/settings" class="nav-item">
-                <i class="bi bi-gear"></i>
-                <span>Settings</span>
-            </a>
         </nav>
         
         <div class="sidebar-footer">

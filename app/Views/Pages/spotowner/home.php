@@ -35,13 +35,13 @@
             <div class="sidebar-content">
                 <ul class="sidebar-menu">
                     <li class="sidebar-menu-item">
-                        <a href="/spotowner/dashboard" class="sidebar-link active" data-page="home">
+                        <a href="/spotowner/dashboard" class="sidebar-link " data-page="home">
                             <i class="bi bi-house-door"></i>
                             <span>Home</span>
                         </a>
                     </li>
                     <li class="sidebar-menu-item">
-                        <a href="/spotowner/bookings" class="sidebar-link" data-page="bookings">
+                        <a href="/spotowner/bookings" class="sidebar-link active" data-page="bookings">
                             <i class="bi bi-calendar-check"></i>
                             <span>Booking Management</span>
                         </a>
@@ -56,12 +56,6 @@
                         <a href="/spotowner/mySpots" class="sidebar-link" data-page="manage">
                             <i class="bi bi-geo-alt"></i>
                             <span>Manage Spot</span>
-                        </a>
-                    </li>
-                    <li class="sidebar-menu-item">
-                        <a href="/spotowner/settings" class="sidebar-link" data-page="profile">
-                            <i class="bi bi-person"></i>
-                            <span>Profile</span>
                         </a>
                     </li>
                 </ul>
@@ -112,7 +106,7 @@
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div>
                                         <div class="stat-label">Total Spots</div>
-                                        <div class="stat-value">3</div>
+                                        <div class="stat-value"><?= $totalspots?></div>
                                         <div class="stat-description">Active properties</div>
                                     </div>
                                     <div class="stat-icon">
@@ -127,7 +121,7 @@
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div>
                                         <div class="stat-label">Total Bookings</div>
-                                        <div class="stat-value">18</div>
+                                        <div class="stat-value"><?= $totalbookings?></div>
                                         <div class="stat-description">This month</div>
                                     </div>
                                     <div class="stat-icon">
@@ -142,7 +136,7 @@
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div>
                                         <div class="stat-label">Total Revenue</div>
-                                        <div class="stat-value">₱8,250</div>
+                                        <div class="stat-value"><?=$totalrevenue?></div>
                                         <div class="stat-description">This month</div>
                                     </div>
                                     <div class="stat-icon">

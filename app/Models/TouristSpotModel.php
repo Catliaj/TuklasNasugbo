@@ -101,3 +101,20 @@ class TouristSpotModel extends Model
     }
     // ==========================================================
 }
+
+    //get total spots by business id for spot owner dashboard where status is approved
+    public function getTotalSpotsByBusinessID($businessID)
+    {
+        $builder = $this->builder();
+        $builder->where('business_id', $businessID);
+        $builder->where('status', 'approved');
+        return $builder->countAllResults();
+    }
+
+   
+
+
+
+
+    
+}
