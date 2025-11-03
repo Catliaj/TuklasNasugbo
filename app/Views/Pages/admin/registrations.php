@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tourism Admin Dashboard</title>
+    <title>Tourism Admin Dashboard - Registrations</title>
+
+    <!-- ADD THESE TWO LINES FOR CSRF PROTECTION -->
+    <meta name="csrf-token-name" content="<?= csrf_token() ?>">
+    <meta name="csrf-token-value" content="<?= csrf_hash() ?>">
     
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -11,11 +15,17 @@
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     
-    <!-- Chart.js -->
+    <!-- Chart.js (Optional for this page, but good to keep for consistency) -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     
     <!-- Custom CSS -->
     <link rel="stylesheet" href="<?= base_url("assets/css/admin-style.css")?>">
+
+    <!-- DEFINE THE BASE_URL FOR JAVASCRIPT -->
+    <script>
+        const BASE_URL = '<?= base_url() ?>';
+    </script>
+
 </head>
 <body>
     <!-- Sidebar -->
@@ -99,11 +109,18 @@
                     <p class="text-muted mb-0">Review and approve spot owner registration requests</p>
                 </div>
                 <div class="d-flex gap-2">
-                    <button class="btn btn-outline-primary" onclick="filterRegistrations('all')">
+                    <!-- UPDATE ONCLICK TO CALL THE _API FUNCTIONS -->
+                    <button class="btn btn-outline-primary" onclick="filterRegistrations_API('all')">
                         <i class="bi bi-list-ul me-2"></i>All
                     </button>
-                    <button class="btn btn-outline-warning" onclick="filterRegistrations('pending')">
+                    <button class="btn btn-outline-warning" onclick="filterRegistrations_API('pending')">
                         <i class="bi bi-clock me-2"></i>Pending
+                    </button>
+                    <button class="btn btn-outline-success" onclick="filterRegistrations_API('approved')">
+                        <i class="bi bi-check-circle me-2"></i>Approved
+                    </button>
+                     <button class="btn btn-outline-danger" onclick="filterRegistrations_API('rejected')">
+                        <i class="bi bi-x-circle me-2"></i>Rejected
                     </button>
                 </div>
             </div>
@@ -165,7 +182,8 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="button" class="btn btn-success" onclick="confirmApprove()">
+                            <!-- UPDATE ONCLICK TO CALL THE _API FUNCTION -->
+                            <button type="button" class="btn btn-success" onclick="confirmApprove_API()">
                                 <i class="bi bi-check-circle me-2"></i>Approve
                             </button>
                         </div>
@@ -194,7 +212,8 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="button" class="btn btn-danger" onclick="confirmReject()">
+                            <!-- UPDATE ONCLICK TO CALL THE _API FUNCTION -->
+                            <button type="button" class="btn btn-danger" onclick="confirmReject_API()">
                                 <i class="bi bi-x-circle me-2"></i>Reject
                             </button>
                         </div>
@@ -209,10 +228,12 @@
     <!-- Custom JavaScript -->
     <script src="<?= base_url("assets/js/admin-script.js")?>"></script>
 
+    <!-- UPDATE THIS SCRIPT BLOCK TO CALL THE MAIN API FUNCTION -->
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        initSidebar();
-        loadRegistrations();
+        // The initSidebarToggle() is already called in the main script,
+        // so we only need to call the function to load this page's data.
+        loadRegistrations_API();
     });
     </script>
 </body>

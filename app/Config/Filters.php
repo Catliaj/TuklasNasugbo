@@ -13,6 +13,11 @@ use CodeIgniter\Filters\PageCache;
 use CodeIgniter\Filters\PerformanceMetrics;
 use CodeIgniter\Filters\SecureHeaders;
 
+// ==========================================================
+// 1. ADD THIS 'use' STATEMENT AT THE TOP WITH THE OTHERS
+// ==========================================================
+use App\Filters\AuthFilter;
+
 class Filters extends BaseFilters
 {
     /**
@@ -34,6 +39,10 @@ class Filters extends BaseFilters
         'forcehttps'    => ForceHTTPS::class,
         'pagecache'     => PageCache::class,
         'performance'   => PerformanceMetrics::class,
+        // ==========================================================
+        // 2. ADD THIS LINE HERE TO DEFINE THE 'auth' ALIAS
+        // ==========================================================
+        'auth'          => AuthFilter::class,
     ];
 
     /**

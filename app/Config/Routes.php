@@ -14,11 +14,23 @@ $routes->post('/users/login', 'AuthController::Handlelogin');
 
 
 //Admin routes
-$routes->get('/admin/dashboard', 'AdminController::dashboard');
-$routes->get('/admin/registrations', 'AdminController::registrations');
-$routes->get('/admin/attractions', 'AdminController::attractions');
-$routes->get('/admin/reports', 'AdminController::reports');
-$routes->get('/admin/settings', 'AdminController::settings');
+$routes->group('admin', ['namespace' => 'App\Controllers', 'filter' => 'auth'], function($routes) {
+    $routes->get('dashboard', 'AdminController::dashboard');
+    $routes->get('attractions', 'AdminController::attractions');
+    $routes->get('reports', 'AdminController::reports');
+    $routes->get('settings', 'AdminController::settings');
+    
+    // ==========================================================
+    //  THESE ARE THE REQUIRED ROUTES FOR THE REGISTRATIONS PAGE
+    // ==========================================================
+    $routes->get('registrations', 'AdminController::registrations'); // Route to display the page
+    $routes->get('registrations/list', 'AdminController::getRegistrationList'); // API to get all registrations
+    $routes->get('registrations/view/(:num)', 'AdminController::viewRegistration/$1'); // API to get a single registration's details
+    $routes->post('registrations/approve/(:num)', 'AdminController::approveRegistration/$1'); // API to APPROVE a registration
+    $routes->post('registrations/reject/(:num)', 'AdminController::rejectRegistration/$1'); // API to REJECT a registration
+    // ==========================================================
+});
+
 
 //spot owner routes
 $routes->get('/spotowner/dashboard', 'SpotOwnerController::dashboard');
