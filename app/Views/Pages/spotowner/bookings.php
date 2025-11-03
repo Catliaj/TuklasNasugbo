@@ -58,12 +58,6 @@
                             <span>Manage Spot</span>
                         </a>
                     </li>
-                    <li class="sidebar-menu-item">
-                        <a href="/spotowner/settings" class="sidebar-link" data-page="profile">
-                            <i class="bi bi-person"></i>
-                            <span>Profile</span>
-                        </a>
-                    </li>
                 </ul>
             </div>
 
@@ -109,7 +103,7 @@
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div>
                                         <div class="stat-label">Total Bookings</div>
-                                        <div class="stat-value">6</div>
+                                        <div class="stat-value"><?= $totalbookings?></div>
                                         <div class="stat-description">4 confirmed</div>
                                     </div>
                                     <div class="stat-icon">
@@ -124,7 +118,7 @@
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div>
                                         <div class="stat-label">Total Visitors</div>
-                                        <div class="stat-value">22</div>
+                                        <div class="stat-value"><?= $totalvisitors?></div>
                                         <div class="stat-description">Expected visitors</div>
                                     </div>
                                     <div class="stat-icon">
@@ -139,7 +133,7 @@
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div>
                                         <div class="stat-label">Total Revenue</div>
-                                        <div class="stat-value">₱2,750</div>
+                                        <div class="stat-value">₱<?=$totalrevenue?></div>
                                         <div class="stat-description">From active bookings</div>
                                     </div>
                                     <div class="stat-icon">
@@ -171,59 +165,8 @@
                                         </tr>
                                     </thead>
                                     <tbody id="bookingsTableBody">
-                                        <tr>
-                                            <td>BK001</td>
-                                            <td>Maria Santos</td>
-                                            <td>10/10/2025</td>
-                                            <td>4</td>
-                                            <td>₱500</td>
-                                            <td><span class="badge badge-confirmed">confirmed</span></td>
-                                            <td><button class="btn btn-sm btn-outline-primary view-booking-btn" data-id="BK001">View</button></td>
-                                        </tr>
-                                        <tr>
-                                            <td>BK002</td>
-                                            <td>Juan Dela Cruz</td>
-                                            <td>10/12/2025</td>
-                                            <td>2</td>
-                                            <td>₱250</td>
-                                            <td><span class="badge badge-confirmed">confirmed</span></td>
-                                            <td><button class="btn btn-sm btn-outline-primary view-booking-btn" data-id="BK002">View</button></td>
-                                        </tr>
-                                        <tr>
-                                            <td>BK003</td>
-                                            <td>Ana Reyes</td>
-                                            <td>10/15/2025</td>
-                                            <td>6</td>
-                                            <td>₱750</td>
-                                            <td><span class="badge badge-pending">pending</span></td>
-                                            <td><button class="btn btn-sm btn-outline-primary view-booking-btn" data-id="BK003">View</button></td>
-                                        </tr>
-                                        <tr>
-                                            <td>BK004</td>
-                                            <td>Carlos Garcia</td>
-                                            <td>10/18/2025</td>
-                                            <td>3</td>
-                                            <td>₱375</td>
-                                            <td><span class="badge badge-confirmed">confirmed</span></td>
-                                            <td><button class="btn btn-sm btn-outline-primary view-booking-btn" data-id="BK004">View</button></td>
-                                        </tr>
-                                        <tr>
-                                            <td>BK005</td>
-                                            <td>Sofia Martinez</td>
-                                            <td>10/20/2025</td>
-                                            <td>5</td>
-                                            <td>₱625</td>
-                                            <td><span class="badge badge-pending">pending</span></td>
-                                            <td><button class="btn btn-sm btn-outline-primary view-booking-btn" data-id="BK005">View</button></td>
-                                        </tr>
-                                        <tr>
-                                            <td>BK006</td>
-                                            <td>Diego Lopez</td>
-                                            <td>10/09/2025</td>
-                                            <td>2</td>
-                                            <td>₱250</td>
-                                            <td><span class="badge badge-cancelled">cancelled</span></td>
-                                            <td><button class="btn btn-sm btn-outline-primary view-booking-btn" data-id="BK006">View</button></td>
+                                      
+                                           
                                         </tr>
                                     </tbody>
                                 </table>

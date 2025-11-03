@@ -45,6 +45,13 @@ $routes->post('/spotowner/my-spots/store', 'SpotOwnerController::storeMySpots');
 $routes->get('/spotowner/my-spots/data', 'SpotOwnerController::getMySpots');
 $routes->get('spotowner/my-spots/get-spot/(:num)', 'SpotOwnerController::getSpot/$1');
 
+//spot owner crud bookings routes
+$routes->get('/spotowner/getBookings', 'SpotOwnerController::getBookings');
+$routes->get('/spotowner/getBooking/(:num)', 'SpotOwnerController::getBooking/$1');
+$routes->post('/spotowner/confirmBooking/(:num)', 'SpotOwnerController::confirmBooking/$1');
+$routes->post('/spotowner/rejectBooking/(:num)', 'SpotOwnerController::rejectBooking/$1');
+
+
 
 $routes->get('/spotowner/spots/edit/(:num)', 'SpotOwnerController::editSpot/$1');
 $routes->post('/spotowner/spots/update/(:num)', 'SpotOwnerController::updateSpot/$1');

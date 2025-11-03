@@ -33,21 +33,21 @@
             </div>
 
             <div class="sidebar-content">
-                <ul class="sidebar-menu">
+               <ul class="sidebar-menu">
                     <li class="sidebar-menu-item">
-                        <a href="/spotowner/dashboard" class="sidebar-link" data-page="home">
+                        <a href="/spotowner/dashboard" class="sidebar-link " data-page="home">
                             <i class="bi bi-house-door"></i>
                             <span>Home</span>
                         </a>
                     </li>
                     <li class="sidebar-menu-item">
-                        <a href="/spotowner/bookings" class="sidebar-link" data-page="bookings">
+                        <a href="/spotowner/bookings" class="sidebar-link active" data-page="bookings">
                             <i class="bi bi-calendar-check"></i>
                             <span>Booking Management</span>
                         </a>
                     </li>
                     <li class="sidebar-menu-item">
-                        <a href="/spotowner/earnings" class="sidebar-link active" data-page="earnings">
+                        <a href="/spotowner/earnings" class="sidebar-link" data-page="earnings">
                             <i class="bi bi-graph-up"></i>
                             <span>Earnings & Reports</span>
                         </a>
@@ -56,12 +56,6 @@
                         <a href="/spotowner/mySpots" class="sidebar-link" data-page="manage">
                             <i class="bi bi-geo-alt"></i>
                             <span>Manage Spot</span>
-                        </a>
-                    </li>
-                    <li class="sidebar-menu-item">
-                        <a href="/spotowner/settings" class="sidebar-link" data-page="profile">
-                            <i class="bi bi-person"></i>
-                            <span>Profile</span>
                         </a>
                     </li>
                 </ul>
