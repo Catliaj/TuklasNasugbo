@@ -35,10 +35,6 @@ class CreateCustomers extends Migration
             'date_of_birth' => [
                 'type'       => 'DATE',
             ],
-            'nationality' => [
-                'type'       => 'VARCHAR',
-                'constraint' => 100,
-            ],
             'emergency_contact' => [
                 'type'       => 'VARCHAR',
                 'constraint' => 100,
