@@ -202,7 +202,7 @@ class TouristSpotSeeder extends Seeder
                 'updated_at' => date('Y-m-d H:i:s'),
         ],
         [
-                'business_id' => 10,
+                'business_id' => 9,
                 'spot_name' => 'Laiya Beach',
                 'description' => 'A popular beach destination known for its white sand, clear waters, and vibrant nightlife.',
                 'category' => 'Beach',

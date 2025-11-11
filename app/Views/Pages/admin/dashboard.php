@@ -33,7 +33,7 @@
         </div>
         
                   <nav class="sidebar-nav">
-            <a href="/admin/dashboard" class="nav-item ">
+            <a href="/admin/dashboard" class="nav-item active">
                 <i class="bi bi-grid"></i>
                 <span>Dashboard</span>
             </a>
@@ -42,7 +42,7 @@
                 <span>Registrations</span>
                 <span class="badge">12</span>
             </a>
-            <a href="/admin/attractions" class="nav-item active">
+            <a href="/admin/attractions" class="nav-item">
                 <i class="bi bi-geo-alt"></i>
                 <span>Attractions</span>
             </a>
@@ -53,7 +53,7 @@
         </nav>
         
         <div class="sidebar-footer">
-            <a href="/" class="nav-item text-danger">
+            <a href="/users/logout" class="nav-item text-danger">
                 <i class="bi bi-box-arrow-left"></i>
                 <span>Logout</span>
             </a>
@@ -91,7 +91,7 @@
                         <li><a class="dropdown-item" href="?page=settings"><i class="bi bi-gear me-2"></i>Settings</a></li>
                         <li><a class="dropdown-item" href="#profile"><i class="bi bi-person me-2"></i>Profile</a></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item text-danger" href="../logout.php"><i class="bi bi-box-arrow-left me-2"></i>Logout</a></li>
+                        <li><a class="dropdown-item text-danger" href="/users/logout"><i class="bi bi-box-arrow-left me-2"></i>Logout</a></li>
                     </ul>
                 </div>
             </div>
@@ -191,8 +191,8 @@
     <div class="col-12">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title mb-4">Recent Activity</h5>
-                <div class="activity-feed" id="activityFeed">
+                <!-- <h5 class="card-title mb-4">Recent Activity</h5>
+                <div class="activity-feed" id="activityFeed"> -->
                     <!-- Activity items will be loaded by JavaScript -->
                 </div>
             </div>
@@ -219,7 +219,6 @@ document.addEventListener('DOMContentLoaded', function() {
   window.monthlyBookingsTrend = <?= $MonthlyBookingsTrend ?>;
    const categoryData = <?= $TotalCategories  ?>;
    console.log("Category data:", categoryData);
-
 </script>
 
 

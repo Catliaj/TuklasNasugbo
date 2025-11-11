@@ -10,14 +10,29 @@ class AuthController extends BaseController
     public function login()
     {
         // Just show the login view
-        return view('Pages/login');
+        return view('Pages/landing_page');
     }
 
 public function handleLogin()
 {
+    helper(['form']);
     $session = session();
     $model = new UsersModel();
     $businessModel = new \App\Models\BusinessModel();
+
+    //sample session saka na ayosin
+    // if ($session->get('isLoggedIn')) {
+    //     $role = strtolower($session->get('Role'));
+
+    //     switch ($role) {
+    //         case 'admin':
+    //             return redirect()->to(base_url('/admin/dashboard'));
+    //         case 'tourist':
+    //             return redirect()->to(base_url('/tourist/dashboard'));
+    //         case 'spot owner':
+    //             return redirect()->to(base_url('/spotowner/dashboard'));
+    //     }
+    // }
 
     $email = $this->request->getPost('InputEmail');
     $password = $this->request->getPost('InputPassword');
@@ -25,9 +40,10 @@ public function handleLogin()
     $user = $model->where('email', $email)->first();
 
     if ($user && password_verify($password, $user['password'])) {
-        
-        if (in_array($user['role'], ['Admin', 'Tourist'])) {
+        // --- handle roles ---
+        $redirectURL = '';
 
+        if (in_array($user['role'], ['Admin', 'Tourist'])) {
             $sessionData = [
                 'isLoggedIn' => true,
                 'UserID'     => $user['UserID'],
@@ -39,22 +55,12 @@ public function handleLogin()
             ];
             $session->set($sessionData);
 
-
-            switch (strtolower($user['role'])) {
-                case 'admin':
-                    return redirect()->to(base_url('/admin/dashboard'))->with('success', 'Login successful!');
-                default:
-                    return redirect()->to(base_url('/tourist/dashboard'))->with('success', 'Login successful!');
-            }
-        }
-
-        else if ($user['role'] === 'Spot Owner') {
-           
+            $redirectURL = ($user['role'] === 'Admin') ? '/admin/dashboard' : '/tourist/dashboard';
+        } elseif ($user['role'] === 'Spot Owner') {
             $business = $businessModel->where('user_id', $user['UserID'])->first();
 
             if (!$business) {
-                $session->setFlashdata('error', 'No business record found. Please contact the tourism office.');
-                return redirect()->back();
+                return $this->response->setJSON(['status' => 'error', 'message' => 'No business record found.']);
             }
 
             switch (strtolower($business['status'])) {
@@ -71,27 +77,24 @@ public function handleLogin()
                         'BusinessName' => $business['business_name'] ?? null
                     ];
                     $session->set($sessionData);
+                    $redirectURL = '/spotowner/dashboard';
+                    break;
 
-                    return redirect()->to(base_url('/spotowner/dashboard'))->with('success', 'Login successful!');
-                
                 case 'pending':
-                    $session->setFlashdata('error', 'Your business is still pending approval. Please wait for confirmation.');
-                    return redirect()->back();
-
+                    return $this->response->setJSON(['status' => 'error', 'message' => 'Your business is still pending approval.']);
                 case 'rejected':
-                    $session->setFlashdata('error', 'Your business application was rejected. Please visit the tourism office for assistance.');
-                    return redirect()->back();
-
+                    return $this->response->setJSON(['status' => 'error', 'message' => 'Your business application was rejected.']);
                 default:
-                    $session->setFlashdata('error', 'Unknown business status. Please contact support.');
-                    return redirect()->back();
+                    return $this->response->setJSON(['status' => 'error', 'message' => 'Unknown business status.']);
             }
         }
+
+        return $this->response->setJSON(['status' => 'success', 'message' => 'Login successful!', 'redirect' => base_url($redirectURL)]);
     }
 
-    $session->setFlashdata('error', 'Incorrect email or password.');
-    return redirect()->back();
+    return $this->response->setJSON(['status' => 'error', 'message' => 'Incorrect email or password.']);
 }
+
 
 
     public function logout()

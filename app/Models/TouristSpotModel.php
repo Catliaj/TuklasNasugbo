@@ -17,7 +17,7 @@ class TouristSpotModel extends Model
     // ADD 'suspension_reason' TO ALLOWED FIELDS (NEWLY ADDED)
     // ==========================================================
     protected $allowedFields    = [
-         'business_id', 'spot_name', 'description', 'latitude', 'longitude','category', 'location', 'capacity', 'opening_time', 'closing_time', 'operating_days', 'status', 'price_per_person', 'child_price', 'senior_price', 'group_discount_percent', 'primary_image', 'created_at', 'updated_at', 'suspension_reason'
+         'business_id', 'spot_name', 'description', 'latitude', 'longitude','category', 'location', 'capacity', 'opening_time', 'closing_time', 'operating_days', 'status', 'price_per_person', 'child_price', 'senior_price', 'group_discount_percent', 'primary_image', 'created_at', 'updated_at', 'status_reason'
     ];
     // ==========================================================
 
@@ -100,8 +100,8 @@ class TouristSpotModel extends Model
                     ->findAll();
     }
     // ==========================================================
-}
 
+    
     //get total spots by business id for spot owner dashboard where status is approved
     public function getTotalSpotsByBusinessID($businessID)
     {
@@ -111,10 +111,12 @@ class TouristSpotModel extends Model
         return $builder->countAllResults();
     }
 
+}
+
    
 
 
 
 
     
-}
+
