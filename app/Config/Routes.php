@@ -11,7 +11,7 @@ $routes->get('/under-development', 'Home::index');
 $routes->get('/', 'AuthController::login'); 
 $routes->get('/signup', 'AuthController::signup'); 
 $routes->post('/users/login', 'AuthController::Handlelogin');
-
+$routes->get('/users/logout', 'AuthController::logout');
 
 //Admin routes
 $routes->group('admin', ['namespace' => 'App\Controllers', 'filter' => 'auth'], function($routes) {
@@ -26,15 +26,13 @@ $routes->group('admin', ['namespace' => 'App\Controllers', 'filter' => 'auth'], 
     $routes->post('registrations/approve/(:num)', 'AdminController::approveRegistration/$1');
     $routes->post('registrations/reject/(:num)', 'AdminController::rejectRegistration/$1');
 
-    // ==========================================================
-    //  ATTRACTIONS PAGE ROUTES (NEWLY ADDED)
-    // ==========================================================
+
     $routes->get('attractions', 'AdminController::attractions'); // Route to display the page
     $routes->get('attractions/list', 'AdminController::getAttractionList'); // API to get all attractions
     $routes->get('attractions/view/(:num)', 'AdminController::viewAttraction/$1'); // API for modal details
     $routes->post('attractions/suspend/(:num)', 'AdminController::suspendAttraction/$1'); // API to SUSPEND an attraction
     $routes->post('attractions/delete/(:num)', 'AdminController::deleteAttraction/$1'); // API to DELETE an attraction
-    // ==========================================================
+   
 });
 
 
@@ -45,18 +43,16 @@ $routes->get('/spotowner/bookings', 'SpotOwnerController::bookings');
 $routes->get('/spotowner/earnings', 'SpotOwnerController::earnings');
 $routes->get('/spotowner/settings', 'SpotOwnerController::settings');
 
-//spot owner crud routes
-$routes->post('/spotowner/my-spots/store', 'SpotOwnerController::storeMySpots');
-$routes->get('/spotowner/my-spots/data', 'SpotOwnerController::getMySpots');
-$routes->get('spotowner/my-spots/get-spot/(:num)', 'SpotOwnerController::getSpot/$1');
+
 
 //spot owner crud bookings routes
 $routes->get('/spotowner/getBookings', 'SpotOwnerController::getBookings');
 $routes->get('/spotowner/getBooking/(:num)', 'SpotOwnerController::getBooking/$1');
 $routes->post('/spotowner/confirmBooking/(:num)', 'SpotOwnerController::confirmBooking/$1');
 $routes->post('/spotowner/rejectBooking/(:num)', 'SpotOwnerController::rejectBooking/$1');
-
-
+$routes->post('/spotowner/my-spots/store', 'SpotOwnerController::storeMySpots');
+$routes->get('/spotowner/my-spots/data', 'SpotOwnerController::getMySpots');
+$routes->get('spotowner/my-spots/get-spot/(:num)', 'SpotOwnerController::getSpot/$1');
 
 $routes->get('/spotowner/spots/edit/(:num)', 'SpotOwnerController::editSpot/$1');
 $routes->post('/spotowner/spots/update/(:num)', 'SpotOwnerController::updateSpot/$1');

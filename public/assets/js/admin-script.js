@@ -823,32 +823,44 @@ async function confirmReject_API() {
 
 function loadAttractions() {
     const attractions = MOCK_DATA.attractions;
-    
-    const gridHTML = attractions.map(attraction => `
-        <div class="col-md-6 col-lg-4 mb-3">
-            <div class="card attraction-card">
-                <img src="${attraction.image}" class="card-img-top" alt="${attraction.name}">
-                <div class="card-body">
-                    <span class="badge bg-primary mb-2">${attraction.category}</span>
-                    <h5 class="card-title">${attraction.name}</h5>
-                    <p class="text-muted small mb-2"><i class="bi bi-geo-alt me-1"></i>${attraction.location}</p>
-                    <p class="text-muted small mb-2"><i class="bi bi-person me-1"></i>Owner: ${attraction.owner}</p>
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <div><i class="bi bi-star-fill text-warning"></i><span>${attraction.rating}</span><small class="text-muted">(${attraction.reviews})</small></div>
-                        <div><i class="bi bi-calendar-check text-primary"></i><span>${attraction.bookings} bookings</span></div>
-                    </div>
-                    <div class="d-flex gap-2">
-                        <button class="btn btn-sm btn-primary flex-fill" onclick="viewAttraction(${attraction.id})"><i class="bi bi-eye me-1"></i>View</button>
-                        <button class="btn btn-sm btn-warning" onclick="suspendAttraction(${attraction.id})"><i class="bi bi-pause"></i></button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteAttraction(${attraction.id})"><i class="bi bi-trash"></i></button>
+    const uploadsPath = '/uploads/spots/';
+
+    const gridHTML = attractions.map(attraction => {
+        // Use primary image if exists, otherwise fallback
+        const imageSrc = attraction.image 
+            ? `${uploadsPath}${attraction.image}` 
+            : `${uploadsPath}Spot-No-Image.png`;
+
+        // Handle broken images (in case file is missing)
+        const safeImage = `onerror="this.onerror=null;this.src='${uploadsPath}Spot-No-Image.png';"`;
+
+        return `
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="card attraction-card">
+                    <img src="${imageSrc}" ${safeImage} class="card-img-top" alt="${attraction.name}">
+                    <div class="card-body">
+                        <span class="badge bg-primary mb-2">${attraction.category || 'N/A'}</span>
+                        <h5 class="card-title">${attraction.name || 'Unnamed Spot'}</h5>
+                        <p class="text-muted small mb-2"><i class="bi bi-geo-alt me-1"></i>${attraction.location || 'No location'}</p>
+                        <p class="text-muted small mb-2"><i class="bi bi-person me-1"></i>Owner: ${attraction.owner || 'Unknown'}</p>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div><i class="bi bi-star-fill text-warning"></i><span>${attraction.rating || 0}</span><small class="text-muted">(${attraction.reviews || 0})</small></div>
+                            <div><i class="bi bi-calendar-check text-primary"></i><span>${attraction.bookings || 0} bookings</span></div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-primary flex-fill" onclick="viewAttraction(${attraction.id})"><i class="bi bi-eye me-1"></i>View</button>
+                            <button class="btn btn-sm btn-warning" onclick="suspendAttraction(${attraction.id})"><i class="bi bi-pause"></i></button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteAttraction(${attraction.id})"><i class="bi bi-trash"></i></button>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    `).join('');
-    
+        `;
+    }).join('');
+
     document.getElementById('attractionsGrid').innerHTML = gridHTML;
 }
+
 
 /**
  * Fetches attraction data from the backend and renders it.
@@ -880,10 +892,22 @@ function renderAttractions_API(attractions) {
         return;
     }
 
-    attractionsGrid.innerHTML = attractions.map(attraction => `
+   attractionsGrid.innerHTML = attractions.map(attraction => {
+    // Base upload folder
+    const uploadsPath = '/uploads/spots/';
+    const primaryImage = attraction.primary_image 
+        ? `${uploadsPath}${attraction.primary_image}` 
+        : `${uploadsPath}Spot-No-Image.png`;
+
+    // Fallback for broken images
+    const safeImage = `
+        onerror="this.onerror=null;this.src='${uploadsPath}Spot-No-Image.png';"
+    `;
+
+    return `
         <div class="col-md-6 col-lg-4 mb-3">
             <div class="card attraction-card h-100">
-                <img src="${attraction.primary_image || 'https://via.placeholder.com/400x300'}" class="card-img-top" alt="${attraction.spot_name}">
+                <img src="${primaryImage}" ${safeImage} class="card-img-top" alt="${attraction.spot_name}">
                 <div class="card-body d-flex flex-column">
                     <div class="d-flex justify-content-between align-items-start">
                         <span class="badge bg-primary mb-2">${attraction.category || 'N/A'}</span>
@@ -909,7 +933,9 @@ function renderAttractions_API(attractions) {
                 </div>
             </div>
         </div>
-    `).join('');
+    `;
+}).join('');
+
 }
 
 /**
@@ -920,15 +946,45 @@ async function viewAttraction_API(id) {
     contentArea.innerHTML = '<div class="text-center p-5">Loading...</div>';
     const viewModal = new bootstrap.Modal(document.getElementById('viewAttractionModal'));
     viewModal.show();
-    
+
     try {
         const response = await fetch(`${BASE_URL}/admin/attractions/view/${id}`);
         if (!response.ok) throw new Error('Attraction details not found.');
         const attraction = await response.json();
+
+        // Create carousel indicators and items dynamically
+        let carouselIndicators = '';
+        let carouselItems = '';
+        attraction.images.forEach((img, index) => {
+            carouselIndicators += `
+                <button type="button" data-bs-target="#attractionCarousel" data-bs-slide-to="${index}" ${index === 0 ? 'class="active" aria-current="true"' : ''} aria-label="Slide ${index + 1}"></button>
+            `;
+            carouselItems += `
+                <div class="carousel-item ${index === 0 ? 'active' : ''}">
+                    <img src="${img}" class="d-block w-100 rounded" alt="${attraction.spot_name}">
+                </div>
+            `;
+        });
+
         const detailsHTML = `
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <img src="${attraction.primary_image || 'https://via.placeholder.com/400x300'}" class="img-fluid rounded" alt="${attraction.spot_name}">
+                    <div id="attractionCarousel" class="carousel slide" data-bs-ride="carousel">
+                        <div class="carousel-indicators">
+                            ${carouselIndicators}
+                        </div>
+                        <div class="carousel-inner">
+                            ${carouselItems}
+                        </div>
+                        <button class="carousel-control-prev" type="button" data-bs-target="#attractionCarousel" data-bs-slide="prev">
+                            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                            <span class="visually-hidden">Previous</span>
+                        </button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#attractionCarousel" data-bs-slide="next">
+                            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                            <span class="visually-hidden">Next</span>
+                        </button>
+                    </div>
                 </div>
                 <div class="col-md-6">
                     <h4>${attraction.spot_name}</h4>
@@ -941,12 +997,14 @@ async function viewAttraction_API(id) {
                 </div>
             </div>
         `;
+
         contentArea.innerHTML = detailsHTML;
     } catch (error) {
         console.error('View Attraction Error:', error);
         contentArea.innerHTML = '<p class="text-danger">Could not load attraction details.</p>';
     }
 }
+
 
 /**
  * Opens the suspend modal and sets the current ID.

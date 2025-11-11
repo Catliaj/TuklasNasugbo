@@ -13,9 +13,10 @@ class AdminController extends BaseController
    public function dashboard()
     {
         if (!session()->get('isLoggedIn') || session()->get('Role') !== 'Admin') {
-            return redirect()->to(base_url('/'))->with('error', 'Please log in as Admin to access the admin dashboard.');
+            return redirect()->to(base_url('/users/login'))->with('error', 'Please log in as Admin to access the admin dashboard.');
         }
 
+         
         $businessModel = new BusinessModel();
         $touristSpotModel = new TouristSpotModel();
         $bookingModel = new BookingModel();
@@ -134,19 +135,41 @@ class AdminController extends BaseController
 
     public function viewAttraction($id = null)
     {
-        $spotModel = new TouristSpotModel();
-        // Use the same getAllTouristSpots logic but filter by spot_id to get all joined data
+        $spotModel = new \App\Models\TouristSpotModel();
+
+        // Get main attraction info with joined business and user info
         $attraction = $spotModel->select('tourist_spots.*, businesses.business_name, users.FirstName, users.LastName')
             ->join('businesses', 'businesses.business_id = tourist_spots.business_id')
             ->join('users', 'users.UserID = businesses.user_id')
             ->where('tourist_spots.spot_id', $id)
             ->first();
-        
-        if ($attraction) {
-            return $this->response->setJSON($attraction);
+
+        if (!$attraction) {
+            return $this->response->setStatusCode(404)->setJSON(['error' => 'Attraction not found']);
         }
-        return $this->response->setStatusCode(404)->setJSON(['error' => 'Attraction not found']);
+
+        // Get gallery images
+        $galleryModel = new \App\Models\SpotGalleryModel();
+        $images = $galleryModel->where('spot_id', $id)->findAll();
+
+        // Map gallery images to full URLs
+        $attraction['images'] = !empty($images)
+            ? array_map(fn($g) => base_url('uploads/spots/gallery/' . $g['image']), $images)
+            : [];
+
+        // If no gallery images, include primary image
+        if (empty($attraction['images']) && !empty($attraction['primary_image'])) {
+            $attraction['images'][] = base_url('uploads/spots/' . $attraction['primary_image']);
+        }
+
+        // If still empty, fallback to placeholder
+        if (empty($attraction['images'])) {
+            $attraction['images'][] = base_url('uploads/spots/Spot-No-Image.png');
+        }
+
+        return $this->response->setJSON($attraction);
     }
+
 
     public function suspendAttraction($id = null)
     {
@@ -155,7 +178,7 @@ class AdminController extends BaseController
         if (empty($reason)) {
             return $this->response->setStatusCode(400)->setJSON(['error' => 'Reason for suspension is required.']);
         }
-        $data = ['status' => 'suspended', 'suspension_reason' => $reason];
+        $data = ['status' => 'suspended', 'status_reason' => $reason];
         if ($spotModel->update($id, $data)) {
             return $this->response->setJSON(['success' => 'Attraction suspended successfully.']);
         }
@@ -172,4 +195,8 @@ class AdminController extends BaseController
         }
         return $this->response->setStatusCode(500)->setJSON(['error' => 'Failed to delete the attraction.']);
     }
+
+    
+
+    
 }

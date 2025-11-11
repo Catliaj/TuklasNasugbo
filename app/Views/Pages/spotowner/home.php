@@ -35,13 +35,13 @@
             <div class="sidebar-content">
                 <ul class="sidebar-menu">
                     <li class="sidebar-menu-item">
-                        <a href="/spotowner/dashboard" class="sidebar-link " data-page="home">
+                        <a href="/spotowner/dashboard" class="sidebar-link active" data-page="home">
                             <i class="bi bi-house-door"></i>
                             <span>Home</span>
                         </a>
                     </li>
                     <li class="sidebar-menu-item">
-                        <a href="/spotowner/bookings" class="sidebar-link active" data-page="bookings">
+                        <a href="/spotowner/bookings" class="sidebar-link" data-page="bookings">
                             <i class="bi bi-calendar-check"></i>
                             <span>Booking Management</span>
                         </a>
