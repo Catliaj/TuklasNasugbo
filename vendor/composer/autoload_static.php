@@ -113,6 +113,7 @@ class ComposerStaticInit657ac079313fab046eb8c29fe1d6992b
         'App\\Database\\Seeds\\MainSeeder' => __DIR__ . '/../..' . '/app/Database/Seeds/MainSeeder.php',
         'App\\Database\\Seeds\\TouristSpotSeeder' => __DIR__ . '/../..' . '/app/Database/Seeds/TouristSpotSeeder.php',
         'App\\Database\\Seeds\\UserSeeder' => __DIR__ . '/../..' . '/app/Database/Seeds/UserSeeder.php',
+        'App\\Filters\\AuthFilter' => __DIR__ . '/../..' . '/app/Filters/AuthFilter.php',
         'App\\Models\\BookingModel' => __DIR__ . '/../..' . '/app/Models/BookingModel.php',
         'App\\Models\\BusinessModel' => __DIR__ . '/../..' . '/app/Models/BusinessModel.php',
         'App\\Models\\CustomerModel' => __DIR__ . '/../..' . '/app/Models/CustomerModel.php',
