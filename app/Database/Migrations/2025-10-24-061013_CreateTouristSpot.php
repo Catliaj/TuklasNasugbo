@@ -62,7 +62,7 @@ class CreateTouristSpot extends Migration
             ],
             'status' => [
                 'type'       => 'ENUM',
-                'constraint' => ['pending', 'approved', 'rejected'],
+                'constraint' => ['pending', 'approved', 'rejected', 'suspended'],
                 'default'    => 'pending',
             ],
             'price_per_person' => [
@@ -93,6 +93,10 @@ class CreateTouristSpot extends Migration
                 'type'       => 'DATETIME',
                 'null'       => true,
             ],
+            'status_reason' =>[
+                'type'       => 'TEXT',
+                'null'       => true,
+            ]
         ];
         $this->forge->addField($data);
         $this->forge->addKey('spot_id', true);

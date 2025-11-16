@@ -20,64 +20,80 @@ class CreateBooking extends Migration
                 'type'       => 'INT',
                 'constraint' => 11,
                 'unsigned'   => true,
+                'null'       => true,
             ],
             'customer_id' => [
                 'type'       => 'INT',
                 'constraint' => 11,
                 'unsigned'   => true,
+                'null'       => true,
             ],
             'booking_date' => [
                 'type'       => 'DATETIME',
+                'null'       => true,
             ],
             'visit_date' => [
                 'type'       => 'DATE',
+                'null'       => true,
             ],
             'visit_time' => [
                 'type'       => 'TIME',
+                'null'       => true,
             ],
             'num_adults' => [
                 'type'       => 'INT',
                 'constraint' => 11,
+                'null'       => true,
             ],
             'num_children' => [
                 'type'       => 'INT',
                 'constraint' => 11,
+                'null'       => true,
             ],
             'num_seniors' => [
                 'type'       => 'INT',
                 'constraint' => 11,
+                'null'       => true,
             ],
             'total_guests' => [
                 'type'       => 'INT',
                 'constraint' => 11,
+                'null'       => true,
             ],
             'price_per_person' => [
                 'type'       => 'DECIMAL',
                 'constraint' => '10,2',
+                'null'       => true,
             ],
             'subtotal' => [
                 'type'       => 'DECIMAL',
                 'constraint' => '15,2',
+                'null'       => true,
             ],
             'discount_amount' => [
                 'type'       => 'DECIMAL',
                 'constraint' => '15,2',
+                'null'       => true,
             ],
             'tax_amount' => [
                 'type'       => 'DECIMAL',
                 'constraint' => '15,2',
+                'null'       => true,
             ],
             'total_price' => [
                 'type'       => 'DECIMAL',
                 'constraint' => '15,2',
+                'null'       => true,
             ],
             'booking_status' => [
                 'type'       => 'ENUM',
                 'constraint' => ['Pending', 'Confirmed', 'Cancelled', 'Completed'],
+                'null'       => true,
             ],
             'payment_status' => [
                 'type'       => 'ENUM',
                 'constraint' => ['Unpaid', 'Paid', 'Refunded'],
+                'null'       => true,
             ],
             'special_requests' => [
                 'type'       => 'TEXT',

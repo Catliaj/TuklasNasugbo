@@ -8,7 +8,7 @@ class BookingSeeder extends Seeder
 {
     public function run()
     {
-        // 'spot_id', 'customer_id', 'booking_date', 'visit_date', 'visit_time', 'num_adults', 'num_children', 'num_seniors', 'total_guests', 'price_per_person', 'subtotal', 'discount_amount', 'tax_amount', 'total_price', 'booking_status', 'payment_status', 'special_requests', 'cancellation_reason', 'internal_notes', 'created_at', 'updated_at', 'confirmed_at', 'cancelled_at', 'completed_at'
+        // 'spot_id', 'customer_id', 'booking_date', 'visit_date', 'visit_time', 'num_adults', 'num_children', 'num_seniors', 'total_guests', 'price_per_person', 'subtotal', 'discount_amount', 'tax_amount', 'total_price', 'booking_status', 'payment_status', 'special_requests', 'cancellation_reason', 'internal_notes', 'created_at', 'updated_at', 'Confirmed_at', 'C_at', 'C_at'
         $data = [
             [
                 'spot_id' => 1,
@@ -25,11 +25,19 @@ class BookingSeeder extends Seeder
                 'discount_amount' => 0.00,
                 'tax_amount' => 150.00,
                 'total_price' => 1650.00,
-                'booking_status' => 'confirmed',
-                'payment_status' => 'paid',
+                'booking_status' => 'Confirmed',
+                'payment_status' => 'Paid',
                 'special_requests' => 'Need wheelchair access',
+                'cancellation_reason'=> null,
+                'internal_notes' => null,
                 'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => null,
+                 'confirmed_at' => null,
+                 'cancelled_at' => null,
+                 'completed_at' => null,
                 'updated_at' => date('Y-m-d H:i:s'),
+                
+                
             ],
             [
                 'spot_id' => 1,
@@ -46,11 +54,18 @@ class BookingSeeder extends Seeder
                 'discount_amount' => 50.00,
                 'tax_amount' => 95.00,
                 'total_price' => 1045.00,
-                'booking_status' => 'pending',
-                'payment_status' => 'unpaid',
+                'booking_status' => 'Pending',
+                'payment_status' => 'Unpaid',
                 'special_requests' => '',
+                'cancellation_reason'=> null,
+                'internal_notes' => null,
                 'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
+                'updated_at' => null,
+                 'confirmed_at' => null,
+                 'cancelled_at' => null,
+                 'completed_at' => null,
+                
+                
             ],
 
            
@@ -69,12 +84,19 @@ class BookingSeeder extends Seeder
                 'discount_amount' => 0.00,
                 'tax_amount' => 160.00,
                 'total_price' => 1760.00,
-                'booking_status' => 'cancelled',
-                'payment_status' => 'refunded',
+                'booking_status' => 'Cancelled',
+                'payment_status' => 'Refunded',
                 'special_requests' => '',
                 'cancellation_reason' => 'Change of plans',
+                'cancellation_reason'=> null,
+                'internal_notes' => null,
                 'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
+                'updated_at' => null,
+                 'confirmed_at' => null,
+                 'cancelled_at' => null,
+                 'completed_at' => null,
+                
+                
             ],
             [
                 'spot_id' => 3,
@@ -91,11 +113,18 @@ class BookingSeeder extends Seeder
                 'discount_amount' => 0.00,
                 'tax_amount' => 120.00,
                 'total_price' => 1320.00,
-                'booking_status' => 'completed',
-                'payment_status' => 'paid',
+                'booking_status' => 'Completed',
+                'payment_status' => 'Paid',
                 'special_requests' => 'Near the stage',
+                'cancellation_reason'=> null,
+                'internal_notes' => null,
                 'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
+                'updated_at' => null,
+                 'confirmed_at' => null,
+                 'cancelled_at' => null,
+                 'completed_at' => null,
+                
+                
             ],
            
             [
@@ -113,11 +142,20 @@ class BookingSeeder extends Seeder
                 'discount_amount' => 200.00,
                 'tax_amount' => 255.00,
                 'total_price' => 2805.00,
-                'booking_status' => 'pending',
-                'payment_status' => 'unpaid',
+                'booking_status' => 'Completed',
+                'payment_status' => 'Unpaid',
                 'special_requests' => 'High chair needed',
+                
+                'cancellation_reason'=> null,
+                'internal_notes' => null,
                 'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
+                'updated_at' => null,
+                 'confirmed_at' => null,
+                 'cancelled_at' => null,
+                 'completed_at' => null,
+               
+                
+                
             ],
            
             [
@@ -135,17 +173,24 @@ class BookingSeeder extends Seeder
                 'discount_amount' => 80.00,
                 'tax_amount' => 152.00,
                 'total_price' => 1672.00,
-                'booking_status' => 'completed',
-                'payment_status' => 'paid',
+                'booking_status' => 'Confirmed',
+                'payment_status' => 'Paid',
                 'special_requests' => 'Quiet area',
+                'cancellation_reason'=> null,
+                'internal_notes' => null,
                 'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
+                'updated_at' => null,
+                 'confirmed_at' => null,
+                 'cancelled_at' => null,
+                 'completed_at' => null,
+                
+                
             ], 
            
             [
                 'spot_id' => 6,
-                'cutsomer_id' => 6,
-                'booking_date' => date (`Y-m-d H:i:s`),
+                'customer_id' => 6,
+                'booking_date' => date('Y-m-d H:i:s'),
                 'visit_date'=> '2025-06-30',
                 'visit_time' => '11:00:00',
                 'num_adults' => 2,
@@ -157,11 +202,18 @@ class BookingSeeder extends Seeder
                 'discount_amount' => 150.00,
                 'tax_amount' => 260.00,
                 'total_price' => 2860.00,
-                'booking_status' => 'pending',
-                'payment_status' => 'unpaid',
+                'booking_status' => 'Confirmed',
+                'payment_status' => 'Unpaid',
                 'special_requests' => 'Allergic to nuts',
+                'cancellation_reason'=> null,
+                'internal_notes' => null,
                 'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
+                'updated_at' => null,
+                 'confirmed_at' => null,
+                 'cancelled_at' => null,
+                 'completed_at' => null,
+                
+                
 
             ],
             [
@@ -179,11 +231,18 @@ class BookingSeeder extends Seeder
                 'discount_amount' => 0.00,
                 'tax_amount' => 120.00,
                 'total_price' => 1320.00,
-                'booking_status' => 'confirmed',
-                'payment_status' => 'paid',
+                'booking_status' => 'Confirmed',
+                'payment_status' => 'Paid',
                 'special_requests' => '',
+                'cancellation_reason'=> null,
+                'internal_notes' => null,
                 'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
+                'updated_at' => null,
+                 'confirmed_at' => null,
+                 'cancelled_at' => null,
+                 'completed_at' => null,
+                
+                
             ],
             [
                 'spot_id' => 8,
@@ -200,11 +259,18 @@ class BookingSeeder extends Seeder
                 'discount_amount' => 100.00,
                 'tax_amount' => 170.00,
                 'total_price' => 1870.00,
-                'booking_status' => 'completed',
-                'payment_status' => 'paid',
+                'booking_status' => 'Confirmed',
+                'payment_status' => 'Paid',
                 'special_requests' => 'Vegetarian meals',
+                'cancellation_reason'=> null,
+                'internal_notes' => null,
                 'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
+                'updated_at' => null,
+                 'confirmed_at' => null,
+                 'cancelled_at' => null,
+                 'completed_at' => null,
+                
+                
             ],
             [
                 'spot_id' => 9,
@@ -221,11 +287,18 @@ class BookingSeeder extends Seeder
                 'discount_amount' => 200.00,
                 'tax_amount' => 230.00,
                 'total_price' => 2530.00,
-                'booking_status' => 'pending',
-                'payment_status' => 'unpaid',
+                'booking_status' => 'Confirmed',
+                'payment_status' => 'Unpaid',
                 'special_requests' => '',
+                'cancellation_reason'=> null,
+                'internal_notes' => null,
                 'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
+                'updated_at' => null,
+                 'confirmed_at' => null,
+                 'cancelled_at' => null,
+                 'completed_at' => null,
+                
+                
             ],
             [
                 'spot_id' => 10,
@@ -242,11 +315,18 @@ class BookingSeeder extends Seeder
                 'discount_amount' => 300.00,
                 'tax_amount' => 330.00,
                 'total_price' => 3630.00,
-                'booking_status' => 'confirmed',
-                'payment_status' => 'paid',
+                'booking_status' => 'Confirmed',
+                'payment_status' => 'Paid',
                 'special_requests' => 'Window seats',
+                'cancellation_reason'=> null,
+                'internal_notes' => null,
                 'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
+                'updated_at' => null,
+                 'confirmed_at' => null,
+                 'cancelled_at' => null,
+                 'completed_at' => null,
+                
+                
             ]
 
         ];

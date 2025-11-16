@@ -8,7 +8,7 @@ class CustomerSeeder extends Seeder
 {
     public function run()
     {
-        //'user_id', 'type', 'phone', 'address', 'date_of_birth', 'nationality', 'id_number', 'emergency_contact', 'emergency_phone', 'notes', 'total_bookings', 'total_spent', 'created_at', 'updated_at'
+        //'user_id', 'type', 'phone', 'address', 'date_of_birth', 'emergency_contact', 'emergency_phone', 'created_at', 'updated_at'
         $data = [
             [
                 'user_id' => 13,
@@ -50,7 +50,7 @@ class CustomerSeeder extends Seeder
                 'address' => '101 Maple St, Hamletville',
                 'date_of_birth' => '1988-12-20',
                 'emergency_contact' => 'Ana Lopez',
-                'emrgency_phone' => '0654321098',
+                'emergency_phone' => '0654321098',
                 'created_at' => date('Y-m-d H:i:s'),
                 'updated_at' => date('Y-m-d H:i:s'),
             ],
