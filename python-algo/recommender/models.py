@@ -95,22 +95,22 @@ class AuthUserUserPermissions(models.Model):
 
 class Bookings(models.Model):
     booking_id = models.AutoField(primary_key=True)
-    spot = models.ForeignKey('TouristSpots', models.DO_NOTHING)
-    customer = models.ForeignKey('Customers', models.DO_NOTHING)
-    booking_date = models.DateTimeField()
-    visit_date = models.DateField()
-    visit_time = models.TimeField()
-    num_adults = models.IntegerField()
-    num_children = models.IntegerField()
-    num_seniors = models.IntegerField()
-    total_guests = models.IntegerField()
-    price_per_person = models.DecimalField(max_digits=10, decimal_places=2)
-    subtotal = models.DecimalField(max_digits=15, decimal_places=2)
-    discount_amount = models.DecimalField(max_digits=15, decimal_places=2)
-    tax_amount = models.DecimalField(max_digits=15, decimal_places=2)
-    total_price = models.DecimalField(max_digits=15, decimal_places=2)
-    booking_status = models.CharField(max_length=9)
-    payment_status = models.CharField(max_length=8)
+    spot = models.ForeignKey('TouristSpots', models.DO_NOTHING, blank=True, null=True)
+    customer = models.ForeignKey('Customers', models.DO_NOTHING, blank=True, null=True)
+    booking_date = models.DateTimeField(blank=True, null=True)
+    visit_date = models.DateField(blank=True, null=True)
+    visit_time = models.TimeField(blank=True, null=True)
+    num_adults = models.IntegerField(blank=True, null=True)
+    num_children = models.IntegerField(blank=True, null=True)
+    num_seniors = models.IntegerField(blank=True, null=True)
+    total_guests = models.IntegerField(blank=True, null=True)
+    price_per_person = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    subtotal = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True)
+    discount_amount = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True)
+    tax_amount = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True)
+    total_price = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True)
+    booking_status = models.CharField(max_length=9, blank=True, null=True)
+    payment_status = models.CharField(max_length=8, blank=True, null=True)
     special_requests = models.TextField(blank=True, null=True)
     cancellation_reason = models.TextField(blank=True, null=True)
     internal_notes = models.TextField(blank=True, null=True)
@@ -149,7 +149,6 @@ class Customers(models.Model):
     phone = models.CharField(max_length=15)
     address = models.TextField()
     date_of_birth = models.DateField()
-    nationality = models.CharField(max_length=100)
     emergency_contact = models.CharField(max_length=100)
     emergency_phone = models.CharField(max_length=15)
     created_at = models.DateTimeField(blank=True, null=True)
@@ -207,10 +206,19 @@ class DjangoSession(models.Model):
 
 class Itinerary(models.Model):
     itinerary_id = models.AutoField(primary_key=True)
-    preference = models.ForeignKey('UserPreferences', models.DO_NOTHING)
-    spot = models.ForeignKey('TouristSpots', models.DO_NOTHING)
+    preference = models.ForeignKey('UserPreferences', models.DO_NOTHING, blank=True, null=True)
+    spot = models.ForeignKey('TouristSpots', models.DO_NOTHING, blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
     day = models.IntegerField()
+    budget = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True)
+    adults = models.IntegerField()
+    children = models.IntegerField()
+    seniors = models.IntegerField()
+    trip_title = models.CharField(max_length=255, blank=True, null=True)
+    start_date = models.DateField(blank=True, null=True)
+    end_date = models.DateField(blank=True, null=True)
     created_at = models.DateTimeField(blank=True, null=True)
+    updated_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -337,7 +345,7 @@ class TouristSpots(models.Model):
     opening_time = models.TimeField()
     closing_time = models.TimeField()
     operating_days = models.CharField(max_length=100)
-    status = models.CharField(max_length=17)
+    status = models.CharField(max_length=9)
     price_per_person = models.DecimalField(max_digits=10, decimal_places=2)
     child_price = models.DecimalField(max_digits=10, decimal_places=2)
     senior_price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -345,6 +353,7 @@ class TouristSpots(models.Model):
     primary_image = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(blank=True, null=True)
     updated_at = models.DateTimeField(blank=True, null=True)
+    status_reason = models.TextField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -354,15 +363,27 @@ class TouristSpots(models.Model):
 class UserPreferences(models.Model):
     preference_id = models.AutoField(primary_key=True)
     user = models.ForeignKey('Users', models.DO_NOTHING)
-    days = models.DateField(db_column='Days', blank=True, null=True)  # Field name made lowercase.
-    budget = models.DecimalField(max_digits=15, decimal_places=2)
-    category = models.TextField()
+    category = models.CharField(max_length=150, blank=True, null=True)
     created_at = models.DateTimeField(blank=True, null=True)
     updated_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
         db_table = 'user_preferences'
+
+
+class UserVisitHistory(models.Model):
+    history_id = models.AutoField(primary_key=True)
+    user = models.ForeignKey(Customers, models.DO_NOTHING)
+    spot = models.ForeignKey(TouristSpots, models.DO_NOTHING)
+    liked = models.IntegerField()
+    last_visited_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(blank=True, null=True)
+    updated_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'user_visit_history'
 
 
 class Users(models.Model):

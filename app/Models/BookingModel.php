@@ -67,7 +67,7 @@ class BookingModel extends Model
     {
         return $this
             ->select('MONTH(booking_date) as month, COUNT(*) as total')
-            ->where('YEAR(booking_date)', date('Y')) // ✅ use the parameter instead of date('Y')
+            ->where('YEAR(booking_date)', date('Y'))
             ->groupBy('MONTH(booking_date)')
             ->orderBy('MONTH(booking_date)', 'ASC')
             ->findAll();
@@ -390,8 +390,91 @@ public function getMonthOverMonthComparison($businessID)
 }
     
 
+        $result = $builder->get()->getRowArray();
+        return $result['totalRevenue'] ?? 0;
+    }
     
+    public function getTopPerformingSpots($startDate, $endDate, $limit = 5)
+    {
+        $builder = $this->builder();
+        $builder->select('ts.spot_name, ts.category, COUNT(b.booking_id) as total_bookings, SUM(b.total_price) as total_revenue');
+        $builder->from('bookings b');
+        $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
+        $builder->where('b.booking_date >=', $startDate);
+        $builder->where('b.booking_date <=', $endDate);
+        $builder->where('b.booking_status', 'Confirmed');
+        $builder->groupBy('ts.spot_id, ts.spot_name, ts.category');
+        $builder->orderBy('total_revenue', 'DESC');
+        $builder->limit($limit);
 
+        return $builder->get()->getResultArray();
+    }
 
+    public function getVisitorDemographics($startDate, $endDate)
+    {
+        return $this->selectSum('num_adults', 'total_adults')
+                    ->selectSum('num_children', 'total_children')
+                    ->selectSum('num_seniors', 'total_seniors')
+                    ->where('booking_status', 'Confirmed')
+                    ->where('visit_date >=', $startDate)
+                    ->where('visit_date <=', $endDate)
+                    ->get()->getRowArray();
+    }
 
+    public function getBookingLeadTime($startDate, $endDate)
+    {
+        $sql = "
+            SELECT 
+                CASE
+                    WHEN DATEDIFF(visit_date, booking_date) = 0 THEN 'Same Day'
+                    WHEN DATEDIFF(visit_date, booking_date) BETWEEN 1 AND 7 THEN '1-7 Days'
+                    WHEN DATEDIFF(visit_date, booking_date) BETWEEN 8 AND 30 THEN '8-30 Days'
+                    ELSE '30+ Days'
+                END as lead_time_group,
+                COUNT(booking_id) as total
+            FROM bookings
+            WHERE booking_date BETWEEN ? AND ?
+            GROUP BY lead_time_group
+            ORDER BY FIELD(lead_time_group, 'Same Day', '1-7 Days', '8-30 Days', '30+ Days')
+        ";
+        return $this->db->query($sql, [$startDate, $endDate])->getResultArray();
+    }
+
+    public function getPeakDays($startDate, $endDate)
+    {
+        $booking_sql = "SELECT DAYNAME(booking_date) as day, COUNT(booking_id) as total FROM bookings WHERE booking_date BETWEEN ? AND ? GROUP BY day ORDER BY FIELD(day, 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday')";
+        $visit_sql = "SELECT DAYNAME(visit_date) as day, COUNT(booking_id) as total FROM bookings WHERE visit_date BETWEEN ? AND ? AND booking_status = 'Confirmed' GROUP BY day ORDER BY FIELD(day, 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday')";
+
+        return [
+            'peak_booking_days' => $this->db->query($booking_sql, [$startDate, $endDate])->getResultArray(),
+            'peak_visit_days' => $this->db->query($visit_sql, [$startDate, $endDate])->getResultArray()
+        ];
+    }
+    
+    public function getAverageRevenuePerBooking($startDate, $endDate)
+    {
+        $result = $this->select('SUM(total_price) as total_revenue, COUNT(booking_id) as total_bookings')
+                       ->where('booking_status', 'Confirmed')
+                       ->where('booking_date >=', $startDate)
+                       ->where('booking_date <=', $endDate)
+                       ->get()->getRowArray();
+
+        if (empty($result) || $result['total_bookings'] == 0) {
+            return 0;
+        }
+        return $result['total_revenue'] / $result['total_bookings'];
+    }
+
+    public function getRevenueByCategory($startDate, $endDate)
+    {
+        return $this->select('ts.category, SUM(b.total_price) as total_revenue')
+                    ->from('bookings b')
+                    ->join('tourist_spots ts', 'b.spot_id = ts.spot_id')
+                    ->where('b.booking_status', 'Confirmed')
+                    ->where('b.booking_date >=', $startDate)
+                    ->where('b.booking_date <=', $endDate)
+                    ->groupBy('ts.category')
+                    ->orderBy('total_revenue', 'DESC')
+                    ->get()->getResultArray();
+    }
 }

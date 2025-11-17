@@ -4,16 +4,16 @@ namespace App\Models;
 
 use CodeIgniter\Model;
 
-class UsersModel extends Model
+class ItineraryModel extends Model
 {
-    protected $table            = 'users';
-    protected $primaryKey       = 'UserID';
+    protected $table            = 'itinerary';
+    protected $primaryKey       = 'itinerary_id';
     protected $useAutoIncrement = true;
     protected $returnType       = 'array';
     protected $useSoftDeletes   = false;
     protected $protectFields    = true;
     protected $allowedFields    = [
-        'FirstName', 'MiddleName', 'LastName', 'email', 'password', 'role', 'LastLogin', 'created_at', 'updated_at'
+       'preference_id', 'spot_id', 'description', 'day', 'budget', 'adults', 'children', 'seniors', 'trip_title', 'start_date', 'end_date', 'created_at', 'updated_at'
     ];
 
     protected bool $allowEmptyInserts = false;
@@ -46,15 +46,26 @@ class UsersModel extends Model
     protected $beforeDelete   = [];
     protected $afterDelete    = [];
 
-    public function getUserCategoryString($userId)
+
+    
+    public function getFullItinerary($trip_title, $start_date)
     {
-        $builder = $this->db->table('user_preferences');
-        $builder->select('category');
-        $builder->where('user_id', $userId);
-        $result = $builder->get()->getRowArray();
-
-        return $result['category'] ?? null; // returns "Historical,Natural,Urban,Adventure"
+        return $this->select("
+                itinerary.*,
+                tourist_spots.spot_name,
+                tourist_spots.category,
+                tourist_spots.price_per_person,
+                tourist_spots.child_price,
+                tourist_spots.senior_price,
+                tourist_spots.latitude,
+                tourist_spots.longitude,
+                tourist_spots.location
+            ")
+            ->join('tourist_spots', 'tourist_spots.spot_id = itinerary.spot_id')
+            ->where('itinerary.trip_title', $trip_title)
+            ->where('itinerary.start_date', $start_date)
+            ->orderBy('itinerary.day', 'ASC')
+            ->orderBy('itinerary.itinerary_id', 'ASC')
+            ->findAll();
     }
-
-
 }

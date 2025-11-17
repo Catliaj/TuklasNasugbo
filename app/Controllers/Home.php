@@ -9,3 +9,4 @@ class Home extends BaseController
         return view('under_development');
     }
 }
+

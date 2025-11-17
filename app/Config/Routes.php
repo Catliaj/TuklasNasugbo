@@ -79,3 +79,8 @@ $routes->get('/tourist/favorites', 'TouristController::touristFavorites');
 
 //TEST API ROUTE
 $routes->get('/test-api/key', 'TestApi::testKey');
+
+//itinerary routes
+
+$routes->get('itinerary/list', 'TouristController::listUserTrips');
+$routes->get('itinerary/get', 'TouristController::getTrip');

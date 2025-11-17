@@ -12,7 +12,7 @@ class FeedbackModel extends Model
     protected $returnType       = 'array';
     protected $useSoftDeletes   = false;
     protected $protectFields    = true;
-    protected $allowedFields    = [];
+    protected $allowedFields    = ['spot_id', 'customer_id', 'rating', 'comment', 'created_at', 'updated_at'];
 
     protected bool $allowEmptyInserts = false;
     protected bool $updateOnlyChanged = true;
@@ -21,7 +21,7 @@ class FeedbackModel extends Model
     protected array $castHandlers = [];
 
     // Dates
-    protected $useTimestamps = false;
+    protected $useTimestamps = true;
     protected $dateFormat    = 'datetime';
     protected $createdField  = 'created_at';
     protected $updatedField  = 'updated_at';
@@ -43,4 +43,34 @@ class FeedbackModel extends Model
     protected $afterFind      = [];
     protected $beforeDelete   = [];
     protected $afterDelete    = [];
+
+    // ==========================================================
+    //  NEW ANALYTICS METHODS
+    // ==========================================================
+    public function getAverageRating($startDate = null, $endDate = null)
+    {
+        $builder = $this->builder();
+        $builder->selectAvg('rating', 'averageRating');
+
+        if ($startDate && $endDate) {
+            $builder->where('created_at >=', $startDate);
+            $builder->where('created_at <=', $endDate);
+        }
+
+        $result = $builder->get()->getRowArray();
+        return ($result['averageRating']) ? number_format($result['averageRating'], 2) : "0.00";
+    }
+
+    public function getLowestRatedSpots($startDate, $endDate, $limit = 5)
+    {
+        return $this->select('ts.spot_name, AVG(f.rating) as average_rating, COUNT(f.id) as review_count')
+                    ->from('feedbacks f')
+                    ->join('tourist_spots ts', 'f.spot_id = ts.spot_id')
+                    ->where('f.created_at >=', $startDate)
+                    ->where('f.created_at <=', $endDate)
+                    ->groupBy('ts.spot_name')
+                    ->orderBy('average_rating', 'ASC')
+                    ->limit($limit)
+                    ->get()->getResultArray();
+    }
 }
