@@ -87,114 +87,55 @@
                 </div>
             </div>
 
-            <!-- Page Content -->
+            <!-- Page Content - This will be populated by JavaScript -->
             <main class="flex-fill p-3 p-lg-4" id="mainContent">
-                <!-- Content will be loaded here dynamically -->
-                <div class="container-fluid px-0">
-                    <div class="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
-                        <div>
-                            <h2>My Tourist Spots</h2>
-                            <p class="text-muted-custom">Manage all your tourist spot properties</p>
-                        </div>
-
+                <!-- Content will be loaded here dynamically by home.js -->
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
                     </div>
-
-                    <!-- Overall Stats Overview -->
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-3 col-sm-6">
-                            <div class="stat-card">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <div class="stat-label">Total Spots</div>
-                                        <div class="stat-value"><?= $totalspots?></div>
-                                        <div class="stat-description">Active properties</div>
-                                    </div>
-                                    <div class="stat-icon">
-                                        <i class="bi bi-geo-alt-fill"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-md-3 col-sm-6">
-                            <div class="stat-card">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <div class="stat-label">Total Bookings</div>
-                                        <div class="stat-value"><?= $totalbookings?></div>
-                                        <div class="stat-description">This month</div>
-                                    </div>
-                                    <div class="stat-icon">
-                                        <i class="bi bi-calendar-check"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-md-3 col-sm-6">
-                            <div class="stat-card">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <div class="stat-label">Total Revenue</div>
-                                        <div class="stat-value"><?=$totalrevenue?></div>
-                                        <div class="stat-description">This month</div>
-                                    </div>
-                                    <div class="stat-icon">
-                                        <i class="bi bi-cash-stack"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-md-3 col-sm-6">
-                            <div class="stat-card">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <div class="stat-label">Average Rating</div>
-                                        <div class="stat-value">4.7</div>
-                                        <div class="stat-description">Across all spots</div>
-                                    </div>
-                                    <div class="stat-icon">
-                                        <i class="bi bi-star-fill"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Tourist Spots Grid -->
-                    <div class="row g-4 mb-4" id="touristSpotsGrid">
-                        <!-- Spot cards will be loaded here -->
-                    </div>
-                </div>
-
-                <!-- View Spot Details Modal -->
-                <div class="modal fade" id="viewSpotModal" tabindex="-1">
-                    <div class="modal-dialog modal-xl">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="spotModalTitle">Spot Details</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                            </div>
-                            <div class="modal-body" id="spotModalBody">
-                                <!-- Content loaded dynamically -->
-                            </div>
-                        </div>
-                    </div>
+                    <p class="mt-3 text-muted">Loading dashboard...</p>
                 </div>
             </main>
         </div>
     </div>
+
+    <!-- Chart.js Library (MUST BE LOADED FIRST) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
     <!-- Custom JavaScript -->
     <script src="<?= base_url("assets/js/spotownerJS/shared-data.js")?>"></script>
-    <!-- ✅ Fixed path -->
-  
     <script src="<?= base_url("assets/js/spotownerJS/home.js")?>"></script>
-    
+
+    <!-- Initialize the home page -->
+    <script>
+        // Wait for DOM to be ready and then render the page
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing home page...');
+            
+            // Get the main content area
+            const mainContent = document.getElementById('mainContent');
+            
+            if (mainContent && typeof renderHomePage === 'function') {
+                // Render the HTML
+                mainContent.innerHTML = renderHomePage();
+                console.log('Home page HTML rendered');
+                
+                // Initialize the page (load data and charts)
+                if (typeof initHomePage === 'function') {
+                    initHomePage();
+                    console.log('Home page initialized');
+                } else {
+                    console.error('initHomePage function not found!');
+                }
+            } else {
+                console.error('mainContent element or renderHomePage function not found!');
+            }
+        });
+    </script>
 </body>
 
 </html>
