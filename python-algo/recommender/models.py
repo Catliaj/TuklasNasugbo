@@ -208,6 +208,7 @@ class Itinerary(models.Model):
     itinerary_id = models.AutoField(primary_key=True)
     preference = models.ForeignKey('UserPreferences', models.DO_NOTHING, blank=True, null=True)
     spot = models.ForeignKey('TouristSpots', models.DO_NOTHING, blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
     day = models.IntegerField()
     budget = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True)
     adults = models.IntegerField()

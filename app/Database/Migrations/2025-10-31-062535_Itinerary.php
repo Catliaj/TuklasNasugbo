@@ -40,6 +40,10 @@ class Itinerary extends Migration
                 'null'       => true,
                 'default'    => null,
             ],
+            'description' =>[
+                'type'      => 'TEXT',
+                'null'      => true,
+            ],
             'day' => [
                 'type'       => 'INT',
                 'constraint' => 3,

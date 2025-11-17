@@ -13,7 +13,7 @@ class ItineraryModel extends Model
     protected $useSoftDeletes   = false;
     protected $protectFields    = true;
     protected $allowedFields    = [
-         'preference_id', 'spot_id', 'day', 'budget', 'adults', 'children', 'seniors', 'trip_title', 'start_date', 'end_date', 'created_at', 'updated_at'
+       'preference_id', 'spot_id', 'description', 'day', 'budget', 'adults', 'children', 'seniors', 'trip_title', 'start_date', 'end_date', 'created_at', 'updated_at'
     ];
 
     protected bool $allowEmptyInserts = false;
@@ -45,4 +45,27 @@ class ItineraryModel extends Model
     protected $afterFind      = [];
     protected $beforeDelete   = [];
     protected $afterDelete    = [];
+
+
+    
+    public function getFullItinerary($trip_title, $start_date)
+    {
+        return $this->select("
+                itinerary.*,
+                tourist_spots.spot_name,
+                tourist_spots.category,
+                tourist_spots.price_per_person,
+                tourist_spots.child_price,
+                tourist_spots.senior_price,
+                tourist_spots.latitude,
+                tourist_spots.longitude,
+                tourist_spots.location
+            ")
+            ->join('tourist_spots', 'tourist_spots.spot_id = itinerary.spot_id')
+            ->where('itinerary.trip_title', $trip_title)
+            ->where('itinerary.start_date', $start_date)
+            ->orderBy('itinerary.day', 'ASC')
+            ->orderBy('itinerary.itinerary_id', 'ASC')
+            ->findAll();
+    }
 }

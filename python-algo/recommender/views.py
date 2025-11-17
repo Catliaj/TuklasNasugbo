@@ -1,7 +1,7 @@
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 from django.core.cache import cache
-from .models import TouristSpots, Itinerary
+from .models import TouristSpots, Itinerary, UserPreferences
 from django.utils import timezone
 import random
 import google.generativeai as genai
@@ -75,6 +75,8 @@ def recommend_itinerary(request):
     """
     Query params (all required):
       days, budget, adults, children, seniors, preference (comma-separated categories)
+    Optional:
+      save, trip_title, start_date, end_date, user_id
     """
     try:
         days = int(request.GET['days'])
@@ -84,6 +86,34 @@ def recommend_itinerary(request):
         seniors = int(request.GET['seniors'])
     except (KeyError, ValueError):
         return JsonResponse({'error': 'Missing or invalid required parameters'}, status=400)
+
+    # Get optional date parameters
+    start_date = request.GET.get('start_date') or None
+    end_date = request.GET.get('end_date') or None
+
+    # Check for overlapping itineraries (prevent duplicates)
+    if start_date and end_date:
+        try:
+            from datetime import datetime
+            start = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end = datetime.strptime(end_date, '%Y-%m-%d').date()
+
+            # Query: find any itinerary where date ranges overlap
+            # An itinerary overlaps if:
+            # - its start_date <= our end_date AND
+            # - its end_date >= our start_date
+            overlapping = Itinerary.objects.filter(
+                start_date__lte=end,
+                end_date__gte=start
+            ).exists()
+
+            if overlapping:
+                return JsonResponse({
+                    'error': 'An itinerary already exists for a date range that overlaps with your requested dates. Delete the existing itinerary first.',
+                    'overlap': True
+                }, status=409)
+        except Exception as e:
+            pass  # If date parsing fails, continue without overlap check
 
     # -----------------------------
     # Preferences (case-insensitive)
@@ -247,66 +277,48 @@ def recommend_itinerary(request):
         trip_title = request.GET.get('trip_title') or ''
         start_date = request.GET.get('start_date') or None
         end_date = request.GET.get('end_date') or None
-        # Prevent duplicate whole-itinerary saves: if an itinerary with the same
-        # trip_title and start_date (or matching start_date) already exists,
-        # avoid creating duplicates and inform the client.
-        try:
-            dup_exists = False
-            if trip_title and start_date:
-                dup_exists = Itinerary.objects.filter(trip_title=trip_title, start_date=start_date).exists()
-            elif trip_title:
-                dup_exists = Itinerary.objects.filter(trip_title=trip_title).exists()
-            elif start_date:
-                dup_exists = Itinerary.objects.filter(start_date=start_date).exists()
 
-            if dup_exists:
-                response['saved'] = False
-                response['saved_message'] = 'An itinerary with the same trip title or start date already exists. No new items were added.'
-                return JsonResponse(response)
-
-            created_objs = []
-            from django.db import transaction
+        # If the client provided a user id, try to resolve the user's
+        # preference record so we can store preference FK on Itinerary.
+        preference_obj = None
+        user_id = request.GET.get('user_id') or request.GET.get('userID')
+        if user_id:
             try:
-                with transaction.atomic():
-                    for day in itinerary:
-                        day_num = day.get('day')
-                        for spot in day.get('spots', []):
-                            spot_id = spot.get('spot_id')
-                            if not spot_id:
-                                continue
+                uid = int(user_id)
+                preference_obj = UserPreferences.objects.filter(user__userid=uid).first()
+            except Exception:
+                preference_obj = None
 
-                            # Row-level duplicate prevention: skip if this exact
-                            # spot/day/trip already exists in DB
-                            if Itinerary.objects.filter(
-                                spot_id=spot_id,
-                                day=day_num,
-                                trip_title=trip_title,
-                                start_date=start_date
-                            ).exists():
-                                continue
-
-                            obj = Itinerary(
-                                spot_id=spot_id,
-                                day=day_num,
-                                budget=budget,
-                                adults=adults,
-                                children=children,
-                                seniors=seniors,
-                                trip_title=trip_title,
-                                start_date=start_date or None,
-                                end_date=end_date or None,
-                                created_at=timezone.now(),
-                            )
-                            obj.save()
-                            created_objs.append(obj.itinerary_id)
-                response['saved'] = True
-                response['saved_count'] = len(created_objs)
-                response['saved_ids'] = created_objs
-            except Exception as e:
-                response['saved'] = False
-                response['saved_error'] = str(e)
+        created_objs = []
+        from django.db import transaction
+        try:
+            with transaction.atomic():
+                for day in itinerary:
+                    day_num = day.get('day')
+                    for spot in day.get('spots', []):
+                        spot_id = spot.get('spot_id')
+                        if not spot_id:
+                            continue
+                        obj = Itinerary(
+                            preference=preference_obj,
+                            spot_id=spot_id,
+                            description=spot.get('description', ''),
+                            day=day_num,
+                            budget=budget,
+                            adults=adults,
+                            children=children,
+                            seniors=seniors,
+                            trip_title=trip_title,
+                            start_date=start_date or None,
+                            end_date=end_date or None,
+                            created_at=timezone.now(),
+                        )
+                        obj.save()
+                        created_objs.append(obj.itinerary_id)
+            response['saved'] = True
+            response['saved_count'] = len(created_objs)
+            response['saved_ids'] = created_objs
         except Exception as e:
-            # Catch any unexpected DB-check errors and return a sensible message
             response['saved'] = False
             response['saved_error'] = str(e)
 

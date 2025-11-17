@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>My Itinerary - Tuklas Nasugbu</title>
-    
+
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
@@ -26,7 +26,7 @@
                     <i class="bi bi-x"></i>
                 </button>
             </div>
-            
+
             <nav>
                 <ul class="nav-menu">
                     <li class="nav-item">
@@ -68,7 +68,7 @@
                 </ul>
             </nav>
         </aside>
-        
+
         <!-- Main Content -->
         <main class="main-content">
             <h1 class="page-title">My Itinerary</h1>
@@ -162,13 +162,17 @@
                             <button class="btn-action primary" id="editTripBtn">
                                 <i class="bi bi-pencil"></i> Edit Trip
                             </button>
+                            <!-- IMPORTANT: unique id for history button so JS can find it reliably -->
+                            <button class="btn-action primary" id="historyBtn">
+                                <i class="bi bi-clock-history"></i> Itinerary History
+                            </button>
                         </div>
                     </div>
                     <div class="trip-info" id="tripInfo">
-                        <div class="trip-info-item"><i class="bi bi-calendar3"></i><span>December 15-18, 2024</span></div>
-                        <div class="trip-info-item"><i class="bi bi-clock"></i><span>4 Days</span></div>
-                        <div class="trip-info-item"><i class="bi bi-geo-alt"></i><span>Nasugbu, Batangas</span></div>
-                        <div class="trip-info-item"><i class="bi bi-people"></i><span>2 Travelers</span></div>
+                        <div class="trip-info-item"><i class="bi bi-calendar3"></i><span></span></div>
+                        <div class="trip-info-item"><i class="bi bi-clock"></i><span></span></div>
+                        <div class="trip-info-item"><i class="bi bi-geo-alt"></i><span></span></div>
+                        <div class="trip-info-item"><i class="bi bi-people"></i><span></span></div>
                     </div>
                 </div>
 
@@ -176,153 +180,80 @@
                 <div class="itinerary-layout">
                     <!-- Timeline Section -->
                     <div class="timeline-section">
-                        <div class="timeline-header">
-                            <h3 class="timeline-title">Trip Timeline</h3>
-                            <button class="btn-add-day" onclick="openAddDayModal()"><i class="bi bi-plus-circle"></i> Add Day</button>
-                        </div>
+                      <div class="timeline-header">
+                          <h3 class="timeline-title">Trip Timeline</h3>
+                          <button class="btn-add-day" onclick="openAddDayModal()"><i class="bi bi-plus-circle"></i> Add Day</button>
+                      </div>
 
-                        <!-- Day 1 -->
-                        <div class="day-card" id="day1">
-                            <div class="day-header" onclick="toggleDay('day1')">
+                      <?php if(!empty($itinerary) && is_array($itinerary)): ?>
+                        <?php foreach ($itinerary as $day): ?>
+                        <div class="day-card" id="day<?= $day['day_number'] ?>">
+                            <div class="day-header" onclick="toggleDay('day<?= $day['day_number'] ?>')">
                                 <div class="day-header-left">
-                                    <div class="day-number">Day 1</div>
-                                    <div class="day-date">Saturday, December 15</div>
+                                    <div class="day-number">Day <?= $day['day_number'] ?></div>
+                                    <div class="day-date"><?= date('l, F d', strtotime($day['date'])) ?></div>
                                 </div>
                                 <div class="day-header-right">
                                     <div class="day-stats">
-                                        <div class="day-stat"><i class="bi bi-geo-alt"></i><span>3 places</span></div>
-                                        <div class="day-stat"><i class="bi bi-cash-stack"></i><span>₱3,500</span></div>
+                                        <div class="day-stat"><i class="bi bi-geo-alt"></i><span><?= count($day['activities']) ?> places</span></div>
+                                        <div class="day-stat"><i class="bi bi-cash-stack"></i><span>₱<?= array_sum(array_column($day['activities'], 'cost')) ?></span></div>
                                     </div>
                                     <i class="bi bi-chevron-down collapse-icon"></i>
                                 </div>
                             </div>
+
                             <div class="day-content">
-                                <div class="activity-item" data-type="lodging">
+                                <?php foreach ($day['activities'] as $activity): ?>
+                                <div class="activity-item" data-type="<?= $activity['type'] ?>">
                                     <i class="bi bi-grip-vertical activity-drag-handle"></i>
-                                    <div class="activity-icon lodging"><i class="bi bi-house-door"></i></div>
+                                    <div class="activity-icon <?= $activity['type'] ?>">
+                                        <?php
+                                            if($activity['type'] == 'lodging') echo '<i class="bi bi-house-door"></i>';
+                                            elseif($activity['type'] == 'place') echo '<i class="bi bi-geo-alt"></i>';
+                                            elseif($activity['type'] == 'food') echo '<i class="bi bi-cup-hot"></i>';
+                                            elseif($activity['type'] == 'transport') echo '<i class="bi bi-bus-front"></i>';
+                                        ?>
+                                    </div>
                                     <div class="activity-details">
                                         <div class="activity-header">
-                                            <h4 class="activity-title">Check-in at Canyon Cove Resort</h4>
-                                            <div class="activity-time"><i class="bi bi-clock"></i> 2:00 PM</div>
+                                            <h4 class="activity-title"><?= $activity['title'] ?></h4>
+                                             <div class="activity-meta-item"><i class="bi bi-geo-alt"></i><span><?= isset($activity['description']) ? $activity['description'] : '' ?></span></div>
+                                            <div class="activity-time"><i class="bi bi-clock"></i> <?= $activity['start_time'] ?><?= isset($activity['end_time']) ? " - ".$activity['end_time'] : "" ?></div>
                                         </div>
                                         <div class="activity-meta">
-                                            <div class="activity-meta-item"><i class="bi bi-geo-alt"></i><span>Canyon Cove Resort</span></div>
-                                            <div class="activity-meta-item"><i class="bi bi-cash-stack"></i><span>₱2,000</span></div>
-                                        </div>
-                                        <div class="activity-notes">📝 Bring confirmation number. Early check-in available.</div>
-                                    </div>
-                                    <div class="activity-actions">
-                                        <button class="btn-activity-action" title="Edit"><i class="bi bi-pencil"></i></button>
-                                        <button class="btn-activity-action delete" title="Delete"><i class="bi bi-trash"></i></button>
-                                    </div>
-                                </div>
+                                            <div class="activity-meta-item"><i class="bi bi-geo-alt"></i><span><?= $activity['location'] ?></span></div>
+                                            <div class="activity-meta-item"><i class="bi bi-cash-stack"></i><span>₱<?= $activity['cost'] ?></span></div>
 
-                                <div class="activity-item" data-type="place">
-                                    <i class="bi bi-grip-vertical activity-drag-handle"></i>
-                                    <div class="activity-icon place"><i class="bi bi-water"></i></div>
-                                    <div class="activity-details">
-                                        <div class="activity-header">
-                                            <h4 class="activity-title">Beach Relaxation</h4>
-                                            <div class="activity-time"><i class="bi bi-clock"></i> 3:30 PM - 6:00 PM</div>
                                         </div>
-                                        <div class="activity-meta">
-                                            <div class="activity-meta-item"><i class="bi bi-geo-alt"></i><span>Canyon Cove Beach</span></div>
-                                        </div>
-                                        <div class="activity-notes">📝 Don't forget sunscreen and beach towels</div>
-                                    </div>
-                                    <div class="activity-actions">
-                                        <button class="btn-activity-action" title="Edit"><i class="bi bi-pencil"></i></button>
-                                        <button class="btn-activity-action delete" title="Delete"><i class="bi bi-trash"></i></button>
-                                    </div>
-                                </div>
+                                        <?php if(!empty($activity['notes'])): ?>
+                                            <div class="activity-notes">📝 <?= $activity['notes'] ?></div>
+                                        <?php endif; ?>
 
-                                <div class="activity-item" data-type="food">
-                                    <i class="bi bi-grip-vertical activity-drag-handle"></i>
-                                    <div class="activity-icon food"><i class="bi bi-cup-hot"></i></div>
-                                    <div class="activity-details">
-                                        <div class="activity-header">
-                                            <h4 class="activity-title">Dinner at Resort Restaurant</h4>
-                                            <div class="activity-time"><i class="bi bi-clock"></i> 7:00 PM</div>
-                                        </div>
-                                        <div class="activity-meta">
-                                            <div class="activity-meta-item"><i class="bi bi-geo-alt"></i><span>Canyon Cove</span></div>
-                                            <div class="activity-meta-item"><i class="bi bi-cash-stack"></i><span>₱1,500</span></div>
-                                        </div>
-                                        <div class="activity-notes">📝 Try the seafood platter - highly recommended!</div>
                                     </div>
                                     <div class="activity-actions">
                                         <button class="btn-activity-action" title="Edit"><i class="bi bi-pencil"></i></button>
                                         <button class="btn-activity-action delete" title="Delete"><i class="bi bi-trash"></i></button>
                                     </div>
                                 </div>
+                                <?php endforeach; ?>
 
                                 <button class="add-activity-btn">
                                     <i class="bi bi-plus-circle"></i> Add Activity
                                 </button>
                             </div>
                         </div>
-
-                        <!-- Day 2 -->
-                        <div class="day-card" id="day2">
-                            <div class="day-header" onclick="toggleDay('day2')">
+                        <?php endforeach; ?>
+                      <?php else: ?>
+                        <div class="day-card">
+                            <div class="day-header">
                                 <div class="day-header-left">
-                                    <div class="day-number">Day 2</div>
-                                    <div class="day-date">Sunday, December 16</div>
+                                    <div class="day-number"></div>
+                                    <div class="day-date"></div>
                                 </div>
-                                <div class="day-header-right">
-                                    <div class="day-stats">
-                                        <div class="day-stat"><i class="bi bi-geo-alt"></i><span>2 places</span></div>
-                                        <div class="day-stat"><i class="bi bi-cash-stack"></i><span>₱2,800</span></div>
-                                    </div>
-                                    <i class="bi bi-chevron-down collapse-icon"></i>
-                                </div>
-                            </div>
-                            <div class="day-content">
-                                <div class="activity-item" data-type="place">
-                                    <i class="bi bi-grip-vertical activity-drag-handle"></i>
-                                    <div class="activity-icon place"><i class="bi bi-compass"></i></div>
-                                    <div class="activity-details">
-                                        <div class="activity-header">
-                                            <h4 class="activity-title">Fortune Island Tour</h4>
-                                            <div class="activity-time"><i class="bi bi-clock"></i> 6:00 AM - 2:00 PM</div>
-                                        </div>
-                                        <div class="activity-meta">
-                                            <div class="activity-meta-item"><i class="bi bi-geo-alt"></i><span>Fortune Island</span></div>
-                                            <div class="activity-meta-item"><i class="bi bi-cash-stack"></i><span>₱2,000</span></div>
-                                        </div>
-                                        <div class="activity-notes">📝 Boat leaves at 6 AM sharp. Bring water and snacks. Greek ruins photo spot!</div>
-                                    </div>
-                                    <div class="activity-actions">
-                                        <button class="btn-activity-action" title="Edit"><i class="bi bi-pencil"></i></button>
-                                        <button class="btn-activity-action delete" title="Delete"><i class="bi bi-trash"></i></button>
-                                    </div>
-                                </div>
-
-                                <div class="activity-item" data-type="food">
-                                    <i class="bi bi-grip-vertical activity-drag-handle"></i>
-                                    <div class="activity-icon food"><i class="bi bi-cup-hot"></i></div>
-                                    <div class="activity-details">
-                                        <div class="activity-header">
-                                            <h4 class="activity-title">Lunch at Local Restaurant</h4>
-                                            <div class="activity-time"><i class="bi bi-clock"></i> 3:00 PM</div>
-                                        </div>
-                                        <div class="activity-meta">
-                                            <div class="activity-meta-item"><i class="bi bi-geo-alt"></i><span>Nasugbu Town</span></div>
-                                            <div class="activity-meta-item"><i class="bi bi-cash-stack"></i><span>₱800</span></div>
-                                        </div>
-                                    </div>
-                                    <div class="activity-actions">
-                                        <button class="btn-activity-action" title="Edit"><i class="bi bi-pencil"></i></button>
-                                        <button class="btn-activity-action delete" title="Delete"><i class="bi bi-trash"></i></button>
-                                    </div>
-                                </div>
-
-                                <button class="add-activity-btn">
-                                    <i class="bi bi-plus-circle"></i> Add Activity
-                                </button>
                             </div>
                         </div>
-                    </div>
+                      <?php endif; ?>
+                  </div>
 
                     <!-- Summary Sidebar -->
                     <div class="summary-sidebar">
@@ -339,51 +270,8 @@
                             <h3 class="summary-card-title"><i class="bi bi-wallet2"></i> Trip Budget</h3>
                             <div class="budget-total">
                                 <div class="budget-label">Total Estimated Cost</div>
-                                <div class="budget-amount">₱6,300</div>
+                                <div class="budget-amount"></div>
                             </div>
-                            <div class="budget-breakdown">
-                                <div class="budget-item">
-                                    <div class="budget-item-left">
-                                        <div class="budget-item-icon" style="background: #3498db;"><i class="bi bi-house-door"></i></div>
-                                        <span>Accommodation</span>
-                                    </div>
-                                    <div class="budget-item-amount">₱2,000</div>
-                                </div>
-                                <div class="budget-item">
-                                    <div class="budget-item-left">
-                                        <div class="budget-item-icon" style="background: #e67e22;"><i class="bi bi-cup-hot"></i></div>
-                                        <span>Food & Drinks</span>
-                                    </div>
-                                    <div class="budget-item-amount">₱2,300</div>
-                                </div>
-                                <div class="budget-item">
-                                    <div class="budget-item-left">
-                                        <div class="budget-item-icon" style="background: #9b59b6;"><i class="bi bi-geo-alt"></i></div>
-                                        <span>Activities</span>
-                                    </div>
-                                    <div class="budget-item-amount">₱2,000</div>
-                                </div>
-                            </div>
-
-                            <h3 class="summary-card-title" style="margin-top: 1.5rem;"><i class="bi bi-people"></i> Trip Buddies</h3>
-                            <div class="trip-buddies" id="tripBuddies">
-                                <div class="buddy-item">
-                                    <div class="buddy-info">
-                                        <div class="buddy-avatar">AB</div>
-                                        <div>
-                                            <div class="buddy-name">Alex Brown</div>
-                                            <div class="buddy-share">₱3,150 (50%)</div>
-                                        </div>
-                                    </div>
-                                    <div class="buddy-actions">
-                                        <button class="btn-buddy-action" onclick="viewBuddyDetails(this)"><i class="bi bi-info-circle"></i></button>
-                                        <button class="btn-buddy-action" onclick="removeBuddy(this)"><i class="bi bi-x"></i></button>
-                                    </div>
-                                </div>
-                            </div>
-                            <button class="btn-invite-buddy" onclick="openInviteBuddyModal()">
-                                <i class="bi bi-person-plus"></i> Invite Trip Buddy
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -782,6 +670,8 @@
 
     <!-- Bootstrap JS only (no app logic) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery is available but the main rendering uses vanilla JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 
     <!-- Minimal UI-only dropdown script -->
     <script>
@@ -837,232 +727,565 @@
       })();
     </script>
 
-    <!-- Lightweight UI behavior for Add Day, Trip Buddy, Drag/Drop, Delete -->
- <script>
-(function () {
-  // Helpers
-  const $ = (sel, root = document) => root.querySelector(sel);
-  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+    <!-- Lightweight UI behavior, generator and history integration -->
+    <script>
+    (function () {
+      // Utilities
+      const $ = (sel, root = document) => root.querySelector(sel);
+      const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-  // Elements
-  const modalEl = $('#generatedModal');
-  const btn = $('#autoGenBtn');
-  const generateBtn = $('#btnGenerateItinerary');
-  const applyBtn = $('#btnApplyItinerary');
-  const previewSection = $('#generatedPreview');
-  const previewContent = $('#generatedContent');
+      // Elements for auto-generate modal (kept from your earlier code)
+      const modalEl = $('#generatedModal');
+      const btn = $('#autoGenBtn');
+      const generateBtn = $('#btnGenerateItinerary');
+      const applyBtn = $('#btnApplyItinerary');
+      const previewSection = $('#generatedPreview');
+      const previewContent = $('#generatedContent');
 
-  // === Set your user preference here ===
-const userPreference = "Historical,Natural,Urban,Adventure";
-    // Keep last generated request so Apply can trigger server-side save
-    let lastItineraryRequest = null;
+      const userPreference = "<?= esc($categories ?? '') ?>";
+      const currentUserID = "<?= esc($userID ?? '') ?>";
+      let lastItineraryRequest = null;
 
-
-
-  // Placeholder markup while fetching
-  function placeholderMarkup() {
-    return `
-      <div class="mb-3 text-center text-muted">
-        <i class="bi bi-lightning-charge-fill text-warning"></i>
-        <span class="ms-2">Generating your personalized itinerary...</span>
-      </div>
-      <div class="placeholder-glow">
-        <div class="card mb-2"><div class="card-body"><h6 class="placeholder col-6"></h6><p><span class="placeholder col-7"></span></p></div></div>
-        <div class="card mb-2"><div class="card-body"><h6 class="placeholder col-5"></h6><p><span class="placeholder col-8"></span></p></div></div>
-        <div class="card mb-2"><div class="card-body"><h6 class="placeholder col-4"></h6><p><span class="placeholder col-6"></span></p></div></div>
-      </div>
-    `;
-  }
-
-  // Generate itinerary
- async function generateItinerary() {
-  const formData = {
-    trip_title: $('#autoGenTripTitle').value,
-    start_date: $('#autoGenStartDate').value,
-    end_date: $('#autoGenEndDate').value,
-    day: $('#autoGenDay').value,
-    budget: $('#autoGenBudget').value,
-    adults: $('#autoGenAdults').value,
-    children: $('#autoGenChildren').value,
-    seniors: $('#autoGenSeniors').value
-  };
-
-  previewContent.innerHTML = placeholderMarkup();
-  previewSection.style.display = 'block';
-  generateBtn.disabled = true;
-
-  const url = `http://127.0.0.1:8000/api/recommend/?days=${formData.day}&budget=${formData.budget}&adults=${formData.adults}&children=${formData.children}&seniors=${formData.seniors}&preference=${userPreference}`;
-
-  try {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Network response was not OK');
-
-    const data = await response.json(); // <-- data is defined here
-    console.log("DEBUG: Received itinerary data:", data);
-    // Render itinerary inside try
-    if (!data.itinerary || !Array.isArray(data.itinerary)) {
-      throw new Error('Invalid API response');
-    }
-    // Save the parameters used so Apply can persist this itinerary later
-    lastItineraryRequest = {
-      days: formData.day,
-      budget: formData.budget,
-      adults: formData.adults,
-      children: formData.children,
-      seniors: formData.seniors,
-      preference: userPreference,
-      trip_title: formData.trip_title,
-      start_date: formData.start_date,
-      end_date: formData.end_date
-    };
-previewContent.innerHTML = data.itinerary.map((day) => {
-  const spotsList = day.spots.map((spot) => {
-    const isFree = Number(spot.price_per_person) === 0 && Number(spot.child_price) === 0 && Number(spot.senior_price) === 0;
-    const priceHtml = isFree
-      ? `<li class="text-success"><strong>This spot is free — no admission fee</strong></li>`
-      : `
-        <li>Price (Adult): ₱${spot.price_per_person}</li>
-        <li>Price (Child): ₱${spot.child_price}</li>
-        <li>Price (Senior): ₱${spot.senior_price}</li>
-      `;
-
-    const totalHtml = Number(spot.total_cost_for_day) === 0
-      ? `<li><strong>Total Cost for Day: Free</strong></li>`
-      : `<li>Total Cost for Day: ₱${spot.total_cost_for_day}</li>`;
-
-    return `
-      <li>
-        <strong>${spot.name}</strong> (${spot.category})
-        <p>${spot.description}</p>
-        <ul>
-          <li>Location: ${spot.location}</li>
-          ${priceHtml}
-          ${totalHtml}
-        </ul>
-      </li>
-    `;
-  }).join("");
-
-  return `
-    <div class="card mb-2">
-      <div class="card-body">
-        <h6>Day ${day.day}</h6>
-        <ul class="list-unstyled mb-0">
-          ${spotsList}
-        </ul>
-      </div>
-    </div>
-  `;
-}).join("");
-
-
-// Handle remaining budget message
-let message = '';
-if (data.itinerary.length < parseInt($('#autoGenDay').value)) {
-  message = `<div class="alert alert-warning">
-               Only ${data.itinerary.length} day(s) could be generated due to budget constraints.
-             </div>`;
-} 
-message += `<div class="alert alert-info">
-              Remaining Budget: ₱${data.remaining_budget}
-            </div>`;
-
-// Only append note if present
-if (data.note) {
-  message += `<div class="alert alert-info">${data.note}</div>`;
-}
-previewContent.innerHTML += message;
-
-
-
-    generateBtn.style.display = 'none';
-    applyBtn.style.display = 'inline-block';
-
-  } catch (err) {
-    previewContent.innerHTML = `<div class="alert alert-danger">Failed to generate itinerary: ${err.message}</div>`;
-    generateBtn.disabled = false;
-  }
-}
-
-
-  // Reset modal
-  function resetModal() {
-    $('#autoGenerateForm').reset();
-    previewSection.style.display = 'none';
-    generateBtn.style.display = 'inline-block';
-    generateBtn.disabled = false;
-    applyBtn.style.display = 'none';
-  }
-
-  // Event listeners
-  document.addEventListener('DOMContentLoaded', () => {
-    if (!btn || !modalEl) return;
-
-    btn.addEventListener('click', () => {
-      resetModal();
-      bootstrap.Modal.getOrCreateInstance(modalEl).show();
-    });
-
-    generateBtn?.addEventListener('click', (e) => {
-      e.preventDefault();
-      const form = $('#autoGenerateForm');
-      if (form.checkValidity()) {
-        generateItinerary();
-      } else {
-        form.reportValidity();
-      }
-    });
-
-    applyBtn?.addEventListener('click', async () => {
-      if (!lastItineraryRequest) {
-        alert('No generated itinerary found. Please generate first.');
-        return;
+      function placeholderMarkup() {
+        return `
+          <div class="mb-3 text-center text-muted">
+            <i class="bi bi-lightning-charge-fill text-warning"></i>
+            <span class="ms-2">Generating your personalized itinerary...</span>
+          </div>
+          <div class="placeholder-glow">
+            <div class="card mb-2"><div class="card-body"><h6 class="placeholder col-6"></h6><p><span class="placeholder col-7"></span></p></div></div>
+            <div class="card mb-2"><div class="card-body"><h6 class="placeholder col-5"></h6><p><span class="placeholder col-8"></span></p></div></div>
+            <div class="card mb-2"><div class="card-body"><h6 class="placeholder col-4"></h6><p><span class="placeholder col-6"></span></p></div></div>
+          </div>
+        `;
       }
 
-      // Disable button to avoid double-clicks
-      applyBtn.disabled = true;
+      async function generateItinerary() {
+        const formData = {
+          trip_title: $('#autoGenTripTitle').value,
+          start_date: $('#autoGenStartDate').value,
+          end_date: $('#autoGenEndDate').value,
+          day: $('#autoGenDay').value,
+          budget: $('#autoGenBudget').value,
+          adults: $('#autoGenAdults').value,
+          children: $('#autoGenChildren').value,
+          seniors: $('#autoGenSeniors').value
+        };
 
-      const params = new URLSearchParams({
-        days: lastItineraryRequest.days,
-        budget: lastItineraryRequest.budget,
-        adults: lastItineraryRequest.adults,
-        children: lastItineraryRequest.children,
-        seniors: lastItineraryRequest.seniors,
-        preference: lastItineraryRequest.preference,
-        save: '1',
-        trip_title: lastItineraryRequest.trip_title || '',
-        start_date: lastItineraryRequest.start_date || '',
-        end_date: lastItineraryRequest.end_date || ''
+        previewContent.innerHTML = placeholderMarkup();
+        previewSection.style.display = 'block';
+        generateBtn.disabled = true;
+
+        const url = `http://127.0.0.1:8000/api/recommend/?days=${formData.day}&budget=${formData.budget}&adults=${formData.adults}&children=${formData.children}&seniors=${formData.seniors}&preference=${userPreference}&start_date=${formData.start_date}&end_date=${formData.end_date}`;
+
+        try {
+          const response = await fetch(url);
+
+          if (response.status === 409) {
+            const data = await response.json();
+            throw new Error(data.error || 'Date range conflict detected.');
+          }
+
+          if (!response.ok) throw new Error('Network response was not OK');
+
+          const data = await response.json();
+          if (!data.itinerary || !Array.isArray(data.itinerary)) {
+            throw new Error('Invalid API response');
+          }
+
+          lastItineraryRequest = {
+            days: formData.day,
+            budget: formData.budget,
+            adults: formData.adults,
+            children: formData.children,
+            seniors: formData.seniors,
+            preference: userPreference,
+            trip_title: formData.trip_title,
+            start_date: formData.start_date,
+            end_date: formData.end_date,
+            user_id: currentUserID
+          };
+
+          previewContent.innerHTML = data.itinerary.map((day) => {
+            const spotsList = day.spots.map((spot) => {
+              const isFree = Number(spot.price_per_person) === 0 && Number(spot.child_price) === 0 && Number(spot.senior_price) === 0;
+              const priceHtml = isFree
+                ? `<li class="text-success"><strong>This spot is free — no admission fee</strong></li>`
+                : `
+                  <li>Price (Adult): ₱${spot.price_per_person}</li>
+                  <li>Price (Child): ₱${spot.child_price}</li>
+                  <li>Price (Senior): ₱${spot.senior_price}</li>
+                `;
+              const totalHtml = Number(spot.total_cost_for_day) === 0 ? `<li><strong>Total Cost for Day: Free</strong></li>` : `<li>Total Cost for Day: ₱${spot.total_cost_for_day}</li>`;
+              return `
+                <li>
+                  <strong>${spot.name}</strong> (${spot.category})
+                  <p>${spot.description}</p>
+                  <ul>
+                    <li>Location: ${spot.location}</li>
+                    ${priceHtml}
+                    ${totalHtml}
+                  </ul>
+                </li>
+              `;
+            }).join("");
+
+            return `
+              <div class="card mb-2">
+                <div class="card-body">
+                  <h6>Day ${day.day}</h6>
+                  <ul class="list-unstyled mb-0">
+                    ${spotsList}
+                  </ul>
+                </div>
+              </div>
+            `;
+          }).join("");
+
+          let message = '';
+          if (data.itinerary.length < parseInt($('#autoGenDay').value)) {
+            message = `<div class="alert alert-warning">Only ${data.itinerary.length} day(s) could be generated due to budget constraints.</div>`;
+          }
+          message += `<div class="alert alert-info">Remaining Budget: ₱${data.remaining_budget}</div>`;
+          if (data.note) message += `<div class="alert alert-info">${data.note}</div>`;
+          previewContent.innerHTML += message;
+
+          generateBtn.style.display = 'none';
+          applyBtn.style.display = 'inline-block';
+        } catch (err) {
+          previewContent.innerHTML = `<div class="alert alert-danger"><strong>Error:</strong> ${err.message}</div>`;
+          generateBtn.disabled = false;
+        }
+      }
+
+      function resetModal() {
+        $('#autoGenerateForm').reset();
+        previewSection.style.display = 'none';
+        generateBtn.style.display = 'inline-block';
+        generateBtn.disabled = false;
+        applyBtn.style.display = 'none';
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        if (!btn || !modalEl) return;
+
+        btn.addEventListener('click', () => {
+          resetModal();
+          bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        });
+
+        generateBtn?.addEventListener('click', (e) => {
+          e.preventDefault();
+          const form = $('#autoGenerateForm');
+          if (form.checkValidity()) {
+            generateItinerary();
+          } else {
+            form.reportValidity();
+          }
+        });
+
+        applyBtn?.addEventListener('click', async () => {
+          if (!lastItineraryRequest) {
+            alert('No generated itinerary found. Please generate first.');
+            return;
+          }
+          applyBtn.disabled = true;
+
+          const params = new URLSearchParams({
+            days: lastItineraryRequest.days,
+            budget: lastItineraryRequest.budget,
+            adults: lastItineraryRequest.adults,
+            children: lastItineraryRequest.children,
+            seniors: lastItineraryRequest.seniors,
+            preference: lastItineraryRequest.preference,
+            user_id: lastItineraryRequest.user_id || '',
+            save: '1',
+            trip_title: lastItineraryRequest.trip_title || '',
+            start_date: lastItineraryRequest.start_date || '',
+            end_date: lastItineraryRequest.end_date || ''
+          });
+
+          const saveUrl = `http://127.0.0.1:8000/api/recommend/?${params.toString()}`;
+
+          try {
+            const resp = await fetch(saveUrl);
+            if (!resp.ok) throw new Error('Save request failed');
+            const saveData = await resp.json();
+
+            if (saveData.saved) {
+              const count = saveData.saved_count || 0;
+              alert(`Itinerary saved to your trips (${count} items).`);
+              bootstrap.Modal.getInstance(modalEl).hide();
+              setTimeout(async () => {
+                if (typeof window.__renderTripItinerary === 'function') {
+                  // attempt to load saved trip using server itinerary/get
+                  try {
+                    const res = await fetch(`/itinerary/get?trip_title=${encodeURIComponent(lastItineraryRequest.trip_title)}&start_date=${encodeURIComponent(lastItineraryRequest.start_date)}`);
+                    if (res.ok) {
+                      const data = await res.json();
+                      window.__renderTripItinerary(data);
+                    }
+                  } catch (err) {
+                    // silent failure; user already alerted
+                    console.warn('Failed to auto-load saved trip', err);
+                  }
+                }
+              }, 500);
+            } else {
+              const err = saveData.saved_error || 'Unknown error while saving';
+              alert('Failed to save itinerary: ' + err);
+            }
+          } catch (err) {
+            console.error('Save error', err);
+            alert('Failed to save itinerary: ' + err.message);
+          } finally {
+            applyBtn.disabled = false;
+          }
+        });
+
+        modalEl.addEventListener('hidden.bs.modal', resetModal);
       });
 
-      const saveUrl = `http://127.0.0.1:8000/api/recommend/?${params.toString()}`;
+      // --------------------------
+      // Renderer + history modal helpers
+      // --------------------------
+      // Central renderer used by both loadSavedTrip and history modal "View"
+      function renderTripItinerary(data) {
+        const tripInfo = data.trip_info || data.trip || {};
+        const itinerary = data.itinerary || data.itin || [];
 
-      try {
-        const resp = await fetch(saveUrl);
-        if (!resp.ok) throw new Error('Save request failed');
-        const saveData = await resp.json();
-
-        if (saveData.saved) {
-          const count = saveData.saved_count || 0;
-          alert(`Itinerary saved to your trips (${count} items).`);
-          // close modal after successful save
-          bootstrap.Modal.getInstance(modalEl).hide();
-        } else {
-          const err = saveData.saved_error || 'Unknown error while saving';
-          alert('Failed to save itinerary: ' + err);
+        // Update trip title
+        if (tripInfo.trip_title) {
+          const titleEl = document.getElementById('tripTitle');
+          if (titleEl) titleEl.textContent = tripInfo.trip_title;
         }
-      } catch (err) {
-        console.error('Save error', err);
-        alert('Failed to save itinerary: ' + err.message);
-      } finally {
-        applyBtn.disabled = false;
-      }
-    });
 
-    modalEl.addEventListener('hidden.bs.modal', resetModal);
-  });
-})();
-</script>
+        // Build trip info summary
+        try {
+          const start = tripInfo.start_date ? new Date(tripInfo.start_date) : null;
+          const end = tripInfo.end_date ? new Date(tripInfo.end_date) : null;
+          const days = (start && end) ? (Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1) : (tripInfo.days || itinerary.length);
+
+          const infoHtml = [];
+          if (start && end) {
+            infoHtml.push(`<div class="trip-info-item"><i class="bi bi-calendar3"></i><span>${start.toLocaleDateString()} - ${end.toLocaleDateString()}</span></div>`);
+          } else if (tripInfo.date_range) {
+            infoHtml.push(`<div class="trip-info-item"><i class="bi bi-calendar3"></i><span>${tripInfo.date_range}</span></div>`);
+          }
+          infoHtml.push(`<div class="trip-info-item"><i class="bi bi-clock"></i><span>${days} Days</span></div>`);
+
+          const people = [];
+          if (tripInfo.adults !== undefined) people.push(`Adults: ${tripInfo.adults}`);
+          if (tripInfo.children !== undefined) people.push(`Children: ${tripInfo.children}`);
+          if (tripInfo.seniors !== undefined) people.push(`Seniors: ${tripInfo.seniors}`);
+          if (people.length) infoHtml.push(`<div class="trip-info-item"><i class="bi bi-people"></i><span>${people.join(', ')}</span></div>`);
+
+          if (tripInfo.budget !== undefined) infoHtml.push(`<div class="trip-info-item"><i class="bi bi-wallet"></i><span>Budget: ₱${tripInfo.budget}</span></div>`);
+
+          const tripInfoContainer = document.getElementById('tripInfo');
+          if (tripInfoContainer) tripInfoContainer.innerHTML = infoHtml.join('');
+        } catch (err) {
+          console.warn('Could not render tripInfo block', err);
+        }
+
+        // Build timeline
+        const timelineSection = document.querySelector('.timeline-section');
+        if (!timelineSection) return;
+
+        let timelineHTML = `
+          <div class="timeline-header">
+            <h3 class="timeline-title">Trip Timeline</h3>
+            <button class="btn-add-day" onclick="openAddDayModal()"><i class="bi bi-plus-circle"></i> Add Day</button>
+          </div>
+        `;
+
+        itinerary.forEach((dayData) => {
+          const dayIndex = dayData.day ?? dayData.day_number ?? (dayData.index ?? '');
+          const spots = dayData.spots || dayData.places || dayData.activities || [];
+
+          const totalCost = spots.reduce((sum, spot) => {
+            const adultCost = (tripInfo.adults || 0) * (Number(spot.price_per_person) || Number(spot.adult_price) || 0);
+            const childCost = (tripInfo.children || 0) * (Number(spot.child_price) || 0);
+            const seniorCost = (tripInfo.seniors || 0) * (Number(spot.senior_price) || 0);
+            const fallbackCost = Number(spot.cost) || Number(spot.price) || 0;
+            return sum + adultCost + childCost + seniorCost + (adultCost + childCost + seniorCost ? 0 : fallbackCost);
+          }, 0);
+
+          timelineHTML += `
+            <div class="day-card" id="day${dayIndex}">
+              <div class="day-header" onclick="toggleDay('day${dayIndex}')">
+                <div class="day-header-left">
+                  <div class="day-number">Day ${dayIndex}</div>
+                </div>
+                <div class="day-header-right">
+                  <div class="day-stats">
+                    <div class="day-stat"><i class="bi bi-geo-alt"></i><span>${spots.length} places</span></div>
+                    <div class="day-stat"><i class="bi bi-cash-stack"></i><span>₱${totalCost}</span></div>
+                  </div>
+                  <i class="bi bi-chevron-down collapse-icon"></i>
+                </div>
+              </div>
+              <div class="day-content">
+                ${spots.map((spot) => {
+                  const name = spot.name || spot.title || spot.place_name || 'Untitled';
+                  const location = spot.location || spot.address || '';
+                  const category = spot.category || spot.type || '';
+                  const priceAdult = spot.price_per_person ?? spot.adult_price ?? spot.price ?? 0;
+                  const isFree = Number(priceAdult) === 0 && Number(spot.child_price || 0) === 0 && Number(spot.senior_price || 0) === 0;
+                  const priceHtml = isFree
+                    ? `<li class="text-success"><strong>This spot is free — no admission fee</strong></li>`
+                    : `
+                      <li>Price (Adult): ₱${priceAdult}</li>
+                      <li>Price (Child): ₱${spot.child_price ?? 0}</li>
+                      <li>Price (Senior): ₱${spot.senior_price ?? 0}</li>
+                    `;
+                  return `
+                    <div class="activity-item" data-type="${spot.type || 'place'}">
+                      <i class="bi bi-grip-vertical activity-drag-handle"></i>
+                      <div class="activity-icon place"><i class="bi bi-geo-alt"></i></div>
+                      <div class="activity-details">
+                        <div class="activity-header">
+                          <h4 class="activity-title">${name}</h4>
+                          <div class="activity-time"><i class="bi bi-clock"></i> ${spot.start_time ?? ''}${spot.end_time ? ' - ' + spot.end_time : ''}</div>
+                        </div>
+                        <div class="activity-meta">
+                          <div class="activity-meta-item"><i class="bi bi-geo-alt"></i><span>${location}</span></div>
+                          <div class="activity-meta-item"><i class="bi bi-cash-stack"></i><span>₱${priceAdult}</span></div>
+                        </div>
+                        ${spot.description ? `<div class="activity-notes">${spot.description}</div>` : ''}
+                        ${spot.notes ? `<div class="activity-notes">📝 ${spot.notes}</div>` : ''}
+                        <div class="activity-notes">
+                          <ul class="list-unstyled mb-0">
+                            <li><strong>${category}</strong></li>
+                            ${priceHtml}
+                          </ul>
+                        </div>
+                      </div>
+                      <div class="activity-actions">
+                        <button class="btn-activity-action" title="Edit"><i class="bi bi-pencil"></i></button>
+                        <button class="btn-activity-action delete" title="Delete"><i class="bi bi-trash"></i></button>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+                <button class="add-activity-btn">
+                  <i class="bi bi-plus-circle"></i> Add Activity
+                </button>
+              </div>
+            </div>
+          `;
+        });
+
+        timelineSection.innerHTML = timelineHTML;
+
+        // Update budget card
+        let totalEstimatedCost = 0;
+        itinerary.forEach((dayData) => {
+          const spots = dayData.spots || dayData.places || [];
+          spots.forEach((spot) => {
+            const adultCost = (tripInfo.adults || 0) * (Number(spot.price_per_person) || Number(spot.adult_price) || 0);
+            const childCost = (tripInfo.children || 0) * (Number(spot.child_price) || 0);
+            const seniorCost = (tripInfo.seniors || 0) * (Number(spot.senior_price) || 0);
+            const fallback = Number(spot.cost) || Number(spot.price) || 0;
+            totalEstimatedCost += adultCost + childCost + seniorCost + (adultCost + childCost + seniorCost ? 0 : fallback);
+          });
+        });
+        const walletCard = Array.from(document.querySelectorAll('.summary-card')).find(c => c.querySelector('.bi-wallet2') || c.querySelector('.bi-wallet'));
+        if (walletCard) {
+          const target = walletCard.querySelector('.budget-amount') || walletCard.querySelector('.budget-total .budget-amount');
+          if (target) target.textContent = `₱${totalEstimatedCost.toLocaleString()}`;
+        }
+      } // end renderTripItinerary
+
+      // Expose renderer globally
+      window.__renderTripItinerary = renderTripItinerary;
+
+      // Helper to attach handlers to History modal (call after modal is created and shown)
+      function attachHistoryModalHandlers(modalEl, bsModal) {
+        const dec = v => v ? decodeURIComponent(v) : v;
+
+        modalEl.querySelectorAll('.btn-view-trip').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const tripTitle = dec(btn.dataset.tripTitle);
+            const startDate = dec(btn.dataset.startDate);
+
+            // Close history modal for better UX
+            bsModal.hide();
+
+            // Try fetching from common endpoints; prefer tourist endpoint then fallback
+            const endpoints = [
+              `/tourist/getTrip?trip_title=${encodeURIComponent(tripTitle)}&start_date=${encodeURIComponent(startDate)}`,
+              `/itinerary/get?trip_title=${encodeURIComponent(tripTitle)}&start_date=${encodeURIComponent(startDate)}`
+            ];
+
+            let lastErr = null;
+            for (const url of endpoints) {
+              try {
+                const resp = await fetch(url);
+                if (!resp.ok) {
+                  lastErr = new Error(`${url} returned ${resp.status}`);
+                  continue;
+                }
+                const data = await resp.json();
+                if (typeof window.__renderTripItinerary === 'function') {
+                  window.__renderTripItinerary(data);
+                }
+                return;
+              } catch (err) {
+                lastErr = err;
+                console.warn('Endpoint failed, trying next', err);
+              }
+            }
+
+            alert('Failed to load trip details. ' + (lastErr ? lastErr.message : ''));
+          });
+        });
+
+        modalEl.querySelectorAll('.btn-delete-trip').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const tripTitle = decodeURIComponent(btn.dataset.tripTitle);
+            if (!confirm(`Delete trip "${tripTitle}"? This action cannot be undone.`)) return;
+            try {
+              const resp = await fetch(`/itinerary/delete?trip_title=${encodeURIComponent(tripTitle)}`, { method: 'DELETE' });
+              if (!resp.ok) throw new Error('Delete failed: ' + resp.status);
+              alert(`Deleted trip: ${tripTitle}`);
+              bsModal.hide();
+            } catch (err) {
+              console.error(err);
+              alert('Failed to delete: ' + err.message);
+            }
+          });
+        });
+      }
+      // Expose the attach function
+      window.__attachHistoryModalHandlers = attachHistoryModalHandlers;
+
+      // Provide a backward-compatible loadSavedTrip that uses renderer
+      window.loadSavedTrip = async function(tripTitle, startDate) {
+        try {
+          const resp = await fetch(`/itinerary/get?trip_title=${encodeURIComponent(tripTitle)}&start_date=${encodeURIComponent(startDate)}`);
+          if (!resp.ok) throw new Error('Failed to load trip');
+          const data = await resp.json();
+          if (typeof window.__renderTripItinerary === 'function') window.__renderTripItinerary(data);
+        } catch (err) {
+          console.error('Error loading saved trip:', err);
+          alert('Note: Trip saved but could not auto-load details. Error: ' + err.message);
+        }
+      };
+    })();
+    </script>
+
+    <!-- Itinerary History modal builder (calls attach helper) -->
+    <script>
+    (function () {
+      const historyBtn = document.getElementById('historyBtn');
+      if (!historyBtn) return;
+
+      historyBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        try {
+          const response = await fetch('/itinerary/list');
+          if (!response.ok) throw new Error('Failed to fetch trips');
+          const data = await response.json();
+
+          if (!data.trips || !data.trips.length) {
+            alert('No saved trips found.');
+            return;
+          }
+
+          // Build trips modal HTML
+          let tripsHtml = `
+            <div class="modal fade" id="tripsHistoryModal" tabindex="-1" aria-hidden="true">
+              <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-history"></i> Saved Trips</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                  </div>
+                  <div class="modal-body">
+                    <div class="trips-list">
+          `;
+
+          data.trips.forEach((trip, idx) => {
+            const startDate = new Date(trip.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            const endDate = new Date(trip.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            tripsHtml += `
+              <div class="trip-card mb-3 p-3 border rounded" data-trip-index="${idx}">
+                <div class="d-flex justify-content-between align-items-start">
+                  <div>
+                    <h6 class="mb-1"><strong>${trip.trip_title || 'Untitled Trip'}</strong></h6>
+                    <small class="text-muted d-block"><i class="bi bi-calendar"></i> ${startDate} to ${endDate}</small>
+                    <small class="text-muted d-block"><i class="bi bi-geo-alt"></i> ${trip.spot_count || 0} spots</small>
+                    <small class="text-muted d-block"><i class="bi bi-clock"></i> Created: ${new Date(trip.created_at).toLocaleDateString()}</small>
+                  </div>
+                  <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-primary btn-view-trip" data-trip-title="${encodeURIComponent(trip.trip_title)}" data-start-date="${encodeURIComponent(trip.start_date)}">
+                      <i class="bi bi-eye"></i> View
+                    </button>
+                    <button class="btn btn-outline-danger btn-delete-trip" data-trip-title="${encodeURIComponent(trip.trip_title)}">
+                      <i class="bi bi-trash"></i> Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            `;
+          });
+
+          tripsHtml += `
+                    </div>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+
+          // Append and show modal
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = tripsHtml;
+          const modal = tempDiv.querySelector('#tripsHistoryModal');
+          document.body.appendChild(modal);
+
+          const bsModal = new bootstrap.Modal(modal);
+          bsModal.show();
+
+          // Attach handlers using the helper we exposed earlier
+          if (typeof window.__attachHistoryModalHandlers === 'function') {
+            window.__attachHistoryModalHandlers(modal, bsModal);
+          } else {
+            // fallback: basic view behavior if helper missing
+            modal.querySelectorAll('.btn-view-trip').forEach(btn => {
+              btn.addEventListener('click', (ev) => {
+                ev.preventDefault();
+                const tripTitle = decodeURIComponent(btn.dataset.tripTitle);
+                const startDate = decodeURIComponent(btn.dataset.startDate);
+                bsModal.hide();
+                // attempt to call global loader
+                if (typeof window.loadSavedTrip === 'function') {
+                  window.loadSavedTrip(tripTitle, startDate);
+                } else {
+                  alert(`View trip: ${tripTitle} (${startDate})`);
+                }
+              });
+            });
+          }
+
+          // Cleanup when modal hidden
+          modal.addEventListener('hidden.bs.modal', () => {
+            modal.remove();
+          });
+
+        } catch (err) {
+          console.error('Error loading trips:', err);
+          alert('Failed to load saved trips: ' + err.message);
+        }
+      });
+    })();
+    </script>
 
   </body>
 </html>

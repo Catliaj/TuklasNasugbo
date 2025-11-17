@@ -15,6 +15,7 @@ class UserPreferenceModel extends Model
     protected $allowedFields    = [
        'user_id', 'category', 'created_at', 'updated_at'
     ];
+    
 
     protected bool $allowEmptyInserts = false;
     protected bool $updateOnlyChanged = true;

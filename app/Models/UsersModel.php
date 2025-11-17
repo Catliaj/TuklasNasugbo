@@ -45,4 +45,16 @@ class UsersModel extends Model
     protected $afterFind      = [];
     protected $beforeDelete   = [];
     protected $afterDelete    = [];
+
+    public function getUserCategoryString($userId)
+    {
+        $builder = $this->db->table('user_preferences');
+        $builder->select('category');
+        $builder->where('user_id', $userId);
+        $result = $builder->get()->getRowArray();
+
+        return $result['category'] ?? null; // returns "Historical,Natural,Urban,Adventure"
+    }
+
+
 }
