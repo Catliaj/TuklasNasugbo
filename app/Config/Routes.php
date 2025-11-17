@@ -36,12 +36,20 @@ $routes->group('admin', ['namespace' => 'App\Controllers', 'filter' => 'auth'], 
 });
 
 
+
 //spot owner routes
 $routes->get('/spotowner/dashboard', 'SpotOwnerController::dashboard');
 $routes->get('/spotowner/mySpots', 'SpotOwnerController::mySpots');
 $routes->get('/spotowner/bookings', 'SpotOwnerController::bookings');
 $routes->get('/spotowner/earnings', 'SpotOwnerController::earnings');
 $routes->get('/spotowner/settings', 'SpotOwnerController::settings');
+
+//spot owner earnings API routes - ADD THESE THREE LINES
+$routes->get('spotowner/api/monthly-revenue', 'SpotOwnerController::getMonthlyRevenueData');
+$routes->get('spotowner/api/weekly-revenue', 'SpotOwnerController::getWeeklyRevenueData');
+$routes->get('spotowner/api/booking-trends', 'SpotOwnerController::getBookingTrendsData');
+
+
 
 
 

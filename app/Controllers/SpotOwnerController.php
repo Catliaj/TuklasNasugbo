@@ -85,9 +85,44 @@ class SpotOwnerController extends BaseController
     }
 
     public function earnings()
-    {
-        return view('Pages/spotowner/earnings');
+{
+    if (!session()->get('isLoggedIn') || session()->get('Role') !== 'Spot Owner') {
+        return redirect()->to(base_url('/login'))->with('error', 'Please log in as Spot Owner to access the Spot Owner dashboard.');
     }
+
+    $userID = session()->get('UserID');
+    $businessModel = new BusinessModel();
+    $bookingModel = new BookingModel();
+
+    // Get business ID
+    $businessData = $businessModel->where('user_id', $userID)->first();
+    
+    if (!$businessData) {
+        return redirect()->back()->with('error', 'Business information not found.');
+    }
+
+    $businessID = $businessData['business_id'];
+
+    // Get all earnings data
+    $totalRevenue = $bookingModel->getTotalRevenueAllTime($businessID);
+    $monthlyRevenue = $bookingModel->getMonthlyRevenue($businessID);
+    $averageData = $bookingModel->getAverageRevenuePerBooking($businessID);
+    $pendingRevenue = $bookingModel->getPendingRevenue($businessID);
+    $comparison = $bookingModel->getMonthOverMonthComparison($businessID);
+    $recentTransactions = $bookingModel->getRecentTransactionsByBusiness($businessID, 5);
+    $topDays = $bookingModel->getTopPerformingDays($businessID, 4);
+
+    return view('Pages/spotowner/earnings', [
+        'totalRevenue' => $totalRevenue,
+        'monthlyRevenue' => $monthlyRevenue,
+        'averageRevenue' => $averageData['average'],
+        'totalBookings' => $averageData['total_bookings'],
+        'pendingRevenue' => $pendingRevenue,
+        'comparison' => $comparison,
+        'recentTransactions' => $recentTransactions,
+        'topDays' => $topDays
+    ]);
+}
 
     public function settings()
     {
@@ -300,7 +335,65 @@ class SpotOwnerController extends BaseController
 
 
 
+/**
+ * API: Get monthly revenue data for chart
+ */
+public function getMonthlyRevenueData()
+{
+    $userID = session()->get('UserID');
+    $businessModel = new BusinessModel();
+    $bookingModel = new BookingModel();
 
+    $businessData = $businessModel->where('user_id', $userID)->first();
+    if (!$businessData) {
+        return $this->response->setJSON(['error' => 'Business not found']);
+    }
+
+    $businessID = $businessData['business_id'];
+    $data = $bookingModel->getMonthlyRevenueByBusiness($businessID, 6);
+
+    return $this->response->setJSON($data);
+}
+
+/**
+ * API: Get weekly revenue data for chart
+ */
+public function getWeeklyRevenueData()
+{
+    $userID = session()->get('UserID');
+    $businessModel = new BusinessModel();
+    $bookingModel = new BookingModel();
+
+    $businessData = $businessModel->where('user_id', $userID)->first();
+    if (!$businessData) {
+        return $this->response->setJSON(['error' => 'Business not found']);
+    }
+
+    $businessID = $businessData['business_id'];
+    $data = $bookingModel->getWeeklyRevenueByBusiness($businessID, 8);
+
+    return $this->response->setJSON($data);
+}
+
+/**
+ * API: Get booking trends data for chart   
+ */
+public function getBookingTrendsData()
+{
+    $userID = session()->get('UserID');
+    $businessModel = new BusinessModel();
+    $bookingModel = new BookingModel();
+
+    $businessData = $businessModel->where('user_id', $userID)->first();
+    if (!$businessData) {
+        return $this->response->setJSON(['error' => 'Business not found']);
+    }
+
+    $businessID = $businessData['business_id'];
+    $data = $bookingModel->getBookingTrendsByBusiness($businessID, 6);
+
+    return $this->response->setJSON($data);
+}
 
 
 }

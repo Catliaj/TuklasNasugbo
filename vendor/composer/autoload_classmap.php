@@ -19,6 +19,7 @@ return array(
     'App\\Database\\Seeds\\MainSeeder' => $baseDir . '/app/Database/Seeds/MainSeeder.php',
     'App\\Database\\Seeds\\TouristSpotSeeder' => $baseDir . '/app/Database/Seeds/TouristSpotSeeder.php',
     'App\\Database\\Seeds\\UserSeeder' => $baseDir . '/app/Database/Seeds/UserSeeder.php',
+    'App\\Filters\\AuthFilter' => $baseDir . '/app/Filters/AuthFilter.php',
     'App\\Models\\BookingModel' => $baseDir . '/app/Models/BookingModel.php',
     'App\\Models\\BusinessModel' => $baseDir . '/app/Models/BusinessModel.php',
     'App\\Models\\CustomerModel' => $baseDir . '/app/Models/CustomerModel.php',
