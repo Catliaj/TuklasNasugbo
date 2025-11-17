@@ -4,17 +4,15 @@ namespace App\Models;
 
 use CodeIgniter\Model;
 
-class UsersModel extends Model
+class CreateUserVisits extends Model
 {
-    protected $table            = 'users';
-    protected $primaryKey       = 'UserID';
+    protected $table            = 'createuservisits';
+    protected $primaryKey       = 'id';
     protected $useAutoIncrement = true;
     protected $returnType       = 'array';
     protected $useSoftDeletes   = false;
     protected $protectFields    = true;
-    protected $allowedFields    = [
-        'FirstName', 'MiddleName', 'LastName', 'email', 'password', 'role', 'LastLogin', 'created_at', 'updated_at'
-    ];
+    protected $allowedFields    = [];
 
     protected bool $allowEmptyInserts = false;
     protected bool $updateOnlyChanged = true;
@@ -45,16 +43,4 @@ class UsersModel extends Model
     protected $afterFind      = [];
     protected $beforeDelete   = [];
     protected $afterDelete    = [];
-
-    public function getUserCategoryString($userId)
-    {
-        $builder = $this->db->table('user_preferences');
-        $builder->select('category');
-        $builder->where('user_id', $userId);
-        $result = $builder->get()->getRowArray();
-
-        return $result['category'] ?? null; // returns "Historical,Natural,Urban,Adventure"
-    }
-
-
 }
