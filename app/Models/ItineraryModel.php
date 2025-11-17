@@ -4,16 +4,16 @@ namespace App\Models;
 
 use CodeIgniter\Model;
 
-class UserPreferenceModel extends Model
+class ItineraryModel extends Model
 {
-    protected $table            = 'userpreferences';
-    protected $primaryKey       = 'preference_id';
+    protected $table            = 'itinerary';
+    protected $primaryKey       = 'itinerary_id';
     protected $useAutoIncrement = true;
     protected $returnType       = 'array';
     protected $useSoftDeletes   = false;
     protected $protectFields    = true;
     protected $allowedFields    = [
-       'user_id', 'category', 'created_at', 'updated_at'
+         'preference_id', 'spot_id', 'day', 'budget', 'adults', 'children', 'seniors', 'trip_title', 'start_date', 'end_date', 'created_at', 'updated_at'
     ];
 
     protected bool $allowEmptyInserts = false;

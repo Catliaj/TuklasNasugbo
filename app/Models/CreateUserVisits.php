@@ -4,17 +4,15 @@ namespace App\Models;
 
 use CodeIgniter\Model;
 
-class UserPreferenceModel extends Model
+class CreateUserVisits extends Model
 {
-    protected $table            = 'userpreferences';
-    protected $primaryKey       = 'preference_id';
+    protected $table            = 'createuservisits';
+    protected $primaryKey       = 'id';
     protected $useAutoIncrement = true;
     protected $returnType       = 'array';
     protected $useSoftDeletes   = false;
     protected $protectFields    = true;
-    protected $allowedFields    = [
-       'user_id', 'category', 'created_at', 'updated_at'
-    ];
+    protected $allowedFields    = [];
 
     protected bool $allowEmptyInserts = false;
     protected bool $updateOnlyChanged = true;
