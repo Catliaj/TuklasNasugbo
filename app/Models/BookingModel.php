@@ -390,9 +390,8 @@ public function getMonthOverMonthComparison($businessID)
 }
     
 
-        $result = $builder->get()->getRowArray();
-        return $result['totalRevenue'] ?? 0;
-    }
+        
+    
     
     public function getTopPerformingSpots($startDate, $endDate, $limit = 5)
     {
@@ -451,7 +450,7 @@ public function getMonthOverMonthComparison($businessID)
         ];
     }
     
-    public function getAverageRevenuePerBooking($startDate, $endDate)
+    public function getAverageRevenuePerBookings($startDate, $endDate)
     {
         $result = $this->select('SUM(total_price) as total_revenue, COUNT(booking_id) as total_bookings')
                        ->where('booking_status', 'Confirmed')

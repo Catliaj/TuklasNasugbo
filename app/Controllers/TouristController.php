@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Controllers\BaseController;
 use CodeIgniter\HTTP\ResponseInterface;
 use App\Models\UsersModel;
+use App\Models\TouristSpotModel;
 
 class TouristController extends BaseController
 {
@@ -19,10 +20,15 @@ class TouristController extends BaseController
 
     public function exploreSpots()
     {
+        $spotModel = new TouristSpotModel();
+        $spots = $spotModel -> getAllTouristSpots();
+
+
         return view('Pages/tourist/explore', [
             'userID' => session()->get('UserID'),
             'FullName' => session()->get('FirstName') . ' ' . session()->get('LastName'),
             'email' => session()->get('Email'),
+            'spots'     => $spots,
         ]);
     }
 

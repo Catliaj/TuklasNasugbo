@@ -45,6 +45,10 @@ class CreateBusiness extends Migration
                 'constraint' => ['Pending', 'Approved', 'Rejected'],
                 'default'    => 'Pending',
             ],
+            'rejection_reason' =>[
+                'type'       => 'TEXT',
+                'null'      => true,
+            ],
             'created_at' => [
                 'type'       => 'DATETIME',
                 'null'       => true,
