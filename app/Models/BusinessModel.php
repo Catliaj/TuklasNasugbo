@@ -18,8 +18,8 @@ class BusinessModel extends Model
     // ==========================================================
     protected $allowedFields    = [
         'user_id', 'business_name', 'contact_email', 'contact_phone', 
-        'business_address', 'logo_url', 'status', 'created_at', 'updated_at',
-        'rejection_reason'
+        'business_address', 'logo_url', 'status','rejection_reason', 'created_at', 'updated_at'
+        
     ];
     // ==========================================================
 

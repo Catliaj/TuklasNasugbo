@@ -173,7 +173,7 @@
                                 </a>
                             </li>
                             <li>
-                                <a href="#" class="dropdown-item-custom logout" onclick="handleLogout(event)">
+                                <a href="/users/logout" class="dropdown-item-custom logout" onclick="handleLogout(event)">
                                     <i class="bi bi-box-arrow-right"></i>
                                     <span>Logout</span>
                                 </a>
@@ -238,15 +238,15 @@
             <div class="quick-actions">
                 <h3>Quick Actions</h3>
                 <div class="actions-grid">
-                    <a href="itinerary.html" class="action-btn">
+                    <a href="/tourist/itinerary" class="action-btn">
                         <i class="bi bi-calendar-check"></i>
                         <span>Create Itinerary</span>
                     </a>
-                    <a href="explore.html" class="action-btn">
+                    <a href="/tourist/exploreSpots" class="action-btn">
                         <i class="bi bi-search"></i>
                         <span>Explore Spots</span>
                     </a>
-                    <a href="reviews.html" class="action-btn">
+                    <a href="/tourist/reviews" class="action-btn">
                         <i class="bi bi-star-fill"></i>
                         <span>My Reviews</span>
                     </a>
@@ -601,7 +601,7 @@
             if (confirm('Are you sure you want to logout?')) {
                 showToast('Logged Out', 'You have been successfully logged out.');
                 setTimeout(() => {
-                    // window.location.href = 'login.html';
+                     window.location.href = '/users/logout';
                 }, 1500);
             }
         }

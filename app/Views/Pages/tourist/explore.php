@@ -189,157 +189,51 @@
                     </div>
                 </div>
                 
-                <!-- Spots Grid -->
                 <div class="spots-grid" id="spotsGrid">
-                    <!-- Fortune Island -->
-                    <div class="spot-card" data-category="island">
-                        <div class="spot-image" style="background-image: url('https://images.unsplash.com/photo-1505142468610-359e7d316be0?w=600')">
-                            <button class="favorite-btn" onclick="toggleFavorite(this)">
-                                <i class="bi bi-heart"></i>
-                            </button>
-                        </div>
-                        <div class="spot-content">
-                            <h3 class="spot-title">Fortune Island</h3>
-                            <p class="spot-description">Explore Greek-inspired ruins surrounded by crystal-clear waters and pristine beaches.</p>
-                            <div class="spot-meta">
-                                <span class="spot-category"><i class="bi bi-geo-alt"></i> Island</span>
-                                <div class="spot-rating">
-                                    <i class="bi bi-star-fill"></i>
-                                    <span>4.8</span>
+
+                    <?php foreach ($spots as $spot): ?>
+                        <?php 
+                            // IMAGE PATH CHECK
+                            $imagePath = 'uploads' . $spot['primary_image'];
+                            if (!is_file(FCPATH . $imagePath)) { 
+                                $imagePath = 'uploads/spots/Spot-No-Image.png';
+                            }
+                        ?>
+
+                        <div class="spot-card" data-category="<?= esc($spot['category']) ?>">
+                            <div class="spot-image" style="background-image: url('<?= base_url($imagePath) ?>')">
+                                <button class="favorite-btn" onclick="toggleFavorite(this)">
+                                    <i class="bi bi-heart"></i>
+                                </button>
+                            </div>
+
+                            <div class="spot-content">
+                                <h3 class="spot-title"><?= esc($spot['spot_name']) ?></h3>
+                                <p class="spot-description"><?= esc($spot['description']) ?></p>
+
+                                <div class="spot-meta">
+                                    <span class="spot-category">
+                                        <i class="bi bi-geo-alt"></i>
+                                        <?= esc($spot['category']) ?>
+                                    </span>
+
+                                    <div class="spot-rating">
+                                        <i class="bi bi-star-fill"></i>
+                                        <span><?= esc($spot['rating'] ?? '4.5') ?></span>
+                                    </div>
+                                </div>
+
+                                <div class="spot-actions">
+                                    <button class="btn-view" onclick="viewDetails(this)">View Details</button>
+                                    <button class="btn-add" onclick="addToItinerary('<?= esc($spot['spot_name']) ?>')">Add to Plan</button>
+                                    <button class="btn-book" onclick="bookSpot('<?= esc($spot['spot_name']) ?>', this)">
+                                        <i class="bi bi-ticket-detailed"></i> Book
+                                    </button>
                                 </div>
                             </div>
-                            <div class="spot-actions">
-                                <button class="btn-view" onclick="viewDetails(this)">View Details</button>
-                                <button class="btn-add" onclick="addToItinerary('Fortune Island')">Add to Plan</button>
-                                <button class="btn-book" onclick="bookSpot('Fortune Island', this)"><i class="bi bi-ticket-detailed"></i> Book</button>
-                            </div>
                         </div>
-                    </div>
-                    
-                    <!-- Mount Batulao -->
-                    <div class="spot-card" data-category="mountain">
-                        <div class="spot-image" style="background-image: url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600')">
-                            <button class="favorite-btn" onclick="toggleFavorite(this)">
-                                <i class="bi bi-heart"></i>
-                            </button>
-                        </div>
-                        <div class="spot-content">
-                            <h3 class="spot-title">Mount Batulao</h3>
-                            <p class="spot-description">Challenge yourself with stunning mountain trails and breathtaking panoramic views.</p>
-                            <div class="spot-meta">
-                                <span class="spot-category"><i class="bi bi-sunrise"></i> Mountain</span> <!-- Changed icon for variety -->
-                                <div class="spot-rating">
-                                    <i class="bi bi-star-fill"></i>
-                                    <span>4.7</span>
-                                </div>
-                            </div>
-                            <div class="spot-actions">
-                                <button class="btn-view" onclick="viewDetails(this)">View Details</button>
-                                <button class="btn-add" onclick="addToItinerary('Mount Batulao')">Add to Plan</button>
-                                <button class="btn-book" onclick="bookSpot('Mount Batulao', this)"><i class="bi bi-ticket-detailed"></i> Book</button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Caleruega Church -->
-                    <div class="spot-card" data-category="landmark">
-                        <div class="spot-image" style="background-image: url('https://images.unsplash.com/photo-1519290916420-e67e00a83cde?w=600')">
-                            <button class="favorite-btn" onclick="toggleFavorite(this)">
-                                <i class="bi bi-heart"></i>
-                            </button>
-                        </div>
-                        <div class="spot-content">
-                            <h3 class="spot-title">Caleruega Church</h3>
-                            <p class="spot-description">Find peace in this beautiful hilltop chapel with stunning garden views.</p>
-                            <div class="spot-meta">
-                                <span class="spot-category"><i class="bi bi-building"></i> Landmark</span>
-                                <div class="spot-rating">
-                                    <i class="bi bi-star-fill"></i>
-                                    <span>4.9</span>
-                                </div>
-                            </div>
-                            <div class="spot-actions">
-                                <button class="btn-view" onclick="viewDetails(this)">View Details</button>
-                                <button class="btn-add" onclick="addToItinerary('Caleruega Church')">Add to Plan</button>
-                                <button class="btn-book" onclick="bookSpot('Caleruega Church', this)"><i class="bi bi-ticket-detailed"></i> Book</button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Canyon Cove -->
-                    <div class="spot-card" data-category="beach resort">
-                        <div class="spot-image" style="background-image: url('https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=600')">
-                            <button class="favorite-btn" onclick="toggleFavorite(this)">
-                                <i class="bi bi-heart"></i>
-                            </button>
-                        </div>
-                        <div class="spot-content">
-                            <h3 class="spot-title">Canyon Cove</h3>
-                            <p class="spot-description">Relax at this exclusive beach resort with spectacular cove scenery.</p>
-                            <div class="spot-meta">
-                                <span class="spot-category"><i class="bi bi-water"></i> Beach Resort</span>
-                                <div class="spot-rating">
-                                    <i class="bi bi-star-fill"></i>
-                                    <span>4.6</span>
-                                </div>
-                            </div>
-                            <div class="spot-actions">
-                                <button class="btn-view" onclick="viewDetails(this)">View Details</button>
-                                <button class="btn-add" onclick="addToItinerary('Canyon Cove')">Add to Plan</button>
-                                <button class="btn-book" onclick="bookSpot('Canyon Cove', this)"><i class="bi bi-ticket-detailed"></i> Book</button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Munting Buhangin -->
-                    <div class="spot-card" data-category="beach">
-                        <div class="spot-image" style="background-image: url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600')">
-                            <button class="favorite-btn" onclick="toggleFavorite(this)">
-                                <i class="bi bi-heart"></i>
-                            </button>
-                        </div>
-                        <div class="spot-content">
-                            <h3 class="spot-title">Munting Buhangin Beach</h3>
-                            <p class="spot-description">Perfect beach camping spot with golden sands and clear blue waters.</p>
-                            <div class="spot-meta">
-                                <span class="spot-category"><i class="bi bi-water"></i> Beach</span>
-                                <div class="spot-rating">
-                                    <i class="bi bi-star-fill"></i>
-                                    <span>4.5</span>
-                                </div>
-                            </div>
-                            <div class="spot-actions">
-                                <button class="btn-view" onclick="viewDetails(this)">View Details</button>
-                                <button class="btn-add" onclick="addToItinerary('Munting Buhangin')">Add to Plan</button>
-                                <button class="btn-book" onclick="bookSpot('Munting Buhangin', this)"><i class="bi bi-ticket-detailed"></i> Book</button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Pico de Loro -->
-                    <div class="spot-card" data-category="mountain">
-                        <div class="spot-image" style="background-image: url('https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=600')">
-                            <button class="favorite-btn" onclick="toggleFavorite(this)">
-                                <i class="bi bi-heart"></i>
-                            </button>
-                        </div>
-                        <div class="spot-content">
-                            <h3 class="spot-title">Pico de Loro</h3>
-                            <p class="spot-description">Trek to the parrot's beak peak for an unforgettable mountain adventure.</p>
-                            <div class="spot-meta">
-                                <span class="spot-category"><i class="bi bi-sunrise"></i> Mountain</span>
-                                <div class="spot-rating">
-                                    <i class="bi bi-star-fill"></i>
-                                    <span>4.8</span>
-                                </div>
-                            </div>
-                            <div class="spot-actions">
-                                <button class="btn-view" onclick="viewDetails(this)">View Details</button>
-                                <button class="btn-add" onclick="addToItinerary('Pico de Loro')">Add to Plan</button>
-                                <button class="btn-book" onclick="bookSpot('Pico de Loro', this)"><i class="bi bi-ticket-detailed"></i> Book</button>
-                            </div>
-                        </div>
-                    </div>
+                    <?php endforeach; ?>
+
                 </div>
             </div>
         </main>
