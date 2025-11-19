@@ -154,93 +154,40 @@
 
                 <!-- Booking Cards Container -->
                 <div id="bookingsList">
-                    <!-- Booking 1 - Confirmed -->
-                    <div class="booking-card" data-status="confirmed">
-                        <div class="booking-header">
-                            <div>
-                                <h3 class="booking-title">Canyon Cove Beach Resort</h3>
-                                <span class="booking-type accommodation">
-                                    <i class="bi bi-house-door"></i> Accommodation
+                <?php if (!empty($bookings)): ?>
+                    <?php foreach ($bookings as $booking): ?>
+                        <div class="booking-card" data-status="<?= esc(strtolower($booking['booking_status'])) ?>">
+                            <div class="booking-header">
+                                <div>
+                                    <h3 class="booking-title"><?= esc($booking['spot_name'] ?? 'Tourist Spot') ?></h3>
+                                    <span class="booking-type tour"><i class="bi bi-compass"></i> <?= esc($booking['category'] ?? 'Tour') ?></span>
+                                </div>
+                                <span class="booking-status <?= esc(strtolower($booking['booking_status'])) ?>">
+                                    <?= esc(ucfirst($booking['booking_status'])) ?>
                                 </span>
                             </div>
-                            <span class="booking-status confirmed">Confirmed</span>
-                        </div>
-                        <div class="booking-details">
-                            <div class="booking-detail-item"><div class="booking-icon"><i class="bi bi-calendar-check"></i></div><div class="booking-detail-content"><h4>Check-in</h4><p>Dec 15, 2024</p></div></div>
-                            <div class="booking-detail-item"><div class="booking-icon"><i class="bi bi-calendar-x"></i></div><div class="booking-detail-content"><h4>Check-out</h4><p>Dec 18, 2024</p></div></div>
-                            <div class="booking-detail-item"><div class="booking-icon"><i class="bi bi-people"></i></div><div class="booking-detail-content"><h4>Guests</h4><p>2 Adults</p></div></div>
-                            <div class="booking-detail-item"><div class="booking-icon"><i class="bi bi-cash-stack"></i></div><div class="booking-detail-content"><h4>Total Cost</h4><p>₱6,000</p></div></div>
-                        </div>
-                        <div class="booking-actions">
-                            <button class="btn-booking primary" onclick="viewBookingDetails(this)"><i class="bi bi-eye"></i> View Details</button>
-                            <button class="btn-booking secondary" onclick="downloadVoucher()"><i class="bi bi-download"></i> Download Voucher</button>
-                            <button class="btn-booking danger" onclick="cancelBooking()"><i class="bi bi-x-circle"></i> Cancel</button>
-                        </div>
-                    </div>
-
-                    <!-- Booking 2 - Confirmed -->
-                    <div class="booking-card" data-status="confirmed">
-                        <div class="booking-header">
-                            <div>
-                                <h3 class="booking-title">Fortune Island Tour</h3>
-                                <span class="booking-type tour"><i class="bi bi-compass"></i> Island Tour</span>
+                            <div class="booking-details">
+                                <div class="booking-detail-item"><div class="booking-icon"><i class="bi bi-calendar-event"></i></div><div class="booking-detail-content"><h4>Visit Date</h4><p><?= esc(date('M d, Y', strtotime($booking['visit_date']))) ?></p></div></div>
+                                <div class="booking-detail-item"><div class="booking-icon"><i class="bi bi-clock"></i></div><div class="booking-detail-content"><h4>Time</h4><p><?= esc($booking['visit_time'] ?? 'N/A') ?></p></div></div>
+                                <div class="booking-detail-item"><div class="booking-icon"><i class="bi bi-people"></i></div><div class="booking-detail-content"><h4>Guests</h4><p><?= esc($booking['num_adults']) ?> Adults, <?= esc($booking['num_children']) ?> Children, <?= esc($booking['num_seniors']) ?> Seniors</p></div></div>
+                                <div class="booking-detail-item"><div class="booking-icon"><i class="bi bi-cash-stack"></i></div><div class="booking-detail-content"><h4>Total Cost</h4><p>₱<?= number_format($booking['total_price'], 2) ?></p></div></div>
                             </div>
-                            <span class="booking-status confirmed">Confirmed</span>
-                        </div>
-                        <div class="booking-details">
-                            <div class="booking-detail-item"><div class="booking-icon"><i class="bi bi-calendar-event"></i></div><div class="booking-detail-content"><h4>Tour Date</h4><p>Dec 16, 2024</p></div></div>
-                            <div class="booking-detail-item"><div class="booking-icon"><i class="bi bi-clock"></i></div><div class="booking-detail-content"><h4>Departure</h4><p>6:00 AM</p></div></div>
-                            <div class="booking-detail-item"><div class="booking-icon"><i class="bi bi-people"></i></div><div class="booking-detail-content"><h4>Pax</h4><p>2 Persons</p></div></div>
-                            <div class="booking-detail-item"><div class="booking-icon"><i class="bi bi-cash-stack"></i></div><div class="booking-detail-content"><h4>Total Cost</h4><p>₱2,000</p></div></div>
-                        </div>
-                        <div class="booking-actions">
-                            <button class="btn-booking primary" onclick="viewBookingDetails(this)"><i class="bi bi-eye"></i> View Details</button>
-                            <button class="btn-booking secondary" onclick="downloadVoucher()"><i class="bi bi-download"></i> Download Voucher</button>
-                            <button class="btn-booking danger" onclick="cancelBooking()"><i class="bi bi-x-circle"></i> Cancel</button>
-                        </div>
-                    </div>
-
-                    <!-- Booking 3 - Pending -->
-                    <div class="booking-card" data-status="pending">
-                        <div class="booking-header">
-                            <div>
-                                <h3 class="booking-title">Van Transfer to Nasugbu</h3>
-                                <span class="booking-type transport"><i class="bi bi-car-front"></i> Transportation</span>
+                            <div class="booking-actions">
+                                <button class="btn-booking primary" onclick="viewBookingDetails(this)"><i class="bi bi-eye"></i> View Details</button>
+                                <?php if (strtolower($booking['booking_status']) === 'pending'): ?>
+                                    <button class="btn-booking danger" onclick="cancelBooking()"><i class="bi bi-x-circle"></i> Cancel</button>
+                                <?php elseif (strtolower($booking['booking_status']) === 'confirmed'): ?>
+                                    <button class="btn-booking secondary" onclick="downloadVoucher()"><i class="bi bi-download"></i> Download Voucher</button>
+                                <?php elseif (strtolower($booking['booking_status']) === 'completed'): ?>
+                                    <button class="btn-booking secondary" onclick="bookAgain()"><i class="bi bi-arrow-repeat"></i> Book Again</button>
+                                    <button class="btn-booking primary" onclick="writeReview()"><i class="bi bi-star"></i> Write Review</button>
+                                <?php endif; ?>
                             </div>
-                            <span class="booking-status pending">Pending Payment</span>
                         </div>
-                        <div class="booking-details">
-                            <div class="booking-detail-item"><div class="booking-icon"><i class="bi bi-calendar-event"></i></div><div class="booking-detail-content"><h4>Travel Date</h4><p>Dec 15, 2024</p></div></div>
-                            <div class="booking-detail-item"><div class="booking-icon"><i class="bi bi-clock"></i></div><div class="booking-detail-content"><h4>Pick-up Time</h4><p>8:00 AM</p></div></div>
-                            <div class="booking-detail-item"><div class="booking-icon"><i class="bi bi-geo-alt"></i></div><div class="booking-detail-content"><h4>Route</h4><p>Manila → Nasugbu</p></div></div>
-                            <div class="booking-detail-item"><div class="booking-icon"><i class="bi bi-cash-stack"></i></div><div class="booking-detail-content"><h4>Total Cost</h4><p>₱3,500</p></div></div>
-                        </div>
-                        <div class="booking-actions">
-                            <button class="btn-booking primary" onclick="completePayment()"><i class="bi bi-credit-card"></i> Complete Payment</button>
-                            <button class="btn-booking danger" onclick="cancelBooking()"><i class="bi bi-x-circle"></i> Cancel</button>
-                        </div>
-                    </div>
-
-                    <!-- Booking 4 - Completed -->
-                    <div class="booking-card" data-status="completed">
-                        <div class="booking-header">
-                            <div>
-                                <h3 class="booking-title">Mount Batulao Hiking Tour</h3>
-                                <span class="booking-type tour"><i class="bi bi-signpost-split"></i> Adventure Tour</span>
-                            </div>
-                            <span class="booking-status completed">Completed</span>
-                        </div>
-                        <div class="booking-details">
-                            <div class="booking-detail-item"><div class="booking-icon"><i class="bi bi-calendar-check"></i></div><div class="booking-detail-content"><h4>Tour Date</h4><p>Nov 20, 2024</p></div></div>
-                            <div class="booking-detail-item"><div class="booking-icon"><i class="bi bi-clock"></i></div><div class="booking-detail-content"><h4>Start Time</h4><p>5:00 AM</p></div></div>
-                            <div class="booking-detail-item"><div class="booking-icon"><i class="bi bi-people"></i></div><div class="booking-detail-content"><h4>Pax</h4><p>2 Persons</p></div></div>
-                            <div class="booking-detail-item"><div class="booking-icon"><i class="bi bi-cash-stack"></i></div><div class="booking-detail-content"><h4>Total Cost</h4><p>₱1,500</p></div></div>
-                        </div>
-                        <div class="booking-actions">
-                            <button class="btn-booking primary" onclick="writeReview()"><i class="bi bi-star"></i> Write Review</button>
-                            <button class="btn-booking secondary" onclick="bookAgain()"><i class="bi bi-arrow-repeat"></i> Book Again</button>
-                        </div>
-                    </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <div class="alert alert-info mt-4">No bookings found.</div>
+                <?php endif; ?>
                 </div>
             </div>
         </main>

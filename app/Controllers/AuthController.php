@@ -112,7 +112,124 @@ public function handleLogin()
 
     public function handleSignup()
     {
-        // Handle user registration logic here
-        return null;
+        $request = service('request');
+
+        $firstName  = $request->getPost('firstName');
+        $middleName = $request->getPost('middleName');
+        $lastName   = $request->getPost('lastName');
+        $email      = $request->getPost('email');
+        $role       = $request->getPost('role');
+        $password   = $request->getPost('password');
+        $confirmPw  = $request->getPost('confirmPassword');
+
+        // Validate password match
+        if ($password !== $confirmPw) {
+            return $this->response->setJSON([
+                'status' => 'error',
+                'message' => 'Passwords do not match'
+            ]);
+        }
+
+        // Hash password
+        $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+
+        // Load models
+        $usersModel    = new \App\Models\UsersModel();
+        $customerModel = new \App\Models\CustomerModel();
+        $businessModel = new \App\Models\BusinessModel();
+
+        // Save user
+        $userData = [
+            'FirstName' => $firstName,
+            'MiddleName' => $middleName,
+            'LastName' => $lastName,
+            'email' => $email,
+            'password' => $passwordHash,
+            'role' => $role,
+            'created_at' => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s')
+        ];
+
+        $usersModel->insert($userData);
+        $userId = $usersModel->getInsertID();
+
+        if (!$userId) {
+            return $this->response->setJSON([
+                'status' => 'error',
+                'message' => 'Failed to create user'
+            ]);
+        }
+
+        // =================================================
+        // TOURIST EXTRA FIELDS
+        // =================================================
+        if ($role === 'tourist') {
+            $customerModel->insert([
+                'user_id' => $userId,
+                'type' => 'tourist',
+                'phone' => $request->getPost('touristContact'),
+                'address' => $request->getPost('touristAddress'),
+                'emergency_contact' => $request->getPost('emergencyContact'),
+                'emergency_phone' => $request->getPost('emergencyNumber'),
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s')
+            ]);
+        }
+
+        // =================================================
+        // SPOT OWNER EXTRA FIELDS + FILE UPLOAD
+        // =================================================
+        if ($role === 'Spot Owner') {
+
+            $idFile = $this->request->getFile('govIdImage');
+            $fileName = null;
+
+            // Ensure upload folder exists (prevents crash)
+            $uploadPath = FCPATH . 'uploads/id';
+            if (!is_dir($uploadPath)) {
+                mkdir($uploadPath, 0755, true);
+            }
+
+            // File Upload
+            if ($idFile && $idFile->isValid() && !$idFile->hasMoved()) {
+
+                // Validate image type
+                $allowed = ['image/jpeg', 'image/png', 'image/jpg'];
+                if (!in_array($idFile->getMimeType(), $allowed)) {
+                    return $this->response->setJSON([
+                        'status' => 'error',
+                        'message' => 'Invalid ID image format. Only JPG and PNG allowed.'
+                    ]);
+                }
+
+                $fileName = $idFile->getRandomName();
+                $idFile->move($uploadPath, $fileName);
+            }
+
+            // Insert business data
+            $businessModel->insert([
+                'user_id' => $userId,
+                'business_name' => $request->getPost('businessName'),
+                'contact_phone' => $request->getPost('businessContact'),
+                'business_address' => $request->getPost('businessAddress'),
+                'gov_id_type' => $request->getPost('govIdType'),
+                'gov_id_number' => $request->getPost('govIdNumber'),
+                'gov_id_image' => $fileName,
+                'status' => 'Pending',
+                'rejection_reason' => null,
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s')
+            ]);
+        }
+
+        return $this->response->setJSON([
+            'status' => 'success',
+            'message' => 'Account created successfully'
+        ]);
     }
+
+
+
+
+ 
 }

@@ -16,11 +16,13 @@ class BusinessModel extends Model
     // ==========================================================
     //  MAKE SURE 'status' AND 'rejection_reason' ARE ALLOWED
     // ==========================================================
-    protected $allowedFields    = [
-        'user_id', 'business_name', 'contact_email', 'contact_phone', 
-        'business_address', 'logo_url', 'status','rejection_reason', 'created_at', 'updated_at'
-        
+    protected $allowedFields = [
+    'user_id', 'business_name', 'contact_email', 'contact_phone',
+    'business_address', 'logo_url', 'status', 'rejection_reason',
+    'gov_id_type', 'gov_id_number', 'gov_id_image',
+    'created_at', 'updated_at'
     ];
+
     // ==========================================================
 
     protected bool $allowEmptyInserts = false;

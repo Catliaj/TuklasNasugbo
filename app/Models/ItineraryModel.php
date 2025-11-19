@@ -68,4 +68,12 @@ class ItineraryModel extends Model
             ->orderBy('itinerary.itinerary_id', 'ASC')
             ->findAll();
     }
+
+    public function countDistinctDates($preference_id)
+    {
+        return $this->select('start_date')
+                    ->where('preference_id', $preference_id)
+                    ->groupBy('start_date')
+                    ->countAllResults();
+    }
 }

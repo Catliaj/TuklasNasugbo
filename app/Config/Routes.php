@@ -11,6 +11,7 @@ $routes->get('/under-development', 'Home::index');
 $routes->get('/', 'AuthController::login'); 
 $routes->get('/signup', 'AuthController::signup'); 
 $routes->post('/users/login', 'AuthController::Handlelogin');
+$routes->post('signup/submit', 'AuthController::handleSignup');
 $routes->get('/users/logout', 'AuthController::logout');
 
 //Admin routes
@@ -66,6 +67,7 @@ $routes->get('/spotowner/spots/edit/(:num)', 'SpotOwnerController::editSpot/$1')
 $routes->post('/spotowner/spots/update/(:num)', 'SpotOwnerController::updateSpot/$1');
 $routes->post('/spotowner/spots/delete/(:num)', 'SpotOwnerController::deleteSpot/$1');
 
+$routes->get('/tourist/runPythonScript', 'TouristController::runPythonScript');
 //Tourist routes
 $routes->get('/tourist/dashboard', 'TouristController::touristDashboard');
 $routes->get('/tourist/exploreSpots', 'TouristController::exploreSpots');
@@ -76,6 +78,10 @@ $routes->get('/tourist/reviews', 'TouristController::touristReviews');
 $routes->get('/tourist/visits', 'TouristController::touristVisits');
 $routes->get('/tourist/budget', 'TouristController::touristBudget');
 $routes->get('/tourist/favorites', 'TouristController::touristFavorites');
+
+// Ajax endpoints for tourist actions
+$routes->post('/tourist/createBooking', 'TouristController::createBooking');
+$routes->post('/tourist/toggleFavorite', 'TouristController::toggleFavorite');
 
 //TEST API ROUTE
 $routes->get('/test-api/key', 'TestApi::testKey');
