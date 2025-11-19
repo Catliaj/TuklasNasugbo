@@ -75,7 +75,7 @@
             <!-- Header -->
             <div class="dashboard-header">
                 <div class="welcome-section">
-                    <h2>Welcome back, Juan!</h2>
+                    <h2>Welcome back, <?= esc($FullName ?? 'Traveler') ?>!</h2>
                     <p>Ready to explore Nasugbu today?</p>
                 </div>
                 <div class="user-actions">
@@ -188,7 +188,7 @@
                 <div class="stat-card">
                     <div class="stat-header">
                         <div>
-                            <div class="stat-value"><span class="count-up" data-target="5">0</span></div>
+                            <div class="stat-value"><span class="count-up" data-target="<?= esc($TotalSaveItineray ?? 0) ?>">0</span></div>
                             <div class="stat-label">Saved Itineraries</div>
                         </div>
                         <div class="stat-icon blue">
@@ -200,7 +200,7 @@
                 <div class="stat-card">
                     <div class="stat-header">
                         <div>
-                            <div class="stat-value"><span class="count-up" data-target="12">0</span></div>
+                            <div class="stat-value"><span class="count-up" data-target="<?= esc($placesVisited ?? 0) ?>">0</span></div>
                             <div class="stat-label">Places Visited</div>
                         </div>
                         <div class="stat-icon green">
@@ -212,7 +212,7 @@
                 <div class="stat-card">
                     <div class="stat-header">
                         <div>
-                            <div class="stat-value"><span class="count-up" data-target="8">0</span></div>
+                            <div class="stat-value"><span class="count-up" data-target="<?= esc($favoriteCount ?? 0) ?>">0</span></div>
                             <div class="stat-label">Favorite Spots</div>
                         </div>
                         <div class="stat-icon orange">
@@ -224,7 +224,7 @@
                 <div class="stat-card">
                     <div class="stat-header">
                         <div>
-                            <div class="stat-value"><span class="count-up" data-target="3">0</span></div>
+                            <div class="stat-value"><span class="count-up" data-target="<?= esc($upcomingBookings ?? 0) ?>">0</span></div>
                             <div class="stat-label">Upcoming Bookings</div>
                         </div>
                         <div class="stat-icon purple">
@@ -257,77 +257,58 @@
             <div class="spots-gallery">
                 <h3>Popular Spots in Nasugbu</h3>
                 <div class="gallery-grid">
-                    <div class="gallery-card">
-                        <img src="https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=500&h=300&fit=crop" alt="Fortune Island" class="gallery-image">
-                        <div class="gallery-badge">Popular</div>
-                        <div class="gallery-overlay">
-                            <div class="gallery-title">Fortune Island</div>
-                            <div class="gallery-location">
-                                <i class="bi bi-geo-alt-fill"></i>
-                                <span>Nasugbu, Batangas</span>
+                    <?php if (!empty($popularSpots) && is_array($popularSpots)): ?>
+                        <?php foreach ($popularSpots as $spot): ?>
+                            <div class="gallery-card">
+                                <?php
+                                    // Determine image path: prefer uploaded image in `upload/spots/` (or `uploads/spots/`),
+                                    // fallback to `upload/no-image.png` in project root and finally a remote placeholder.
+                                    $imgFile = $spot['primary_image'] ?? '';
+                                    $imgUrl = '';
+                                    if ($imgFile) {
+                                        // try both common folders
+                                        $localPath1 = FCPATH . 'upload/spots/' . $imgFile;
+                                        $localPath2 = FCPATH . 'uploads/spots/' . $imgFile;
+                                        if (is_file($localPath1)) {
+                                            $imgUrl = base_url('upload/spots/' . $imgFile);
+                                        } elseif (is_file($localPath2)) {
+                                            $imgUrl = base_url('uploads/spots/' . $imgFile);
+                                        }
+                                    }
+                                    if (empty($imgUrl)) {
+                                        // default local no-image
+                                        $noImgPath1 = FCPATH . 'upload/no-image.png';
+                                        $noImgPath2 = FCPATH . 'uploads/no-image.png';
+                                        if (is_file($noImgPath1)) $imgUrl = base_url('upload/no-image.png');
+                                        elseif (is_file($noImgPath2)) $imgUrl = base_url('uploads/no-image.png');
+                                        else $imgUrl = 'https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=500&h=300&fit=crop';
+                                    }
+                                ?>
+                                <img src="<?= esc($imgUrl) ?>" alt="<?= esc($spot['spot_name'] ?? '') ?>" class="gallery-image">
+                                <div class="gallery-badge"><?= esc($spot['category'] ?? 'Popular') ?></div>
+                                <div class="gallery-overlay">
+                                    <div class="gallery-title"><?= esc($spot['spot_name'] ?? $spot['name'] ?? 'Spot') ?></div>
+                                    <div class="gallery-location">
+                                        <i class="bi bi-geo-alt-fill"></i>
+                                        <span><?= esc($spot['location'] ?? '') ?></span>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <!-- Fallback static cards if no data -->
+                        <div class="gallery-card">
+                            <img src="https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=500&h=300&fit=crop" alt="Fortune Island" class="gallery-image">
+                            <div class="gallery-badge">Popular</div>
+                            <div class="gallery-overlay">
+                                <div class="gallery-title">Fortune Island</div>
+                                <div class="gallery-location">
+                                    <i class="bi bi-geo-alt-fill"></i>
+                                    <span>Nasugbu, Batangas</span>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    
-                    <div class="gallery-card">
-                        <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=500&h=300&fit=crop" alt="Mount Batulao" class="gallery-image">
-                        <div class="gallery-badge">Adventure</div>
-                        <div class="gallery-overlay">
-                            <div class="gallery-title">Mount Batulao</div>
-                            <div class="gallery-location">
-                                <i class="bi bi-geo-alt-fill"></i>
-                                <span>Nasugbu, Batangas</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="gallery-card">
-                        <img src="https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=500&h=300&fit=crop" alt="Canyon Cove" class="gallery-image">
-                        <div class="gallery-badge">Beach</div>
-                        <div class="gallery-overlay">
-                            <div class="gallery-title">Canyon Cove</div>
-                            <div class="gallery-location">
-                                <i class="bi bi-geo-alt-fill"></i>
-                                <span>Nasugbu, Batangas</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="gallery-card">
-                        <img src="https://images.unsplash.com/photo-1605640840605-14ac1855827b?w=500&h=300&fit=crop" alt="Caleruega Church" class="gallery-image">
-                        <div class="gallery-badge">Cultural</div>
-                        <div class="gallery-overlay">
-                            <div class="gallery-title">Caleruega Church</div>
-                            <div class="gallery-location">
-                                <i class="bi bi-geo-alt-fill"></i>
-                                <span>Nasugbu, Batangas</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="gallery-card">
-                        <img src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=500&h=300&fit=crop" alt="Kaybiang Tunnel" class="gallery-image">
-                        <div class="gallery-badge">Scenic</div>
-                        <div class="gallery-overlay">
-                            <div class="gallery-title">Kaybiang Tunnel</div>
-                            <div class="gallery-location">
-                                <i class="bi bi-geo-alt-fill"></i>
-                                <span>Nasugbu, Batangas</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="gallery-card">
-                        <img src="https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=500&h=300&fit=crop" alt="Twin Lakes" class="gallery-image">
-                        <div class="gallery-badge">Nature</div>
-                        <div class="gallery-overlay">
-                            <div class="gallery-title">Twin Lakes</div>
-                            <div class="gallery-location">
-                                <i class="bi bi-geo-alt-fill"></i>
-                                <span>Nasugbu, Batangas</span>
-                            </div>
-                        </div>
-                    </div>
+                    <?php endif; ?>
                 </div>
             </div>
             

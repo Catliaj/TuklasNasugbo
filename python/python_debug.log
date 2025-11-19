@@ -1,0 +1,15 @@
+
+---
+
+---
+
+---
+{"itinerary": [{"day": 1, "spots": [{"name": "Sample Spot (Budget: 10000)", "category": "Tourist Attraction (Adventure,Historical,Natural)", "location": "Nasugbu, Batangas", "price_per_person": 0, "child_price": 0, "senior_price": 0, "description": "Days: 3, Adults: 2, Children: 0, Seniors: 0"}]}], "remaining_budget": "10000", "note": "Params received: {\"days\": \"3\", \"budget\": \"10000\", \"adults\": \"2\", \"children\": \"0\", \"seniors\": \"0\", \"preference\": \"Adventure,Historical,Natural\", \"start_date\": \"2025-11-19\", \"end_date\": \"2025-11-19\"}"}
+
+---
+{"itinerary": [{"day": 1, "spots": [{"name": "Sample Spot (Budget: 10000)", "category": "Tourist Attraction (Adventure,Historical,Natural)", "location": "Nasugbu, Batangas", "price_per_person": 0, "child_price": 0, "senior_price": 0, "description": "Days: 3, Adults: 2, Children: 0, Seniors: 0"}]}], "remaining_budget": "10000", "note": "Params received: {\"days\": \"3\", \"budget\": \"10000\", \"adults\": \"2\", \"children\": \"0\", \"seniors\": \"0\", \"preference\": \"Adventure,Historical,Natural\", \"start_date\": \"2025-11-19\", \"end_date\": \"2025-11-19\"}"}
+
+---
+{"itinerary": [{"day": 1, "spots": [{"name": "Sample Spot (Budget: 10000)", "category": "Tourist Attraction (Adventure,Historical,Natural)", "location": "Nasugbu, Batangas", "price_per_person": 0, "child_price": 0, "senior_price": 0, "description": "Days: 3, Adults: 2, Children: 0, Seniors: 0", "total_cost": 0}], "total_cost": 0}, {"day": 2, "spots": [{"name": "Sample Spot (Budget: 10000)", "category": "Tourist Attraction (Adventure,Historical,Natural)", "location": "Nasugbu, Batangas", "price_per_person": 0, "child_price": 0, "senior_price": 0, "description": "Days: 3, Adults: 2, Children: 0, Seniors: 0", "total_cost": 0}], "total_cost": 0}, {"day": 3, "spots": [{"name": "Sample Spot (Budget: 10000)", "category": "Tourist Attraction (Adventure,Historical,Natural)", "location": "Nasugbu, Batangas", "price_per_person": 0, "child_price": 0, "senior_price": 0, "description": "Days: 3, Adults: 2, Children: 0, Seniors: 0", "total_cost": 0}], "total_cost": 0}], "remaining_budget": 10000, "note": "Params received: {\"days\": \"3\", \"budget\": \"10000\", \"adults\": \"2\", \"children\": \"0\", \"seniors\": \"0\", \"preference\": \"Adventure,Historical,Natural\", \"start_date\": \"2025-11-19\", \"end_date\": \"2025-11-19\"}"}
+
+---

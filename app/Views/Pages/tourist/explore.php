@@ -200,9 +200,10 @@
                             }
                         ?>
 
-                        <div class="spot-card" data-category="<?= esc($spot['category']) ?>">
+                        <div class="spot-card" data-category="<?= esc($spot['category']) ?>" data-spot-id="<?= esc($spot['spot_id'] ?? $spot['id'] ?? '') ?>">
                             <div class="spot-image" style="background-image: url('<?= base_url($imagePath) ?>')">
-                                <button class="favorite-btn" onclick="toggleFavorite(this)">
+                                <?php $isFav = in_array(($spot['spot_id'] ?? $spot['id'] ?? null), $favoriteSpotIds ?? []); ?>
+                                <button class="favorite-btn<?= $isFav ? ' active' : '' ?>" data-spot-id="<?= esc($spot['spot_id'] ?? $spot['id'] ?? '') ?>" onclick="toggleFavorite(this)">
                                     <i class="bi bi-heart"></i>
                                 </button>
                             </div>
@@ -225,8 +226,7 @@
 
                                 <div class="spot-actions">
                                     <button class="btn-view" onclick="viewDetails(this)">View Details</button>
-                                    <button class="btn-add" onclick="addToItinerary('<?= esc($spot['spot_name']) ?>')">Add to Plan</button>
-                                    <button class="btn-book" onclick="bookSpot('<?= esc($spot['spot_name']) ?>', this)">
+                                    <button class="btn-book" onclick="bookSpot(<?= (int)($spot['spot_id'] ?? $spot['id'] ?? 0) ?>, '<?= esc(addslashes($spot['spot_name'])) ?>', this)">
                                         <i class="bi bi-ticket-detailed"></i> Book
                                     </button>
                                 </div>
@@ -247,61 +247,53 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
               </div>
               <div class="modal-body">
-                <form id="bookingForm">
-                  <input type="hidden" id="bookingSpotName" />
-                  
-                  <div class="mb-3">
-                    <label class="form-label"><strong>Spot Name</strong></label>
-                    <input type="text" class="form-control" id="bookingSpotDisplay" disabled style="background-color: #f6f6f6;" />
-                  </div>
+                                <form id="bookingForm">
 
-                  <div class="row mb-3">
-                    <div class="col-md-6">
-                      <label class="form-label"><strong>Visit Date</strong></label>
-                      <input type="date" class="form-control" id="bookingDate" required />
+                    <input type="hidden" id="bookingSpotId" name="spot_id" />
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Spot Name</strong></label>
+                        <input type="text" class="form-control" id="bookingSpotDisplay" disabled style="background-color: #f6f6f6;" />
                     </div>
-                    <div class="col-md-6">
-                      <label class="form-label"><strong>Number of Visitors</strong></label>
-                      <input type="number" class="form-control" id="bookingVisitors" min="1" value="1" required />
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label"><strong>Adults</strong> <span id="priceAdult" class="text-muted"></span></label>
+                            <input type="number" class="form-control" id="bookingAdults" name="num_adults" min="0" value="1" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label"><strong>Children</strong> <span id="priceChild" class="text-muted"></span></label>
+                            <input type="number" class="form-control" id="bookingChildren" name="num_children" min="0" value="0" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label"><strong>Seniors</strong> <span id="priceSenior" class="text-muted"></span></label>
+                            <input type="number" class="form-control" id="bookingSeniors" name="num_seniors" min="0" value="0" required />
+                        </div>
                     </div>
-                  </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label"><strong>Visit Date</strong></label>
+                            <input type="date" class="form-control" id="bookingDate" name="visit_date" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label"><strong>Visit Time</strong></label>
+                            <input type="time" class="form-control" id="bookingStartTime" name="visit_time" />
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Special Requests (Optional)</strong></label>
+                        <textarea class="form-control" id="bookingNotes" name="special_requests" rows="3" placeholder="e.g., dietary requirements, accessibility needs, photography permits..."></textarea>
+                    </div>
 
-                  <div class="row mb-3">
-                    <div class="col-md-6">
-                      <label class="form-label"><strong>Start Time</strong></label>
-                      <input type="time" class="form-control" id="bookingStartTime" />
+                    <div class="alert alert-info" role="alert">
+                        <strong><i class="bi bi-info-circle"></i> Booking Summary:</strong>
+                        <div style="margin-top: 0.5rem;">
+                            <div>Adults: <strong id="bookingSummaryAdults">1</strong> <span id="summaryPriceAdult"></span></div>
+                            <div>Children: <strong id="bookingSummaryChildren">0</strong> <span id="summaryPriceChild"></span></div>
+                            <div>Seniors: <strong id="bookingSummarySeniors">0</strong> <span id="summaryPriceSenior"></span></div>
+                            <div style="margin-top: 0.5rem; font-size: 1.1rem; color: var(--primary-color);">
+                                Total Cost: <strong id="bookingSummaryTotal">₱0</strong>
+                            </div>
+                        </div>
                     </div>
-                    <div class="col-md-6">
-                      <label class="form-label"><strong>End Time</strong></label>
-                      <input type="time" class="form-control" id="bookingEndTime" />
-                    </div>
-                  </div>
-
-                  <div class="mb-3">
-                    <label class="form-label"><strong>Package Type</strong></label>
-                    <select class="form-select" id="bookingPackage" required>
-                      <option value="">Select a package</option>
-                      <option value="standard">Standard Visit - ₱500</option>
-                      <option value="guided">Guided Tour - ₱1,200</option>
-                      <option value="premium">Premium Package - ₱2,500</option>
-                    </select>
-                  </div>
-
-                  <div class="mb-3">
-                    <label class="form-label"><strong>Special Requests (Optional)</strong></label>
-                    <textarea class="form-control" id="bookingNotes" rows="3" placeholder="e.g., dietary requirements, accessibility needs, photography permits..."></textarea>
-                  </div>
-
-                  <div class="alert alert-info" role="alert">
-                    <strong><i class="bi bi-info-circle"></i> Booking Summary:</strong>
-                    <div style="margin-top: 0.5rem;">
-                      <div>Package: <strong id="bookingSummaryPackage">-</strong></div>
-                      <div>Visitors: <strong id="bookingSummaryVisitors">1</strong></div>
-                      <div style="margin-top: 0.5rem; font-size: 1.1rem; color: var(--primary-color);">
-                        Total Cost: <strong id="bookingSummaryTotal">₱500</strong>
-                      </div>
-                    </div>
-                  </div>
                 </form>
               </div>
               <div class="modal-footer">
@@ -341,10 +333,6 @@
                     <p id="spotModalDesc" class="mb-2"></p>
                     <p class="mb-1"><strong>Category:</strong> <span id="spotModalCategory"></span></p>
                     <p class="mb-2"><strong>Rating:</strong> <span id="spotModalRating"></span></p>
-                    <div class="d-flex gap-2 mt-3">
-                      <button class="btn btn-primary" id="spotModalAddBtn">Add to Plan</button>
-                      <button class="btn btn-outline-secondary" id="spotModalFavBtn"><i class="bi bi-heart"></i> Favorite</button>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -635,15 +623,36 @@
             }
         });
         
-        function toggleFavorite(button) {
-            button.classList.toggle('active');
-            const spotName = button.closest('.spot-card').querySelector('.spot-title').textContent;
-            const isFavorite = button.classList.contains('active');
-            
-            if (isFavorite) {
-                showToast('Favorites', spotName + ' added to favorites!');
-            } else {
-                showToast('Favorites', spotName + ' removed from favorites.');
+        async function toggleFavorite(button) {
+            // toggle UI immediately
+            const card = button.closest('.spot-card');
+            const spotId = button.dataset.spotId || card?.dataset.spotId || '';
+            const spotName = card?.querySelector('.spot-title')?.textContent || '';
+            if (!spotId) {
+                // fallback to UI-only behavior
+                button.classList.toggle('active');
+                showToast('Favorites', (button.classList.contains('active') ? spotName + ' added to favorites!' : spotName + ' removed from favorites.'));
+                return;
+            }
+
+            const isNowFavorite = !button.classList.contains('active');
+            // optimistic UI
+            if (isNowFavorite) button.classList.add('active'); else button.classList.remove('active');
+
+            try {
+                const res = await fetch('/tourist/toggleFavorite', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ spot_id: spotId, action: isNowFavorite ? 'add' : 'remove' })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data?.error || 'Failed to update favorite');
+                showToast('Favorites', data.message || (isNowFavorite ? spotName + ' added to favorites!' : spotName + ' removed from favorites.'));
+            } catch (err) {
+                console.error(err);
+                // revert optimistic UI
+                if (isNowFavorite) button.classList.remove('active'); else button.classList.add('active');
+                showToast('Favorites', 'Failed to update favorites.');
             }
         }
 
@@ -690,12 +699,12 @@
             }
 
             // wire modal buttons
-            const addBtn = document.getElementById('spotModalAddBtn');
-            addBtn.onclick = function() { addToItinerary(title); bootstrap.Modal.getOrCreateInstance(document.getElementById('spotModal')).hide(); };
-
             const favBtn = document.getElementById('spotModalFavBtn');
+            // store spot id on modal fav button for later use
+            favBtn.dataset.spotId = card.dataset.spotId || '';
             favBtn.onclick = function() {
                 const favToggle = card.querySelector('.favorite-btn');
+                // toggle card UI first
                 if (favToggle) favToggle.classList.toggle('active');
                 toggleFavorite(favToggle || favBtn);
             };
@@ -706,43 +715,70 @@
             modal.show();
         }
         
-        function addToItinerary(spotName) {
-            showToast('Itinerary', spotName + ' added to your itinerary!');
-        }
+        // addToItinerary removed — functionality deprecated
         
+
         // --- BOOKING FUNCTIONS ---
-        function bookSpot(spotName, btn) {
-            document.getElementById('bookingSpotName').value = spotName;
-            document.getElementById('bookingSpotDisplay').value = spotName;
+        // Pass PHP spot data to JS
+        const spotDataMap = {};
+        <?php foreach ($spots as $spot): ?>
+            spotDataMap[<?= json_encode((string)($spot['spot_id'] ?? $spot['id'])) ?>] = <?= json_encode([
+                'spot_id' => $spot['spot_id'] ?? $spot['id'],
+                'spot_name' => $spot['spot_name'],
+                'price_per_person' => $spot['price_per_person'],
+                'child_price' => $spot['child_price'],
+                'senior_price' => $spot['senior_price'],
+                'description' => $spot['description'],
+                'category' => $spot['category'],
+                'location' => $spot['location'],
+                'primary_image' => $spot['primary_image'],
+            ]) ?>;
+        <?php endforeach; ?>
+
+        let currentSpotPrices = { adult: 0, child: 0, senior: 0 };
+
+        function bookSpot(spotId, spotName, btn) {
+            const spot = spotDataMap[spotId];
             document.getElementById('bookingForm').reset();
+            document.getElementById('bookingSpotId').value = spotId;
+            document.getElementById('bookingSpotDisplay').value = spot.spot_name;
             document.getElementById('bookingDate').valueAsDate = new Date();
-            document.getElementById('bookingPackage').value = 'standard';
+            document.getElementById('bookingAdults').value = 1;
+            document.getElementById('bookingChildren').value = 0;
+            document.getElementById('bookingSeniors').value = 0;
+            document.getElementById('priceAdult').textContent = `₱${parseFloat(spot.price_per_person).toLocaleString()}`;
+            document.getElementById('priceChild').textContent = `₱${parseFloat(spot.child_price).toLocaleString()}`;
+            document.getElementById('priceSenior').textContent = `₱${parseFloat(spot.senior_price).toLocaleString()}`;
+            currentSpotPrices = {
+                adult: parseFloat(spot.price_per_person),
+                child: parseFloat(spot.child_price),
+                senior: parseFloat(spot.senior_price)
+            };
             updateBookingSummary();
             bootstrap.Modal.getOrCreateInstance(document.getElementById('bookingModal')).show();
         }
 
         function updateBookingSummary() {
-            const packageSelect = document.getElementById('bookingPackage');
-            const visitors = parseInt(document.getElementById('bookingVisitors').value) || 1;
-            const selectedOption = packageSelect.options[packageSelect.selectedIndex];
-            const packageText = selectedOption.text || '-';
-            
-            // extract price from package text (e.g., "Standard Visit - ₱500")
-            const priceMatch = packageText.match(/₱([\d,]+)/);
-            const basePrice = priceMatch ? parseInt(priceMatch[1].replace(',', '')) : 0;
-            const totalCost = basePrice * visitors;
-
-            document.getElementById('bookingSummaryPackage').textContent = packageText || '-';
-            document.getElementById('bookingSummaryVisitors').textContent = visitors;
-            document.getElementById('bookingSummaryTotal').textContent = '₱' + totalCost.toLocaleString();
+            const numAdults = parseInt(document.getElementById('bookingAdults').value) || 0;
+            const numChildren = parseInt(document.getElementById('bookingChildren').value) || 0;
+            const numSeniors = parseInt(document.getElementById('bookingSeniors').value) || 0;
+            const total = (numAdults * currentSpotPrices.adult) + (numChildren * currentSpotPrices.child) + (numSeniors * currentSpotPrices.senior);
+            document.getElementById('bookingSummaryAdults').textContent = numAdults;
+            document.getElementById('bookingSummaryChildren').textContent = numChildren;
+            document.getElementById('bookingSummarySeniors').textContent = numSeniors;
+            document.getElementById('summaryPriceAdult').textContent = numAdults > 0 ? `x ₱${currentSpotPrices.adult.toLocaleString()}` : '';
+            document.getElementById('summaryPriceChild').textContent = numChildren > 0 ? `x ₱${currentSpotPrices.child.toLocaleString()}` : '';
+            document.getElementById('summaryPriceSenior').textContent = numSeniors > 0 ? `x ₱${currentSpotPrices.senior.toLocaleString()}` : '';
+            document.getElementById('bookingSummaryTotal').textContent = '₱' + total.toLocaleString();
         }
 
         // Update summary on input changes
         document.addEventListener('DOMContentLoaded', function() {
             const bookingForm = document.getElementById('bookingForm');
             if (bookingForm) {
-                document.getElementById('bookingPackage')?.addEventListener('change', updateBookingSummary);
-                document.getElementById('bookingVisitors')?.addEventListener('input', updateBookingSummary);
+                document.getElementById('bookingAdults').addEventListener('input', updateBookingSummary);
+                document.getElementById('bookingChildren').addEventListener('input', updateBookingSummary);
+                document.getElementById('bookingSeniors').addEventListener('input', updateBookingSummary);
             }
         });
 
@@ -819,6 +855,56 @@ You can manage your booking in the Bookings section.`;
                 }
             });
         });
+    </script>
+    <script>
+        // Override confirmBooking with server-backed implementation
+        async function confirmBooking() {
+
+            const spotId = document.getElementById('bookingSpotId')?.value || null;
+            const spotName = document.getElementById('bookingSpotDisplay')?.value || '';
+            const date = document.getElementById('bookingDate')?.value || '';
+            const numAdults = parseInt(document.getElementById('bookingAdults')?.value) || 0;
+            const numChildren = parseInt(document.getElementById('bookingChildren')?.value) || 0;
+            const numSeniors = parseInt(document.getElementById('bookingSeniors')?.value) || 0;
+            const startTime = document.getElementById('bookingStartTime')?.value || '';
+            const notes = document.getElementById('bookingNotes')?.value || '';
+
+            if (!date || !spotId || (numAdults + numChildren + numSeniors) < 1) {
+                alert('Please fill in all required fields and at least one guest.');
+                return;
+            }
+
+            // Use currentSpotPrices from booking modal context
+            const totalPrice = (numAdults * currentSpotPrices.adult) + (numChildren * currentSpotPrices.child) + (numSeniors * currentSpotPrices.senior);
+
+            const payload = {
+                spot_id: spotId,
+                visit_date: date,
+                visit_time: startTime || null,
+                num_adults: numAdults,
+                num_children: numChildren,
+                num_seniors: numSeniors,
+                total_guests: numAdults + numChildren + numSeniors,
+                special_requests: notes || null,
+                total_price: totalPrice
+            };
+
+            try {
+                const res = await fetch('/tourist/createBooking', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data?.error || 'Booking failed');
+
+                bootstrap.Modal.getOrCreateInstance(document.getElementById('bookingModal')).hide();
+                showToast('Booking Confirmed', spotName + ' has been booked successfully!');
+            } catch (err) {
+                console.error(err);
+                alert('Booking failed: ' + (err.message || 'unknown error'));
+            }
+        }
     </script>
 </body>
 </html>

@@ -28,6 +28,7 @@ class CreateBusiness extends Migration
             'contact_email' => [
                 'type'       => 'VARCHAR',
                 'constraint' => '100',
+                'null'       => true,
             ],
             'contact_phone' => [
                 'type'       => 'VARCHAR',
@@ -49,6 +50,23 @@ class CreateBusiness extends Migration
                 'type'       => 'TEXT',
                 'null'      => true,
             ],
+            'gov_id_type' => [
+                'type'       => 'VARCHAR',
+                'constraint' => '50',
+                'null'       => true,
+            ],
+
+            'gov_id_number' => [
+                'type'       => 'VARCHAR',
+                'constraint' => '100',
+                'null'       => true,
+            ],
+
+            'gov_id_image' => [
+                'type'       => 'TEXT',
+                'null'       => true,
+            ],
+
             'created_at' => [
                 'type'       => 'DATETIME',
                 'null'       => true,

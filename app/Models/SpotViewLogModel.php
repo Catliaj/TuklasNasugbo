@@ -4,18 +4,17 @@ namespace App\Models;
 
 use CodeIgniter\Model;
 
-class UserPreferenceModel extends Model
+class SpotViewLogModel extends Model
 {
-    protected $table            = 'user_preferences';
-    protected $primaryKey       = 'preference_id';
+    protected $table            = 'spot_view_logs';
+    protected $primaryKey       = 'log_id';
     protected $useAutoIncrement = true;
     protected $returnType       = 'array';
     protected $useSoftDeletes   = false;
     protected $protectFields    = true;
     protected $allowedFields    = [
-       'user_id', 'category', 'created_at', 'updated_at'
+        'spot_id', 'user_id', 'viewed_at'
     ];
-    
 
     protected bool $allowEmptyInserts = false;
     protected bool $updateOnlyChanged = true;
