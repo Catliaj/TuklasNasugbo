@@ -429,13 +429,21 @@ public function getMonthOverMonthComparison($businessID)
 
     public function getVisitorDemographics($startDate, $endDate)
     {
-        return $this->selectSum('num_adults', 'total_adults')
-                    ->selectSum('num_children', 'total_children')
-                    ->selectSum('num_seniors', 'total_seniors')
-                    ->where('booking_status', 'Confirmed')
-                    ->where('visit_date >=', $startDate)
-                    ->where('visit_date <=', $endDate)
-                    ->get()->getRowArray();
+        $result = $this->db->table('bookings')
+            ->selectSum('num_adults', 'total_adults')
+            ->selectSum('num_children', 'total_children')
+            ->selectSum('num_seniors', 'total_seniors')
+            ->where('booking_status', 'Confirmed')
+            ->where('DATE(booking_date) >=', $startDate)
+            ->where('DATE(booking_date) <=', $endDate)
+            ->get()->getRowArray();
+
+        // Return 0s if result is empty
+        return [
+            'total_adults'   => (int)($result['total_adults'] ?? 0),
+            'total_children' => (int)($result['total_children'] ?? 0),
+            'total_seniors'  => (int)($result['total_seniors'] ?? 0)
+        ];
     }
 
     public function getBookingLeadTime($startDate, $endDate)
@@ -484,15 +492,15 @@ public function getMonthOverMonthComparison($businessID)
 
     public function getRevenueByCategory($startDate, $endDate)
     {
-        return $this->select('ts.category, SUM(b.total_price) as total_revenue')
-                    ->from('bookings b')
-                    ->join('tourist_spots ts', 'b.spot_id = ts.spot_id')
-                    ->where('b.booking_status', 'Confirmed')
-                    ->where('b.booking_date >=', $startDate)
-                    ->where('b.booking_date <=', $endDate)
-                    ->groupBy('ts.category')
-                    ->orderBy('total_revenue', 'DESC')
-                    ->get()->getResultArray();
+        return $this->db->table('bookings b')
+            ->select('ts.category, SUM(b.total_price) as total_revenue')
+            ->join('tourist_spots ts', 'b.spot_id = ts.spot_id')
+            ->where('b.booking_status', 'Confirmed')
+            ->where('DATE(b.booking_date) >=', $startDate)
+            ->where('DATE(b.booking_date) <=', $endDate)
+            ->groupBy('ts.category')
+            ->orderBy('total_revenue', 'DESC')
+            ->get()->getResultArray();
     }
 
 
