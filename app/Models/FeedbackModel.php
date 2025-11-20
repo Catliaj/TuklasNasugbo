@@ -6,23 +6,19 @@ use CodeIgniter\Model;
 
 class FeedbackModel extends Model
 {
-    protected $table            = 'feedbacks';
-    protected $primaryKey       = 'id';
+    protected $table            = 'review_feedback';
+    protected $primaryKey       = 'review_id';
     protected $useAutoIncrement = true;
     protected $returnType       = 'array';
     protected $useSoftDeletes   = false;
     protected $protectFields    = true;
-    protected $allowedFields    = ['spot_id', 'customer_id', 'rating', 'comment', 'created_at', 'updated_at'];
+    protected $allowedFields    = [
+        'booking_id', 'spot_id', 'customer_id', 'business_id', 'rating', 'title', 
+        'comment', 'cleanliness_rating', 'staff_rating', 'value_rating', 
+        'location_rating', 'status', 'is_verified_visit', 'owner_response', 'response_date'
+    ];
 
-    protected bool $allowEmptyInserts = false;
-    protected bool $updateOnlyChanged = true;
-
-    protected array $casts = [];
-    protected array $castHandlers = [];
-
-    // Dates
     protected $useTimestamps = true;
-    protected $dateFormat    = 'datetime';
     protected $createdField  = 'created_at';
     protected $updatedField  = 'updated_at';
     protected $deletedField  = 'deleted_at';
@@ -45,32 +41,44 @@ class FeedbackModel extends Model
     protected $afterDelete    = [];
 
     // ==========================================================
-    //  NEW ANALYTICS METHODS
+    //  ANALYTICS METHODS (Corrected for your schema)
     // ==========================================================
-    public function getAverageRating($startDate = null, $endDate = null)
+    public function getOverallAverageRating()
     {
-        $builder = $this->builder();
-        $builder->selectAvg('rating', 'averageRating');
-
-        if ($startDate && $endDate) {
-            $builder->where('created_at >=', $startDate);
-            $builder->where('created_at <=', $endDate);
-        }
-
-        $result = $builder->get()->getRowArray();
+        $result = $this->selectAvg('rating', 'averageRating')
+                       ->get()->getRowArray();
+        
         return ($result['averageRating']) ? number_format($result['averageRating'], 2) : "0.00";
     }
 
     public function getLowestRatedSpots($startDate, $endDate, $limit = 5)
     {
-        return $this->select('ts.spot_name, AVG(f.rating) as average_rating, COUNT(f.id) as review_count')
-                    ->from('feedbacks f')
-                    ->join('tourist_spots ts', 'f.spot_id = ts.spot_id')
-                    ->where('f.created_at >=', $startDate)
-                    ->where('f.created_at <=', $endDate)
+        return $this->select('ts.spot_name, AVG(review_feedback.rating) as average_rating')
+                    ->from('review_feedback', true)
+                    ->join('tourist_spots ts', 'review_feedback.spot_id = ts.spot_id', 'left')
+                    ->where('DATE(review_feedback.created_at) >=', $startDate)
+                    ->where('DATE(review_feedback.created_at) <=', $endDate)
                     ->groupBy('ts.spot_name')
                     ->orderBy('average_rating', 'ASC')
                     ->limit($limit)
                     ->get()->getResultArray();
+    }
+
+    /**
+     * Get sentiment analysis data for the reports page.
+     */
+    public function getSentimentAnalysis($startDate, $endDate)
+    {
+        $builder = $this->select("DATE_FORMAT(created_at, '%Y-%m') as month, 
+            SUM(CASE WHEN rating >= 4 THEN 1 ELSE 0 END) as positive,
+            SUM(CASE WHEN rating = 3 THEN 1 ELSE 0 END) as neutral,
+            SUM(CASE WHEN rating <= 2 THEN 1 ELSE 0 END) as negative");
+        
+        $builder->where('DATE(created_at) >=', $startDate)
+                ->where('DATE(created_at) <=', $endDate)
+                ->groupBy('month')
+                ->orderBy('month', 'ASC');
+
+        return $builder->get()->getResultArray();
     }
 }

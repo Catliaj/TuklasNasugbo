@@ -14,10 +14,10 @@ class TouristSpotModel extends Model
     protected $protectFields    = true;
 
     // ==========================================================
-    // ADD 'suspension_reason' TO ALLOWED FIELDS (NEWLY ADDED)
+    // ADD 'suspension_reason' TO ALLOWED FIELDS
     // ==========================================================
     protected $allowedFields    = [
-         'business_id', 'spot_name', 'description', 'latitude', 'longitude','category', 'location', 'capacity', 'opening_time', 'closing_time', 'operating_days', 'status', 'price_per_person', 'child_price', 'senior_price', 'group_discount_percent', 'primary_image', 'created_at', 'updated_at', 'status_reason'
+         'business_id', 'spot_name', 'description', 'latitude', 'longitude','category', 'location', 'capacity', 'opening_time', 'closing_time', 'operating_days', 'status', 'price_per_person', 'child_price', 'senior_price', 'group_discount_percent', 'primary_image', 'created_at', 'updated_at', 'status_reason', 'suspension_reason'
     ];
     // ==========================================================
 
@@ -28,7 +28,7 @@ class TouristSpotModel extends Model
     protected array $castHandlers = [];
 
     // Dates
-    protected $useTimestamps = true; // Changed to true to manage created_at/updated_at automatically
+    protected $useTimestamps = true; 
     protected $dateFormat    = 'datetime';
     protected $createdField  = 'created_at';
     protected $updatedField  = 'updated_at';
@@ -85,7 +85,7 @@ class TouristSpotModel extends Model
     }
 
     // ==========================================================
-    //  FUNCTION TO GET ALL SPOTS FOR ADMIN (NEWLY ADDED)
+    //  FUNCTION TO GET ALL SPOTS FOR ADMIN
     // ==========================================================
     /**
      * Retrieves all tourist spots, joining with businesses and users tables
@@ -99,8 +99,6 @@ class TouristSpotModel extends Model
                     ->orderBy('tourist_spots.created_at', 'DESC')
                     ->findAll();
     }
-    // ==========================================================
-
     
     //get total spots by business id for spot owner dashboard where status is approved
     public function getTotalSpotsByBusinessID($businessID)
@@ -111,6 +109,8 @@ class TouristSpotModel extends Model
         return $builder->countAllResults();
     }
 
+    // ==========================================================
+    //  NEW DASHBOARD LOGIC: HIDDEN GEMS / RECOMMENDED
     // ==========================================================
     // FUNCTION TO GET SPOT DETAILS WITH OWNER INFO AND GALLERY
     // ==========================================================
@@ -157,4 +157,17 @@ class TouristSpotModel extends Model
 
 
     
-
+    public function getTopRecommendedHiddenSpots($limit = 5)
+    {
+        // Logic: Get spots with the Highest Average Rating
+        // This replaces the RAND() placeholder.
+        return $this->select('tourist_spots.spot_name, tourist_spots.location')
+                    ->selectAvg('review_feedback.rating', 'recommendation_count') // Alias as recommendation_count for frontend compatibility
+                    ->join('review_feedback', 'review_feedback.spot_id = tourist_spots.spot_id', 'left')
+                    ->where('tourist_spots.status', 'approved')
+                    ->groupBy('tourist_spots.spot_id')
+                    ->orderBy('recommendation_count', 'DESC')
+                    ->limit($limit)
+                    ->find();
+    }
+}

@@ -56,5 +56,55 @@ class UsersModel extends Model
         return $result['category'] ?? null; // returns "Historical,Natural,Urban,Adventure"
     }
 
+    // ==========================================================
+    //  DASHBOARD / REPORT METHODS
+    // ==========================================================
 
+    /**
+     * Get the count of new users registered in the current month.
+     *
+     * @return int
+     */
+    public function getNewUsersThisMonth()
+    {
+        // Note: using DB functions in where clauses; works but may be DB-specific.
+        return $this->where('MONTH(created_at)', date('m'))
+                    ->where('YEAR(created_at)', date('Y'))
+                    ->countAllResults();
+    }
+
+    /**
+     * Get the distribution of user preferences for the dashboard doughnut chart.
+     *
+     * Returns array of rows: ['category' => '...', 'total' => int]
+     *
+     * @return array
+     */
+    public function getUserPreferenceDistribution()
+    {
+        return $this->db->table('user_preferences')
+            ->select('category, COUNT(preference_id) as total')
+            ->groupBy('category')
+            ->get()->getResultArray();
+    }
+
+    /**
+     * Get preference trends over time for the reports page.
+     *
+     * Returns rows with columns: ['month' => 'YYYY-MM', 'category' => '...', 'total' => int]
+     *
+     * @param string $startDate  YYYY-MM-DD
+     * @param string $endDate    YYYY-MM-DD
+     * @return array
+     */
+    public function getPreferenceTrends($startDate, $endDate)
+    {
+        return $this->db->table('user_preferences up')
+            ->select("DATE_FORMAT(up.created_at, '%Y-%m') as month, up.category, COUNT(up.preference_id) as total")
+            ->where('DATE(up.created_at) >=', $startDate)
+            ->where('DATE(up.created_at) <=', $endDate)
+            ->groupBy(['month', 'up.category'])
+            ->orderBy('month', 'ASC')
+            ->get()->getResultArray();
+    }
 }

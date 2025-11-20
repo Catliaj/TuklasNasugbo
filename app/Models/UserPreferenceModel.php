@@ -6,6 +6,7 @@ use CodeIgniter\Model;
 
 class UserPreferenceModel extends Model
 {
+
     protected $table            = 'user_preferences';
     protected $primaryKey       = 'preference_id';
     protected $useAutoIncrement = true;
@@ -46,4 +47,33 @@ class UserPreferenceModel extends Model
     protected $afterFind      = [];
     protected $beforeDelete   = [];
     protected $afterDelete    = [];
+
+    // ==========================================================
+    //  NEW METHODS FOR DASHBOARD & ANALYTICS
+    // ==========================================================
+
+    /**
+     * Get distribution of user preferences for the Dashboard Pie Chart.
+     * Returns: [{'category': 'Nature', 'total': 15}, ...]
+     */
+    public function getUserPreferenceDistribution()
+    {
+        return $this->select('category, COUNT(*) as total')
+                    ->groupBy('category')
+                    ->orderBy('total', 'DESC')
+                    ->findAll();
+    }
+
+    /**
+     * Get preference trends over a specific date range for the Reports Page.
+     */
+    public function getPreferenceTrends($startDate, $endDate)
+    {
+        return $this->select("category, COUNT(*) as count")
+                    ->where('DATE(created_at) >=', $startDate)
+                    ->where('DATE(created_at) <=', $endDate)
+                    ->groupBy('category')
+                    ->orderBy('count', 'DESC')
+                    ->findAll();
+    }
 }

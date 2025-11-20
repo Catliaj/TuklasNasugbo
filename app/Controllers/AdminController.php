@@ -9,79 +9,100 @@ use App\Models\TouristSpotModel;
 use App\Models\BookingModel;
 use App\Models\FeedbackModel;
 use App\Models\SpotGalleryModel;
+use App\Models\UsersModel;
+use App\Models\UserPreferenceModel;
 
 class AdminController extends BaseController
 {
-    public function dashboard()
+    // ==========================================================
+    //  PAGE RENDERERS
+    // ==========================================================
+
+    protected function ensureAdmin()
     {
         if (!session()->get('isLoggedIn') || session()->get('Role') !== 'Admin') {
             return redirect()->to(base_url('/'))->with('error', 'Please log in as Admin to access the admin dashboard.');
         }
+        return null;
+    }
+
+    public function dashboard()
+    {
+        // enforce admin
+        if ($redirect = $this->ensureAdmin()) return $redirect;
 
         $businessModel = new BusinessModel();
         $touristSpotModel = new TouristSpotModel();
         $bookingModel = new BookingModel();
+        $feedbackModel = new FeedbackModel();
+        $userPrefModel = new UserPreferenceModel();
 
-        $data['totalPendingRequests'] = $businessModel->getTotalPendingRequests();
-        $userID = session()->get('UserID');
-        $data['totalTouristSpots'] = $touristSpotModel->getTotalTouristSpots();
-        $data['totalBookingsThisMonth'] = $bookingModel->getTotalBookingsThisMonth();
-        $data['totalTodayBookings'] = $bookingModel->getTotalBookingsToday();
-        $data['totalCategories'] = $touristSpotModel->getTotalCategories();
+        // KPI cards
+        $data['TotalPendingRequests']   = $businessModel->getTotalPendingRequests();
+        $data['TotalTouristSpots']      = $touristSpotModel->getTotalTouristSpots();
+        $data['TotalBookingsThisMonth'] = $bookingModel->getTotalBookingsThisMonth();
+        $data['TotalTodayBookings']     = $bookingModel->getTotalBookingsToday();
+        $data['satisfactionScore']      = $feedbackModel->getOverallAverageRating();
 
-        $getTotalBookingsByMonth = $bookingModel->getMonthlyBookingsTrend();
+        // Monthly bookings trend (build months until current month)
+        $getTotalBookingsByMonth = method_exists($bookingModel, 'getMonthlyBookingsTrend') ? $bookingModel->getMonthlyBookingsTrend() : [];
         $BookingData = array_fill(1, 12, ['month' => '', 'total_bookings' => 0]);
-
         foreach (range(1, 12) as $m) {
             $BookingData[$m] = [
                 'month' => date('F', mktime(0, 0, 0, $m, 1)),
                 'total_bookings' => 0
             ];
         }
-
         foreach ($getTotalBookingsByMonth as $row) {
-            $month = (int)$row['month'];
-            $BookingData[$month]['total_bookings'] = (int)$row['total'];
+            $month = (int)($row['month'] ?? 0);
+            if ($month >= 1 && $month <= 12) {
+                $BookingData[$month]['total_bookings'] = (int)($row['total'] ?? 0);
+            }
         }
-
         $currentMonth = (int)date('n');
         $BookingData = array_slice($BookingData, 0, $currentMonth, true);
 
         $data['monthlyBookingsTrend'] = json_encode(array_values($BookingData), JSON_NUMERIC_CHECK);
-        $data['totalCategoriesJSON'] = json_encode($data['totalCategories'], JSON_NUMERIC_CHECK);
+        $data['TotalCategories'] = $touristSpotModel->getTotalCategories();
+        $data['TotalCategoriesJSON'] = json_encode($data['TotalCategories'], JSON_NUMERIC_CHECK);
 
         return view('Pages/admin/dashboard', [
-            'data' => $data,
-            'userID' => $userID,
-            'FullName' => session()->get('FirstName') . ' ' . session()->get('LastName'),
-            'email'   => session()->get('Email'),
-            'currentID' => $userID,
-            'TotalPendingRequests' => $data['totalPendingRequests'],
-            'TotalTouristSpots' => $data['totalTouristSpots'],
-            'TotalBookingsThisMonth' => $data['totalBookingsThisMonth'],
-            'TotalTodayBookings' => $data['totalTodayBookings'],
-            'MonthlyBookingsTrend' => $data['monthlyBookingsTrend'],
-            'TotalCategories' => $data['totalCategoriesJSON'],
+            'data'                    => $data,
+            'userID'                  => session()->get('UserID'),
+            'FullName'                => session()->get('FirstName') . ' ' . session()->get('LastName'),
+            'email'                   => session()->get('Email'),
+            'currentID'               => session()->get('UserID'),
+            'TotalPendingRequests'    => $data['TotalPendingRequests'],
+            'TotalTouristSpots'       => $data['TotalTouristSpots'],
+            'TotalBookingsThisMonth'  => $data['TotalBookingsThisMonth'],
+            'TotalTodayBookings'      => $data['TotalTodayBookings'],
+            'MonthlyBookingsTrend'    => $data['monthlyBookingsTrend'],
+            'TotalCategories'         => $data['TotalCategoriesJSON'],
+            'satisfactionScore'       => $data['satisfactionScore']
         ]);
     }
 
     public function registrations()
     {
+        if ($redirect = $this->ensureAdmin()) return $redirect;
         return view('Pages/admin/registrations');
     }
 
     public function attractions()
     {
+        if ($redirect = $this->ensureAdmin()) return $redirect;
         return view('Pages/admin/attractions');
     }
 
     public function reports()
     {
+        if ($redirect = $this->ensureAdmin()) return $redirect;
         return view('Pages/admin/reports');
     }
 
     public function settings()
     {
+        if ($redirect = $this->ensureAdmin()) return $redirect;
         return view('Pages/admin/settings');
     }
 
@@ -109,7 +130,6 @@ class AdminController extends BaseController
     {
         $businessModel = new BusinessModel();
         $data = ['status' => 'approved', 'rejection_reason' => null];
-
         if ($businessModel->update($id, $data)) {
             return $this->response->setJSON(['success' => 'Registration approved successfully.']);
         }
@@ -120,17 +140,13 @@ class AdminController extends BaseController
     {
         $businessModel = new BusinessModel();
         $reason = $this->request->getPost('reason');
-
         if (empty($reason)) {
             return $this->response->setStatusCode(400)->setJSON(['error' => 'Reason for rejection is required.']);
         }
-
         $data = ['status' => 'rejected', 'rejection_reason' => $reason];
-
         if ($businessModel->update($id, $data)) {
             return $this->response->setJSON(['success' => 'Registration rejected successfully.']);
         }
-
         return $this->response->setStatusCode(500)->setJSON(['error' => 'Failed to reject registration.']);
     }
 
@@ -140,8 +156,7 @@ class AdminController extends BaseController
     public function getAttractionList()
     {
         $spotModel = new TouristSpotModel();
-        $data = $spotModel->getAllTouristSpots();
-        return $this->response->setJSON($data);
+        return $this->response->setJSON($spotModel->getAllTouristSpots());
     }
 
     public function viewAttraction($id = null)
@@ -209,54 +224,64 @@ class AdminController extends BaseController
     }
 
     // ==========================================================
-    //  ANALYTICS API
+    //  REPORTS & ANALYTICS API
     // ==========================================================
     public function getAnalytics()
     {
-        $startDate = $this->request->getPost('startDate') ?: date('Y-m-d', strtotime('-29 days'));
-        $endDate = $this->request->getPost('endDate') ?: date('Y-m-d');
+        try {
+            $startDate = $this->request->getPost('startDate') ?: date('Y-m-d', strtotime('-29 days'));
+            $endDate = $this->request->getPost('endDate') ?: date('Y-m-d');
 
-        $bookingModel = new BookingModel();
-        $touristSpotModel = new TouristSpotModel();
-        $feedbackModel = new FeedbackModel();
+            $bookingModel = new BookingModel();
+            $feedbackModel = new FeedbackModel();
+            $spotModel = new TouristSpotModel();
 
-        $totalBookings = $bookingModel->where('booking_date >=', $startDate)
-            ->where('booking_date <=', $endDate)
-            ->countAllResults();
+            // Calculate Summary Metrics dynamically
+            $totalBookings = $bookingModel->where('booking_status', 'Confirmed')
+                                          ->where('DATE(booking_date) >=', $startDate)
+                                          ->where('DATE(booking_date) <=', $endDate)
+                                          ->countAllResults();
 
-        $totalRevenue = $bookingModel->getTotalRevenue($startDate, $endDate);
-        $activeAttractions = $touristSpotModel->where('status', 'approved')->countAllResults();
-        $averageRating = $feedbackModel->getAverageRating($startDate, $endDate);
-        $topSpots = $bookingModel->getTopPerformingSpots($startDate, $endDate, 5);
-        $categoryDistribution = $touristSpotModel->getTotalCategories();
-        $demographics = $bookingModel->getVisitorDemographics($startDate, $endDate);
-        $leadTime = $bookingModel->getBookingLeadTime($startDate, $endDate);
-        $peakDays = $bookingModel->getPeakDays($startDate, $endDate);
-        $arpb = $bookingModel->getAverageRevenuePerBooking($startDate, $endDate);
-        $revenueByCategory = $bookingModel->getRevenueByCategory($startDate, $endDate);
-        $lowestRatedSpots = $feedbackModel->getLowestRatedSpots($startDate, $endDate, 5);
+            $rowRevenue = $bookingModel->selectSum('total_price', 'total_price')
+                                         ->where('booking_status', 'Confirmed')
+                                         ->where('DATE(booking_date) >=', $startDate)
+                                         ->where('DATE(booking_date) <=', $endDate)
+                                         ->get()->getRowArray();
 
-        return $this->response->setJSON([
-            'success' => true,
-            'summary' => [
-                'totalBookings' => $totalBookings,
-                'totalRevenue' => '₱' . number_format($totalRevenue, 2),
-                'activeAttractions' => $activeAttractions,
-                'averageRating' => $averageRating,
-                'averageRevenuePerBooking' => '₱' . number_format($arpb, 2),
-            ],
-            'charts' => [
-                'categoryDistribution' => $categoryDistribution,
-                'visitorDemographics' => $demographics,
-                'bookingLeadTime' => $leadTime,
-                'peakBookingDays' => $peakDays['peak_booking_days'],
-                'peakVisitDays' => $peakDays['peak_visit_days'],
-                'revenueByCategory' => $revenueByCategory,
-            ],
-            'tables' => [
-                'topPerformingSpots' => $topSpots,
-                'lowestRatedSpots' => $lowestRatedSpots,
-            ]
-        ]);
+            $totalRevenue = isset($rowRevenue['total_price']) ? (float)$rowRevenue['total_price'] : 0;
+
+            $rowAvg = $feedbackModel->selectAvg('rating', 'rating')
+                                       ->where('DATE(created_at) >=', $startDate)
+                                       ->where('DATE(created_at) <=', $endDate)
+                                       ->get()->getRowArray();
+
+            $avgRating = isset($rowAvg['rating']) ? (float)$rowAvg['rating'] : 0;
+
+            $data = [
+                'success' => true,
+                'summary' => [
+                    'totalBookings' => (int)$totalBookings,
+                    'totalRevenue' => $totalRevenue,
+                    'averageRevenuePerBooking' => $totalBookings > 0 ? round($totalRevenue / $totalBookings, 2) : 0,
+                    'averageRating' => number_format($avgRating, 1),
+                    'activeAttractions' => $spotModel->where('status', 'approved')->countAllResults()
+                ],
+                'charts' => [
+                    'visitorDemographics' => $bookingModel->getVisitorDemographics($startDate, $endDate),
+                    'peakBookingDays' => $bookingModel->getPeakDays($startDate, $endDate)['peak_booking_days'] ?? [],
+                    'bookingLeadTime' => $bookingModel->getBookingLeadTime($startDate, $endDate),
+                    'revenueByCategory' => $bookingModel->getRevenueByCategory($startDate, $endDate),
+                    'performanceMetrics' => $bookingModel->getTopSpotsPerformanceMetrics($startDate, $endDate)
+                ],
+                'tables' => [
+                    'topPerformingSpots' => $bookingModel->getTopSpotsPerformanceMetrics($startDate, $endDate),
+                    'lowestRatedSpots' => $feedbackModel->getLowestRatedSpots($startDate, $endDate)
+                ]
+            ];
+
+            return $this->response->setJSON($data);
+        } catch (\Exception $e) {
+            return $this->response->setStatusCode(500)->setJSON(['error' => 'Server Error', 'message' => $e->getMessage()]);
+        }
     }
 }

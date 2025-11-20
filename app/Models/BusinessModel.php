@@ -80,4 +80,19 @@ class BusinessModel extends Model
                     ->orderBy('businesses.created_at', 'DESC')
                     ->findAll();
     }
+
+    /**
+     * Get the top 5 most viewed local businesses.
+     * This is a placeholder logic as view tracking is not implemented yet.
+     */
+    public function getTopViewedBusinesses($limit = 5)
+    {
+        // This query uses RAND() as a placeholder for a real view count.
+        // A real implementation would require a 'view_count' column that is incremented
+        // every time a business profile is viewed.
+        return $this->select('business_name, (RAND() * 500) as view_count')
+                    ->orderBy('view_count', 'DESC')
+                    ->limit($limit)
+                    ->get()->getResultArray();
+    }
 }
