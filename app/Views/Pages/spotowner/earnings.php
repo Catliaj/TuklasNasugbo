@@ -97,67 +97,76 @@
                     </div>
 
                     <!-- Stats -->
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-3 col-sm-6">
-                            <div class="stat-card">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <div class="stat-label">Total Revenue</div>
-                                        <div class="stat-value">₱15,750</div>
-                                        <div class="stat-description">All time</div>
-                                    </div>
-                                    <div class="stat-icon">
-                                        <i class="bi bi-cash-coin"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+<div class="row g-3 mb-4">
+    <div class="col-md-3 col-sm-6">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-label">Total Revenue</div>
+                    <div class="stat-value">₱<?= number_format($totalRevenue ?? 0, 2) ?></div>
+                    <div class="stat-description">All time</div>
+                </div>
+                <div class="stat-icon">
+                    <i class="bi bi-cash-coin"></i>
+                </div>
+            </div>
+        </div>
+    </div>
 
-                        <div class="col-md-3 col-sm-6">
-                            <div class="stat-card">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <div class="stat-label">This Month</div>
-                                        <div class="stat-value">₱2,750</div>
-                                        <div class="stat-description">+12% from last month</div>
-                                    </div>
-                                    <div class="stat-icon">
-                                        <i class="bi bi-graph-up"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-md-3 col-sm-6">
-                            <div class="stat-card">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <div class="stat-label">Avg. Per Booking</div>
-                                        <div class="stat-value">₱458</div>
-                                        <div class="stat-description">Based on 34 bookings</div>
-                                    </div>
-                                    <div class="stat-icon">
-                                        <i class="bi bi-receipt"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-md-3 col-sm-6">
-                            <div class="stat-card">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <div class="stat-label">Pending</div>
-                                        <div class="stat-value">₱1,375</div>
-                                        <div class="stat-description">From pending bookings</div>
-                                    </div>
-                                    <div class="stat-icon">
-                                        <i class="bi bi-clock-history"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-label">This Month</div>
+                    <div class="stat-value">₱<?= number_format($monthlyRevenue ?? 0, 2) ?></div>
+                    <div class="stat-description">
+                        <?php if(isset($comparison) && $comparison['change'] != 0): ?>
+                            <span class="<?= $comparison['direction'] == 'up' ? 'text-success' : 'text-danger' ?>">
+                                <?= $comparison['direction'] == 'up' ? '↑' : '↓' ?> 
+                                <?= abs(number_format($comparison['change'], 1)) ?>%
+                            </span> from last month
+                        <?php else: ?>
+                            No change from last month
+                        <?php endif; ?>
                     </div>
+                </div>
+                <div class="stat-icon">
+                    <i class="bi bi-graph-up"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 col-sm-6">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-label">Avg. Per Booking</div>
+                    <div class="stat-value">₱<?= number_format($averageRevenue ?? 0, 2) ?></div>
+                    <div class="stat-description">Based on <?= $totalBookings ?? 0 ?> bookings</div>
+                </div>
+                <div class="stat-icon">
+                    <i class="bi bi-receipt"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 col-sm-6">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-label">Pending</div>
+                    <div class="stat-value">₱<?= number_format($pendingRevenue ?? 0, 2) ?></div>
+                    <div class="stat-description">From pending bookings</div>
+                </div>
+                <div class="stat-icon">
+                    <i class="bi bi-clock-history"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
                     <!-- Interactive Charts Section -->
                     <div class="custom-card mb-4">
@@ -207,97 +216,71 @@
                     </div>
 
                     <!-- Recent Transactions -->
-                    <div class="row g-4 mb-4">
-                        <div class="col-lg-6">
-                            <div class="custom-card">
-                                <div class="custom-card-header">
-                                    <h3 class="custom-card-title">Recent Transactions</h3>
-                                    <p class="custom-card-description">Latest payment activities</p>
-                                </div>
-                                <div class="custom-card-body">
-                                    <div class="list-group list-group-flush">
-                                        <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <div class="fw-medium">Maria Santos</div>
-                                                <small class="text-muted-custom">Oct 10, 2025</small>
-                                            </div>
-                                            <span class="text-success fw-medium">+₱500</span>
-                                        </div>
-                                        <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <div class="fw-medium">Juan Dela Cruz</div>
-                                                <small class="text-muted-custom">Oct 12, 2025</small>
-                                            </div>
-                                            <span class="text-success fw-medium">+₱250</span>
-                                        </div>
-                                        <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <div class="fw-medium">Carlos Garcia</div>
-                                                <small class="text-muted-custom">Oct 18, 2025</small>
-                                            </div>
-                                            <span class="text-success fw-medium">+₱375</span>
-                                        </div>
-                                        <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <div class="fw-medium">Ana Reyes</div>
-                                                <small class="text-muted-custom">Oct 15, 2025 (Pending)</small>
-                                            </div>
-                                            <span class="text-warning fw-medium">₱750</span>
-                                        </div>
-                                        <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <div class="fw-medium">Sofia Martinez</div>
-                                                <small class="text-muted-custom">Oct 20, 2025 (Pending)</small>
-                                            </div>
-                                            <span class="text-warning fw-medium">₱625</span>
-                                        </div>
-                                    </div>
-                                </div>
+<div class="col-lg-6">
+    <div class="custom-card">
+        <div class="custom-card-header">
+            <h3 class="custom-card-title">Recent Transactions</h3>
+            <p class="custom-card-description">Latest payment activities</p>
+        </div>
+        <div class="custom-card-body">
+            <?php if (!empty($recentTransactions)): ?>
+                <div class="list-group list-group-flush">
+                    <?php foreach ($recentTransactions as $transaction): ?>
+                        <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-medium"><?= esc($transaction['customer_name']) ?></div>
+                                <small class="text-muted-custom">
+                                    <?= date('M d, Y', strtotime($transaction['booking_date'])) ?>
+                                    <?php if ($transaction['booking_status'] == 'Pending'): ?>
+                                        (Pending)
+                                    <?php endif; ?>
+                                </small>
                             </div>
+                            <span class="fw-medium <?= $transaction['booking_status'] == 'Confirmed' ? 'text-success' : 'text-warning' ?>">
+                                <?= $transaction['booking_status'] == 'Confirmed' ? '+' : '' ?>₱<?= number_format($transaction['total_price'], 2) ?>
+                            </span>
                         </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php else: ?>
+                <div class="text-center py-4 text-muted-custom">
+                    <i class="bi bi-inbox fs-1"></i>
+                    <p class="mb-0 mt-2">No recent transactions</p>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+</div>
 
-                        <!-- Top Performing Days -->
-                        <div class="col-lg-6">
-                            <div class="custom-card">
-                                <div class="custom-card-header">
-                                    <h3 class="custom-card-title">Top Performing Days</h3>
-                                    <p class="custom-card-description">Highest revenue days this month</p>
-                                </div>
-                                <div class="custom-card-body">
-                                    <div class="list-group list-group-flush">
-                                        <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <div class="fw-medium">Saturday, Oct 18</div>
-                                                <small class="text-muted-custom">8 bookings</small>
-                                            </div>
-                                            <span class="fw-medium text-ocean-medium">₱1,000</span>
-                                        </div>
-                                        <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <div class="fw-medium">Sunday, Oct 12</div>
-                                                <small class="text-muted-custom">6 bookings</small>
-                                            </div>
-                                            <span class="fw-medium text-ocean-medium">₱750</span>
-                                        </div>
-                                        <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <div class="fw-medium">Saturday, Oct 4</div>
-                                                <small class="text-muted-custom">5 bookings</small>
-                                            </div>
-                                            <span class="fw-medium text-ocean-medium">₱625</span>
-                                        </div>
-                                        <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <div class="fw-medium">Friday, Oct 10</div>
-                                                <small class="text-muted-custom">4 bookings</small>
-                                            </div>
-                                            <span class="fw-medium text-ocean-medium">₱500</span>
-                                        </div>
-                                    </div>
-                                </div>
+                       <!-- Top Performing Days -->
+<div class="col-lg-6">
+    <div class="custom-card">
+        <div class="custom-card-header">
+            <h3 class="custom-card-title">Top Performing Days</h3>
+            <p class="custom-card-description">Highest revenue days this month</p>
+        </div>
+        <div class="custom-card-body">
+            <?php if (!empty($topDays)): ?>
+                <div class="list-group list-group-flush">
+                    <?php foreach ($topDays as $day): ?>
+                        <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-medium"><?= esc($day['day_name']) ?>, <?= esc($day['formatted_date']) ?></div>
+                                <small class="text-muted-custom"><?= $day['bookings'] ?> booking<?= $day['bookings'] != 1 ? 's' : '' ?></small>
                             </div>
+                            <span class="fw-medium text-ocean-medium">₱<?= number_format($day['revenue'], 2) ?></span>
                         </div>
-                    </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php else: ?>
+                <div class="text-center py-4 text-muted-custom">
+                    <i class="bi bi-calendar-x fs-1"></i>
+                    <p class="mb-0 mt-2">No bookings this month yet</p>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+</div>
 
                     <!-- Export Options -->
                     <div class="custom-card">
@@ -325,14 +308,14 @@
     </div>
 
     <!-- Bootstrap 5 JS Bundle -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-    <!-- Custom JavaScript -->
-    <script src="<?= base_url("assets/js/spotownerJS/shared-data.js")?>"></script>
-    <!-- ✅ Fixed path -->
-    
-   
-    <script src="<?= base_url("assets/js/spotownerJS/earnings.js")?>"></script>
+<!-- Chart.js Library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<!-- Custom JavaScript -->
+<script src="<?= base_url("assets/js/spotownerJS/shared-data.js")?>"></script>
+<script src="<?= base_url("assets/js/spotownerJS/earnings.js")?>"></script>
     
 </body>
 

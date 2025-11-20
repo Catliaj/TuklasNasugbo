@@ -15,11 +15,11 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
 from django.urls import path, include
-
+from recommender.views import recommend_itinerary  # import the view
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-     path('api/', include('recommender.urls')),
+    path('api/', include('recommender.urls')),  # if you have other API routes
+    path('recommend_itinerary', recommend_itinerary, name='recommend_itinerary'),  # correct view
 ]

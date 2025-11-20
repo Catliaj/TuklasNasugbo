@@ -280,7 +280,7 @@
                         <select id="signupRole" name="role" class="form-select" style="padding-left: 2.5rem;" required onchange="onSignupRoleChange()">
                           <option value="">Select your role</option>
                           <option value="tourist">Tourist</option>
-                          <option value="spot-owner">Spot Owner</option>
+                          <option value="Spot Owner">Spot Owner</option>
                         </select>
                       </div>
                     </div>
@@ -300,13 +300,6 @@
                         <div class="position-relative">
                           <i class="bi bi-geo-alt input-icon"></i>
                           <input type="text" name="touristAddress" class="form-control" style="padding-left: 2.5rem;" placeholder="Complete address">
-                        </div>
-                      </div>
-                      <div class="mb-3">
-                        <label class="form-label">Nationality</label>
-                        <div class="position-relative">
-                          <i class="bi bi-globe input-icon"></i>
-                          <input type="text" name="nationality" class="form-control" style="padding-left: 2.5rem;" placeholder="Nationality">
                         </div>
                       </div>
                       <div class="mb-3">
@@ -373,6 +366,13 @@
                           <input type="text" name="govIdNumber" class="form-control" style="padding-left: 2.5rem;" placeholder="ID number">
                         </div>
                       </div>
+                      <div class="mb-3">
+                        <label class="form-label">Upload Valid ID (Image)</label>
+                        <div class="position-relative">
+                          <i class="bi bi-image input-icon"></i>
+                          <input type="file" name="govIdImage" class="form-control" style="padding-left: 2.5rem;" accept="image/*">
+                        </div>
+                      </div>
                     </div>
 
                     <!-- Password Fields -->
@@ -416,6 +416,7 @@
       </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -503,10 +504,10 @@
             }
             
             if (ownerFields) {
-                ownerFields.style.display = role === 'spot-owner' ? 'block' : 'none';
+                ownerFields.style.display = role === 'Spot Owner' ? 'block' : 'none';
                 const ownerInputs = ownerFields.querySelectorAll('input, select');
                 ownerInputs.forEach(input => {
-                    input.required = role === 'spot-owner';
+                    input.required = role === 'Spot Owner';
                 });
             }
         }
@@ -600,7 +601,54 @@ if (loginForm) {
     });
   });
 }
+
+
+function handleSignup(event) {
+    event.preventDefault();
+
+    const form = document.getElementById('signupForm');
+    const formData = new FormData(form);
+
+    fetch('/signup/submit', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+    if (data.status === 'success') {
+            Swal.fire({
+                icon: 'success',
+                title: 'Success!',
+                text: data.message,
+                timer: 2000,
+                showConfirmButton: false
+            }).then(() => {
+                window.location.href = "/";
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Oops!',
+                text: data.message
+            });
+        }
+    })
+    .catch(err => {
+        console.error(err);
+
+        Swal.fire({
+            icon: 'error',
+            title: 'Something went wrong',
+            text: 'An unexpected error occurred.',
+            confirmButtonColor: '#d33',
+        });
+    });
+}
+
+
 </script>
+
+
 
 </body>
 </html>

@@ -24,6 +24,7 @@ class CreateCustomers extends Migration
             'type' => [
                 'type'       => 'VARCHAR',
                 'constraint' => 50,
+                'null'       => true,
             ],
             'phone' => [
                 'type'       => 'VARCHAR',
@@ -34,6 +35,7 @@ class CreateCustomers extends Migration
             ],
             'date_of_birth' => [
                 'type'       => 'DATE',
+                'null'       => true,
             ],
             'emergency_contact' => [
                 'type'       => 'VARCHAR',

@@ -45,8 +45,6 @@ class UsersModel extends Model
     protected $afterFind      = [];
     protected $beforeDelete   = [];
     protected $afterDelete    = [];
-<<<<<<< Updated upstream
-=======
 
     public function getUserCategoryString($userId)
     {
@@ -59,21 +57,28 @@ class UsersModel extends Model
     }
 
     // ==========================================================
-    //  NEW DASHBOARD METHOD
+    //  DASHBOARD / REPORT METHODS
     // ==========================================================
-    
+
     /**
      * Get the count of new users registered in the current month.
+     *
+     * @return int
      */
     public function getNewUsersThisMonth()
     {
+        // Note: using DB functions in where clauses; works but may be DB-specific.
         return $this->where('MONTH(created_at)', date('m'))
                     ->where('YEAR(created_at)', date('Y'))
                     ->countAllResults();
     }
 
-     /**
+    /**
      * Get the distribution of user preferences for the dashboard doughnut chart.
+     *
+     * Returns array of rows: ['category' => '...', 'total' => int]
+     *
+     * @return array
      */
     public function getUserPreferenceDistribution()
     {
@@ -82,9 +87,15 @@ class UsersModel extends Model
             ->groupBy('category')
             ->get()->getResultArray();
     }
-    
+
     /**
      * Get preference trends over time for the reports page.
+     *
+     * Returns rows with columns: ['month' => 'YYYY-MM', 'category' => '...', 'total' => int]
+     *
+     * @param string $startDate  YYYY-MM-DD
+     * @param string $endDate    YYYY-MM-DD
+     * @return array
      */
     public function getPreferenceTrends($startDate, $endDate)
     {
@@ -96,6 +107,4 @@ class UsersModel extends Model
             ->orderBy('month', 'ASC')
             ->get()->getResultArray();
     }
-
->>>>>>> Stashed changes
 }

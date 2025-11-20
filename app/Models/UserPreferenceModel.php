@@ -6,18 +6,17 @@ use CodeIgniter\Model;
 
 class UserPreferenceModel extends Model
 {
-<<<<<<< Updated upstream
-    protected $table            = 'userpreferences';
-    protected $primaryKey       = 'id';
-=======
+
     protected $table            = 'user_preferences';
     protected $primaryKey       = 'preference_id';
->>>>>>> Stashed changes
     protected $useAutoIncrement = true;
     protected $returnType       = 'array';
     protected $useSoftDeletes   = false;
     protected $protectFields    = true;
-    protected $allowedFields    = [];
+    protected $allowedFields    = [
+       'user_id', 'category', 'created_at', 'updated_at'
+    ];
+    
 
     protected bool $allowEmptyInserts = false;
     protected bool $updateOnlyChanged = true;

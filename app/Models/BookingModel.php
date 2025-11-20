@@ -44,11 +44,13 @@ class BookingModel extends Model
 
     public function getRevenueThisMonth()
     {
-        return $this->selectSum('total_price', 'totalRevenue')
+        $row = $this->selectSum('total_price', 'totalRevenue')
                     ->where('booking_status', 'Confirmed')
                     ->where('MONTH(booking_date)', date('m'))
                     ->where('YEAR(booking_date)', date('Y'))
-                    ->get()->getRow()->totalRevenue ?? 0;
+                    ->get()->getRowArray();
+
+        return (float) ($row['totalRevenue'] ?? 0);
     }
 
     // ==========================================================
@@ -87,23 +89,47 @@ class BookingModel extends Model
     }
 
     // ==========================================================
-    //  REPORTS PAGE ANALYTICS (The Missing Part)
+    //  REPORTS PAGE ANALYTICS
     // ==========================================================
-    
-    // Used for Reports Page (Specific Date Range)
+
+    /**
+     * Get peak booking days and peak visit days within a date range.
+     *
+     * @param string $startDate YYYY-MM-DD
+     * @param string $endDate   YYYY-MM-DD
+     * @return array
+     */
     public function getPeakDays($startDate, $endDate)
     {
-        $booking_sql = "SELECT DAYNAME(booking_date) as day, COUNT(booking_id) as total FROM bookings WHERE DATE(booking_date) BETWEEN ? AND ? GROUP BY day ORDER BY FIELD(day, 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday')";
-        $visit_sql = "SELECT DAYNAME(visit_date) as day, COUNT(booking_id) as total FROM bookings WHERE DATE(visit_date) BETWEEN ? AND ? AND booking_status = 'Confirmed' GROUP BY day ORDER BY FIELD(day, 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday')";
+        $booking_sql = "SELECT DAYNAME(booking_date) as day, COUNT(booking_id) as total
+                        FROM bookings
+                        WHERE DATE(booking_date) BETWEEN ? AND ?
+                        GROUP BY day
+                        ORDER BY FIELD(day, 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday')";
+
+        $visit_sql = "SELECT DAYNAME(visit_date) as day, COUNT(booking_id) as total
+                      FROM bookings
+                      WHERE DATE(visit_date) BETWEEN ? AND ?
+                        AND booking_status = 'Confirmed'
+                      GROUP BY day
+                      ORDER BY FIELD(day, 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday')";
 
         return [
             'peak_booking_days' => $this->db->query($booking_sql, [$startDate, $endDate])->getResultArray(),
-            'peak_visit_days' => $this->db->query($visit_sql, [$startDate, $endDate])->getResultArray()
+            'peak_visit_days'   => $this->db->query($visit_sql, [$startDate, $endDate])->getResultArray()
         ];
     }
 
+    /**
+     * Get repeat visitor trends within a date range: counts of first-time vs returning customers.
+     *
+     * @param string $startDate YYYY-MM-DD
+     * @param string $endDate   YYYY-MM-DD
+     * @return array ['first_time' => int, 'returning' => int]
+     */
     public function getRepeatVisitorTrends($startDate, $endDate)
     {
+        // Subquery: per-customer booking counts within the period
         $subquery = $this->db->table('bookings')
              ->select('customer_id, COUNT(booking_id) as booking_count')
              ->where('booking_status', 'Confirmed')
@@ -112,54 +138,22 @@ class BookingModel extends Model
              ->groupBy('customer_id')
              ->getCompiledSelect();
 
-        $query = $this->db->query("SELECT 
-            COUNT(CASE WHEN booking_count = 1 THEN 1 END) as first_time,
-            COUNT(CASE WHEN booking_count > 1 THEN 1 END) as returning_visitors
-            FROM ($subquery) as user_counts");
+        $sql = "SELECT 
+                    SUM(CASE WHEN booking_count = 1 THEN 1 ELSE 0 END) as first_time,
+                    SUM(CASE WHEN booking_count > 1 THEN 1 ELSE 0 END) as returning_visitors
+                FROM ({$subquery}) as user_counts";
 
-<<<<<<< Updated upstream
-    // ==========================================================
-    //  NEW ANALYTICS METHODS
-    // ==========================================================
-    public function getTotalRevenue($startDate = null, $endDate = null)
-    {
-        $builder = $this->builder();
-        $builder->selectSum('total_price', 'totalRevenue');
-        $builder->where('booking_status', 'Confirmed');
-
-        if ($startDate && $endDate) {
-            $builder->where('booking_date >=', $startDate);
-            $builder->where('booking_date <=', $endDate);
-        }
-
-        $result = $builder->get()->getRowArray();
-        return $result['totalRevenue'] ?? 0;
-    }
-    
-    public function getTopPerformingSpots($startDate, $endDate, $limit = 5)
-    {
-        $builder = $this->builder();
-        $builder->select('ts.spot_name, ts.category, COUNT(b.booking_id) as total_bookings, SUM(b.total_price) as total_revenue');
-        $builder->from('bookings b');
-        $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
-        $builder->where('b.booking_date >=', $startDate);
-        $builder->where('b.booking_date <=', $endDate);
-        $builder->where('b.booking_status', 'Confirmed');
-        $builder->groupBy('ts.spot_id, ts.spot_name, ts.category');
-        $builder->orderBy('total_revenue', 'DESC');
-        $builder->limit($limit);
-
-        return $builder->get()->getResultArray();
-=======
-        $result = $query->getRowArray();
+        $result = $this->db->query($sql)->getRowArray();
 
         return [
             'first_time' => (int)($result['first_time'] ?? 0),
             'returning'  => (int)($result['returning_visitors'] ?? 0)
         ];
->>>>>>> Stashed changes
     }
 
+    /**
+     * Visitor demographics totals for a date range.
+     */
     public function getVisitorDemographics($startDate, $endDate)
     {
         $result = $this->selectSum('num_adults', 'total_adults')
@@ -173,6 +167,9 @@ class BookingModel extends Model
         return $result ?: ['total_adults' => 0, 'total_children' => 0, 'total_seniors' => 0];
     }
 
+    /**
+     * Booking lead time distribution.
+     */
     public function getBookingLeadTime($startDate, $endDate)
     {
         $sql = "
@@ -192,34 +189,272 @@ class BookingModel extends Model
         return $this->db->query($sql, [$startDate, $endDate])->getResultArray();
     }
 
-<<<<<<< Updated upstream
-    public function getPeakDays($startDate, $endDate)
-    {
-        $booking_sql = "SELECT DAYNAME(booking_date) as day, COUNT(booking_id) as total FROM bookings WHERE booking_date BETWEEN ? AND ? GROUP BY day ORDER BY FIELD(day, 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday')";
-        $visit_sql = "SELECT DAYNAME(visit_date) as day, COUNT(booking_id) as total FROM bookings WHERE visit_date BETWEEN ? AND ? AND booking_status = 'Confirmed' GROUP BY day ORDER BY FIELD(day, 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday')";
+    // ==========================================================
+    //  BUSINESS-FOCUSED ANALYTICS (per-business helpers)
+    // ==========================================================
 
+    /**
+     * Get monthly revenue for the last N months by business.
+     */
+    public function getMonthlyRevenueByBusiness($businessID, $months = 6)
+    {
+        $builder = $this->db->table('bookings b');
+        $builder->select('
+            DATE_FORMAT(b.booking_date, "%Y-%m") as month,
+            MONTHNAME(b.booking_date) as month_name,
+            SUM(b.total_price) as revenue,
+            COUNT(b.booking_id) as bookings
+        ');
+        $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
+        $builder->where('ts.business_id', $businessID);
+        $builder->where('b.booking_status', 'Confirmed');
+        $builder->where('b.booking_date >=', date('Y-m-d', strtotime("-{$months} months")));
+        $builder->groupBy('DATE_FORMAT(b.booking_date, "%Y-%m")');
+        $builder->orderBy('month', 'ASC');
+        
+        return $builder->get()->getResultArray();
+    }
+
+    /**
+     * Get weekly revenue for the last N weeks by business.
+     */
+    public function getWeeklyRevenueByBusiness($businessID, $weeks = 8)
+    {
+        $builder = $this->db->table('bookings b');
+        $builder->select('
+            YEARWEEK(b.booking_date, 1) as week_num,
+            DATE_FORMAT(MIN(b.booking_date), "%b %d") as week_start,
+            DATE_FORMAT(MAX(b.booking_date), "%b %d") as week_end,
+            SUM(b.total_price) as revenue,
+            COUNT(b.booking_id) as bookings
+        ');
+        $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
+        $builder->where('ts.business_id', $businessID);
+        $builder->where('b.booking_status', 'Confirmed');
+        $builder->where('b.booking_date >=', date('Y-m-d', strtotime("-{$weeks} weeks")));
+        $builder->groupBy('YEARWEEK(b.booking_date, 1)');
+        $builder->orderBy('week_num', 'ASC');
+        
+        return $builder->get()->getResultArray();
+    }
+
+    /**
+     * Get booking trends by status for the last N months.
+     */
+    public function getBookingTrendsByBusiness($businessID, $months = 6)
+    {
+        $builder = $this->db->table('bookings b');
+        $builder->select('
+            DATE_FORMAT(b.booking_date, "%Y-%m") as month,
+            MONTHNAME(b.booking_date) as month_name,
+            b.booking_status,
+            COUNT(b.booking_id) as count
+        ');
+        $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
+        $builder->where('ts.business_id', $businessID);
+        $builder->where('b.booking_date >=', date('Y-m-d', strtotime("-{$months} months")));
+        $builder->groupBy(['DATE_FORMAT(b.booking_date, "%Y-%m")', 'b.booking_status']);
+        $builder->orderBy('month', 'ASC');
+        
+        return $builder->get()->getResultArray();
+    }
+
+    /**
+     * Get all-time total revenue for a business.
+     */
+    public function getTotalRevenueAllTime($businessID)
+    {
+        $builder = $this->db->table('bookings b');
+        $builder->select('SUM(b.total_price) AS total_revenue');
+        $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
+        $builder->where('ts.business_id', $businessID);
+        $builder->where('b.booking_status', 'Confirmed');
+        
+        $result = $builder->get()->getRowArray();
+        return $result['total_revenue'] ?? 0;
+    }
+
+    /**
+     * Get revenue for current month.
+     */
+    public function getMonthlyRevenue($businessID)
+    {
+        $builder = $this->db->table('bookings b');
+        $builder->select('SUM(b.total_price) AS monthly_revenue');
+        $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
+        $builder->where('ts.business_id', $businessID);
+        $builder->where('b.booking_status', 'Confirmed');
+        $builder->where('MONTH(b.booking_date)', date('m'));
+        $builder->where('YEAR(b.booking_date)', date('Y'));
+        
+        $result = $builder->get()->getRowArray();
+        return $result['monthly_revenue'] ?? 0;
+    }
+
+    /**
+     * Get average revenue per booking.
+     */
+    public function getAverageRevenuePerBooking($businessID)
+    {
+        $builder = $this->db->table('bookings b');
+        $builder->select('AVG(b.total_price) AS avg_revenue, COUNT(b.booking_id) as total_bookings');
+        $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
+        $builder->where('ts.business_id', $businessID);
+        $builder->where('b.booking_status', 'Confirmed');
+        
+        $result = $builder->get()->getRowArray();
         return [
-            'peak_booking_days' => $this->db->query($booking_sql, [$startDate, $endDate])->getResultArray(),
-            'peak_visit_days' => $this->db->query($visit_sql, [$startDate, $endDate])->getResultArray()
+            'average' => $result['avg_revenue'] ?? 0,
+            'total_bookings' => $result['total_bookings'] ?? 0
         ];
     }
-    
-    public function getAverageRevenuePerBooking($startDate, $endDate)
+
+    /**
+     * Get pending revenue (from pending bookings).
+     */
+    public function getPendingRevenue($businessID)
+    {
+        $builder = $this->db->table('bookings b');
+        $builder->select('SUM(b.total_price) AS pending_revenue');
+        $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
+        $builder->where('ts.business_id', $businessID);
+        $builder->where('b.booking_status', 'Pending');
+        
+        $result = $builder->get()->getRowArray();
+        return $result['pending_revenue'] ?? 0;
+    }
+
+    /**
+     * Get recent transactions with customer details.
+     */
+    public function getRecentTransactionsByBusiness($businessID, $limit = 10)
+    {
+        $builder = $this->db->table('bookings b');
+        $builder->select('
+            b.booking_id,
+            b.total_price,
+            b.booking_date,
+            b.booking_status,
+            b.payment_status,
+            CONCAT(u.FirstName, " ", u.LastName) as customer_name
+        ');
+        $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
+        $builder->join('customers c', 'b.customer_id = c.customer_id');
+        $builder->join('users u', 'c.user_id = u.UserID');
+        $builder->where('ts.business_id', $businessID);
+        $builder->orderBy('b.booking_date', 'DESC');
+        $builder->limit($limit);
+        
+        return $builder->get()->getResultArray();
+    }
+
+    /**
+     * Get top performing days of the current month.
+     */
+    public function getTopPerformingDays($businessID, $limit = 5)
+    {
+        $builder = $this->db->table('bookings b');
+        $builder->select('
+            DATE(b.booking_date) as booking_day,
+            DAYNAME(b.booking_date) as day_name,
+            DATE_FORMAT(b.booking_date, "%M %d") as formatted_date,
+            SUM(b.total_price) as revenue,
+            COUNT(b.booking_id) as bookings
+        ');
+        $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
+        $builder->where('ts.business_id', $businessID);
+        $builder->where('b.booking_status', 'Confirmed');
+        $builder->where('MONTH(b.booking_date)', date('m'));
+        $builder->where('YEAR(b.booking_date)', date('Y'));
+        $builder->groupBy('DATE(b.booking_date)');
+        $builder->orderBy('revenue', 'DESC');
+        $builder->limit($limit);
+        
+        return $builder->get()->getResultArray();
+    }
+
+    /**
+     * Month-over-month revenue comparison for a business.
+     */
+    public function getMonthOverMonthComparison($businessID)
+    {
+        // Current month
+        $currentBuilder = $this->db->table('bookings b');
+        $currentBuilder->select('SUM(b.total_price) AS revenue');
+        $currentBuilder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
+        $currentBuilder->where('ts.business_id', $businessID);
+        $currentBuilder->where('b.booking_status', 'Confirmed');
+        $currentBuilder->where('MONTH(b.booking_date)', date('m'));
+        $currentBuilder->where('YEAR(b.booking_date)', date('Y'));
+        $current = $currentBuilder->get()->getRowArray();
+        
+        // Previous month
+        $prevMonth = date('m', strtotime('-1 month'));
+        $prevYear = date('Y', strtotime('-1 month'));
+        
+        $prevBuilder = $this->db->table('bookings b');
+        $prevBuilder->select('SUM(b.total_price) AS revenue');
+        $prevBuilder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
+        $prevBuilder->where('ts.business_id', $businessID);
+        $prevBuilder->where('b.booking_status', 'Confirmed');
+        $prevBuilder->where('MONTH(b.booking_date)', $prevMonth);
+        $prevBuilder->where('YEAR(b.booking_date)', $prevYear);
+        $previous = $prevBuilder->get()->getRowArray();
+        
+        $currentRevenue = $current['revenue'] ?? 0;
+        $previousRevenue = $previous['revenue'] ?? 0;
+        
+        $percentChange = 0;
+        if ($previousRevenue > 0) {
+            $percentChange = (($currentRevenue - $previousRevenue) / $previousRevenue) * 100;
+        }
+        
+        return [
+            'current' => $currentRevenue,
+            'previous' => $previousRevenue,
+            'change' => $percentChange,
+            'direction' => $percentChange >= 0 ? 'up' : 'down'
+        ];
+    }
+
+    /**
+     * Top performing spots between date range.
+     */
+    public function getTopPerformingSpots($startDate, $endDate, $limit = 5)
+    {
+        $builder = $this->db->table('bookings b');
+        $builder->select('ts.spot_name, ts.category, COUNT(b.booking_id) as total_bookings, SUM(b.total_price) as total_revenue');
+        $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
+        $builder->where('b.booking_date >=', $startDate);
+        $builder->where('b.booking_date <=', $endDate);
+        $builder->where('b.booking_status', 'Confirmed');
+        $builder->groupBy('ts.spot_id, ts.spot_name, ts.category');
+        $builder->orderBy('total_revenue', 'DESC');
+        $builder->limit($limit);
+
+        return $builder->get()->getResultArray();
+    }
+
+    /**
+     * Average revenue per bookings in a date range.
+     */
+    public function getAverageRevenuePerBookings($startDate, $endDate)
     {
         $result = $this->select('SUM(total_price) as total_revenue, COUNT(booking_id) as total_bookings')
                        ->where('booking_status', 'Confirmed')
-                       ->where('booking_date >=', $startDate)
-                       ->where('booking_date <=', $endDate)
+                       ->where('DATE(booking_date) >=', $startDate)
+                       ->where('DATE(booking_date) <=', $endDate)
                        ->get()->getRowArray();
 
         if (empty($result) || $result['total_bookings'] == 0) {
             return 0;
         }
-        return $result['total_revenue'] / $result['total_bookings'];
+        return (float)$result['total_revenue'] / (int)$result['total_bookings'];
     }
 
-=======
->>>>>>> Stashed changes
+    /**
+     * Revenue by spot category within date range.
+     */
     public function getRevenueByCategory($startDate, $endDate)
     {
         return $this->select('ts.category, SUM(b.total_price) as total_revenue')
@@ -233,6 +468,9 @@ class BookingModel extends Model
                     ->get()->getResultArray();
     }
     
+    /**
+     * Top spots performance metrics (combined).
+     */
     public function getTopSpotsPerformanceMetrics($startDate, $endDate, $limit = 3)
     {
         $topSpotsQuery = $this->db->table('bookings')

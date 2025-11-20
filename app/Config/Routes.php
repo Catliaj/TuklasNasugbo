@@ -1,3 +1,4 @@
+
 <?php
 
 use CodeIgniter\Router\RouteCollection;
@@ -11,6 +12,7 @@ $routes->get('/under-development', 'Home::index');
 $routes->get('/', 'AuthController::login'); 
 $routes->get('/signup', 'AuthController::signup'); 
 $routes->post('/users/login', 'AuthController::Handlelogin');
+$routes->post('signup/submit', 'AuthController::handleSignup');
 $routes->get('/users/logout', 'AuthController::logout');
 
 //Admin routes
@@ -42,12 +44,20 @@ $routes->group('admin', ['namespace' => 'App\Controllers', 'filter' => 'auth'], 
 });
 
 
+
 //spot owner routes
 $routes->get('/spotowner/dashboard', 'SpotOwnerController::dashboard');
 $routes->get('/spotowner/mySpots', 'SpotOwnerController::mySpots');
 $routes->get('/spotowner/bookings', 'SpotOwnerController::bookings');
 $routes->get('/spotowner/earnings', 'SpotOwnerController::earnings');
 $routes->get('/spotowner/settings', 'SpotOwnerController::settings');
+
+//spot owner earnings API routes - ADD THESE THREE LINES
+$routes->get('spotowner/api/monthly-revenue', 'SpotOwnerController::getMonthlyRevenueData');
+$routes->get('spotowner/api/weekly-revenue', 'SpotOwnerController::getWeeklyRevenueData');
+$routes->get('spotowner/api/booking-trends', 'SpotOwnerController::getBookingTrendsData');
+
+
 
 
 
@@ -75,5 +85,34 @@ $routes->get('/tourist/visits', 'TouristController::touristVisits');
 $routes->get('/tourist/budget', 'TouristController::touristBudget');
 $routes->get('/tourist/favorites', 'TouristController::touristFavorites');
 
+// Ajax endpoints for tourist actions
+$routes->post('/tourist/createBooking', 'TouristController::createBooking');
+$routes->post('/tourist/toggleFavorite', 'TouristController::toggleFavorite');
+
 //TEST API ROUTE
 $routes->get('/test-api/key', 'TestApi::testKey');
+
+//itinerary routes
+
+$routes->get('itinerary/list', 'TouristController::listUserTrips');
+$routes->get('itinerary/get', 'TouristController::getTrip');
+
+// Route for tourist spot details page (view)
+$routes->get('/tourist/spot/(:num)', 'TouristController::viewSpotDetails/$1');
+// Route for AJAX spot details and gallery (modal/API)
+$routes->get('/tourist/viewSpot/(:num)', 'TouristController::viewSpot/$1');
+// allow GET (used by frontend fetch)
+// Check-in token endpoints
+$routes->get('tourist/generateCheckinToken/(:num)', 'TouristController::generateCheckinToken/$1');
+$routes->post('tourist/generateCheckinToken/(:num)', 'TouristController::generateCheckinToken/$1');
+
+// Verify token (scanner uses POST)
+$routes->post('tourist/verifyCheckinToken', 'TouristController::verifyCheckinToken');
+// optional GET for quick manual testing (remove/disable in production)
+$routes->get('tourist/verifyCheckinToken', 'TouristController::verifyCheckinToken');
+
+// Spot owner endpoints
+$routes->get('spotowner/getBookings', 'SpotOwnerController::getBookings');
+$routes->get('spotowner/getBooking/(:num)', 'SpotOwnerController::getBooking/$1');
+$routes->post('spotowner/recordCheckin', 'SpotOwnerController::recordCheckin');
+$routes->post('spotowner/confirmBooking/(:num)', 'SpotOwnerController::confirmBooking/$1');

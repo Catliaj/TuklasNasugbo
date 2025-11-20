@@ -1,4 +1,5 @@
-// Home Page - Multiple Tourist Spots Management (FIXED FRAME SIZE)
+// Home Page - Multiple Tourist Spots Management with Statistics Charts
+
 function renderHomePage() {
     return `
         <div class="container-fluid px-0">
@@ -7,7 +8,6 @@ function renderHomePage() {
                     <h2>My Tourist Spots</h2>
                     <p class="text-muted-custom">Manage all your tourist spot properties</p>
                 </div>
-                
             </div>
 
             <!-- Overall Stats Overview -->
@@ -73,6 +73,89 @@ function renderHomePage() {
                 </div>
             </div>
 
+            <!-- Statistics Section -->
+            <div class="mb-4">
+                <h3 class="mb-3">Performance Statistics</h3>
+
+                <!-- First Row: Main Line Charts -->
+                <div class="row g-4 mb-4">
+                    <div class="col-lg-6">
+                        <div class="custom-card">
+                            <div class="custom-card-header">
+                                <h3 class="custom-card-title">Revenue Trend</h3>
+                                <p class="custom-card-description">Monthly revenue comparison across all spots</p>
+                            </div>
+                            <div class="custom-card-body">
+                                <canvas id="revenueTrendChart" height="100"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-6">
+                        <div class="custom-card">
+                            <div class="custom-card-header">
+                                <h3 class="custom-card-title">Booking Trends</h3>
+                                <p class="custom-card-description">6-month booking comparison</p>
+                            </div>
+                            <div class="custom-card-body">
+                                <canvas id="bookingTrendChart" height="100"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Second Row: Smaller Charts (4 equal columns) -->
+                <div class="row g-4 mb-4">
+                    <div class="col-lg-3 col-md-6">
+                        <div class="custom-card">
+                            <div class="custom-card-header">
+                                <h3 class="custom-card-title">Bookings by Spot</h3>
+                                <p class="custom-card-description">Distribution this month</p>
+                            </div>
+                            <div class="custom-card-body">
+                                <canvas id="bookingDistributionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-3 col-md-6">
+                        <div class="custom-card">
+                            <div class="custom-card-header">
+                                <h3 class="custom-card-title">Revenue Share</h3>
+                                <p class="custom-card-description">Contribution by each spot</p>
+                            </div>
+                            <div class="custom-card-body">
+                                <canvas id="revenueShareChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-3 col-md-6">
+                        <div class="custom-card">
+                            <div class="custom-card-header">
+                                <h3 class="custom-card-title">Weekly Visitors</h3>
+                                <p class="custom-card-description">Visitor count by spot this week</p>
+                            </div>
+                            <div class="custom-card-body">
+                                <canvas id="visitorAnalyticsChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-3 col-md-6">
+                        <div class="custom-card">
+                            <div class="custom-card-header">
+                                <h3 class="custom-card-title">Performance Metrics</h3>
+                                <p class="custom-card-description">Multi-dimensional comparison</p>
+                            </div>
+                            <div class="custom-card-body">
+                                <canvas id="performanceRadarChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Tourist Spots Grid -->
             <div class="row g-4 mb-4" id="touristSpotsGrid">
                 <!-- Spot cards will be loaded here -->
@@ -93,25 +176,261 @@ function renderHomePage() {
                 </div>
             </div>
         </div>
-
-        
     `;
 }
-
-// Data is managed by shared-data.js via window.sharedTouristSpots
-// All functions below reference window.sharedTouristSpots directly
 
 let currentImageIndex = 0;
 
 function initHomePage() {
     // Load tourist spots grid
     loadTouristSpotsGrid();
-    
-    // Add new spot button
-    document.getElementById('addNewSpotBtn')?.addEventListener('click', function() {
-        const modal = new bootstrap.Modal(document.getElementById('addNewSpotModal'));
-        modal.show();
-    });
+
+    // Initialize all charts
+    initializeCharts();
+}
+
+function initializeCharts() {
+    // Guard: Chart must be loaded
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js is not loaded!');
+        return;
+    }
+
+    // Color scheme
+    const colors = {
+        beach: '#4A90E2',
+        mountain: '#E74C3C',
+        garden: '#2ECC71',
+        gradient1: 'rgba(74, 144, 226, 0.2)',
+        gradient2: 'rgba(231, 76, 60, 0.2)',
+        gradient3: 'rgba(46, 204, 113, 0.2)',
+    };
+
+    // Utility to safely get canvas context element
+    const getEl = (id) => document.getElementById(id);
+
+    // 1. Revenue Trend Line Chart
+    const revenueTrendCtx = getEl('revenueTrendChart');
+    if (revenueTrendCtx) {
+        new Chart(revenueTrendCtx, {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                datasets: [{
+                        label: 'Sunset Beach',
+                        data: [2200, 2400, 2100, 2600, 2500, 2750],
+                        borderColor: colors.beach,
+                        backgroundColor: colors.gradient1,
+                        tension: 0.4,
+                        fill: true,
+                    },
+                    {
+                        label: 'Mountain Peak',
+                        data: [2800, 3200, 3000, 3400, 3300, 3600],
+                        borderColor: colors.mountain,
+                        backgroundColor: colors.gradient2,
+                        tension: 0.4,
+                        fill: true,
+                    },
+                    {
+                        label: 'Tropical Garden',
+                        data: [1500, 1700, 1600, 1800, 1750, 1900],
+                        borderColor: colors.garden,
+                        backgroundColor: colors.gradient3,
+                        tension: 0.4,
+                        fill: true,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { position: 'bottom' },
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '₱' + value.toLocaleString();
+                            },
+                        },
+                    },
+                },
+            },
+        });
+    }
+
+    // 2. Booking Distribution Pie Chart
+    const bookingDistCtx = getEl('bookingDistributionChart');
+    if (bookingDistCtx) {
+        new Chart(bookingDistCtx, {
+            type: 'pie',
+            data: {
+                labels: ['Sunset Beach', 'Mountain Peak', 'Tropical Garden'],
+                datasets: [{
+                    data: [6, 8, 4],
+                    backgroundColor: [colors.beach, colors.mountain, colors.garden],
+                    borderWidth: 2,
+                    borderColor: '#fff',
+                }, ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { position: 'bottom' } },
+            },
+        });
+    }
+
+    // 3. Visitor Analytics Bar Chart
+    const visitorCtx = getEl('visitorAnalyticsChart');
+    if (visitorCtx) {
+        new Chart(visitorCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Sunset Beach', 'Mountain Peak', 'Tropical Garden'],
+                datasets: [{
+                    label: 'Weekly Visitors',
+                    data: [22, 24, 19],
+                    backgroundColor: [colors.beach, colors.mountain, colors.garden],
+                    borderRadius: 8,
+                }, ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } },
+            },
+        });
+    }
+
+    // 4. Performance Radar Chart
+    const radarCtx = getEl('performanceRadarChart');
+    if (radarCtx) {
+        new Chart(radarCtx, {
+            type: 'radar',
+            data: {
+                labels: ['Rating', 'Bookings', 'Revenue', 'Visitors', 'Reviews'],
+                datasets: [{
+                        label: 'Sunset Beach',
+                        data: [4.8, 6, 7, 7, 8],
+                        borderColor: colors.beach,
+                        backgroundColor: colors.gradient1,
+                        pointBackgroundColor: colors.beach,
+                    },
+                    {
+                        label: 'Mountain Peak',
+                        data: [4.6, 8, 9, 8, 5],
+                        borderColor: colors.mountain,
+                        backgroundColor: colors.gradient2,
+                        pointBackgroundColor: colors.mountain,
+                    },
+                    {
+                        label: 'Tropical Garden',
+                        data: [4.7, 4, 5, 6, 7],
+                        borderColor: colors.garden,
+                        backgroundColor: colors.gradient3,
+                        pointBackgroundColor: colors.garden,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { position: 'bottom' } },
+                scales: {
+                    r: { beginAtZero: true, max: 10 },
+                },
+            },
+        });
+    }
+
+    // 5. Revenue Share Doughnut Chart
+    const revenueShareCtx = getEl('revenueShareChart');
+    if (revenueShareCtx) {
+        new Chart(revenueShareCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Sunset Beach', 'Mountain Peak', 'Tropical Garden'],
+                datasets: [{
+                    data: [2750, 3600, 1900],
+                    backgroundColor: [colors.beach, colors.mountain, colors.garden],
+                    borderWidth: 2,
+                    borderColor: '#fff',
+                }, ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.label + ': ₱' + context.parsed.toLocaleString();
+                            },
+                        },
+                    },
+                },
+            },
+        });
+    }
+
+    // 6. Booking Trend Multi-line Chart
+    const bookingTrendCtx = getEl('bookingTrendChart');
+    if (bookingTrendCtx) {
+        new Chart(bookingTrendCtx, {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                datasets: [{
+                        label: 'Sunset Beach',
+                        data: [4, 5, 4, 6, 5, 6],
+                        borderColor: colors.beach,
+                        backgroundColor: colors.beach,
+                        tension: 0.4,
+                        borderWidth: 3,
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                    },
+                    {
+                        label: 'Mountain Peak',
+                        data: [5, 7, 6, 8, 7, 8],
+                        borderColor: colors.mountain,
+                        backgroundColor: colors.mountain,
+                        tension: 0.4,
+                        borderWidth: 3,
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                    },
+                    {
+                        label: 'Tropical Garden',
+                        data: [3, 4, 3, 5, 4, 4],
+                        borderColor: colors.garden,
+                        backgroundColor: colors.garden,
+                        tension: 0.4,
+                        borderWidth: 3,
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { position: 'bottom' } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 2 },
+                    },
+                },
+            },
+        });
+    }
 }
 
 function loadTouristSpotsGrid() {
@@ -122,7 +441,7 @@ function loadTouristSpotsGrid() {
         grid.innerHTML = '<div class="col-12"><p class="text-center text-muted">No tourist spots available.</p></div>';
         return;
     }
-    
+
     grid.innerHTML = window.sharedTouristSpots.map(spot => `
         <div class="col-lg-4 col-md-6">
             <div class="custom-card h-100 d-flex flex-column">
@@ -326,11 +645,11 @@ function viewSpotDetails(spotId) {
                             </ul>
 
                             <h5 class="mt-4">Amenities</h5>
-<div class="d-flex flex-wrap gap-2">
-    ${(typeof spot.amenities === 'string' ? spot.amenities.split(',') : spot.amenities).map(a => `
-        <span class="badge bg-secondary">${a.trim()}</span>
-    `).join('')}
-</div>
+                            <div class="d-flex flex-wrap gap-2">
+                                ${(typeof spot.amenities === 'string' ? spot.amenities.split(',') : spot.amenities).map(a => `
+                                    <span class="badge bg-secondary">${a.trim()}</span>
+                                `).join('')}
+                            </div>
 
                             <div class="mt-4">
                                 <div class="d-flex justify-content-between mb-2">
@@ -491,9 +810,20 @@ function saveNewSpot() {
 }
 
 // Make functions available globally
+window.renderHomePage = renderHomePage;
+window.initHomePage = initHomePage;
 window.viewSpotDetails = viewSpotDetails;
 window.changeSpotImage = changeSpotImage;
 window.setSpotImage = setSpotImage;
 window.manageSpot = manageSpot;
 window.saveNewSpot = saveNewSpot;
 window.loadTouristSpotsGrid = loadTouristSpotsGrid;
+window.initializeCharts = initializeCharts;
+
+console.log('home.js loaded successfully');
+console.log('Available functions:', {
+    renderHomePage: typeof renderHomePage,
+    initHomePage: typeof initHomePage,
+    loadTouristSpotsGrid: typeof loadTouristSpotsGrid,
+    initializeCharts: typeof initializeCharts
+});
