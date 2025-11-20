@@ -91,6 +91,14 @@ class TouristSpotModel extends Model
      * Retrieves all tourist spots, joining with businesses and users tables
      * to get the business name and owner's name.
      */
+    public function getTotalSpotsByBusinessID($businessID)
+    {
+        $builder = $this->builder();
+        $builder->where('business_id', $businessID);
+        $builder->where('status', 'approved');
+        return $builder->countAllResults();
+    }
+    
     public function getAllTouristSpots()
     {
         return $this->select('tourist_spots.*, businesses.business_name, users.FirstName, users.LastName')
@@ -101,12 +109,17 @@ class TouristSpotModel extends Model
     }
     
     //get total spots by business id for spot owner dashboard where status is approved
-    public function getTotalSpotsByBusinessID($businessID)
+    public function getTotalBookingsThisMonthByBusiness($businessID)
     {
-        $builder = $this->builder();
-        $builder->where('business_id', $businessID);
-        $builder->where('status', 'approved');
-        return $builder->countAllResults();
+        $builder = $this->db->table('bookings b');
+        $builder->select('COUNT(DISTINCT b.booking_id) AS total_bookings');
+        $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
+        $builder->where('ts.business_id', $businessID);
+        $builder->where('MONTH(b.booking_date)', date('m'));
+        $builder->where('YEAR(b.booking_date)', date('Y'));
+        $builder->where('b.booking_status', 'Confirmed');
+        $result = $builder->get()->getRowArray();
+        return $result['total_bookings'] ?? 0;
     }
 
     // ==========================================================
@@ -149,11 +162,6 @@ class TouristSpotModel extends Model
             return ['status' => 'error', 'message' => 'Error retrieving spot details: ' . $e->getMessage()];
         }
     }
-}
-
-   
-
-
 
 
     
