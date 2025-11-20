@@ -40,7 +40,7 @@ class CreateTouristSpot extends Migration
 
             'category' => [
                 'type'       => 'ENUM',
-                'constraint' => ['Historical', 'Cultural', 'Natural', 'Recreational', 'Religious', 'Adventure', 'Ecotourism', 'Urban'],
+                'constraint' => ['Historical', 'Cultural', 'Natural', 'Recreational', 'Religious', 'Adventure', 'Ecotourism', 'Urban', 'Rural' ,'Beach' ,'Mountain' ,'Resort', 'Park', 'Restaurant'],
             ],
             'location' => [
                 'type'       => 'VARCHAR',
@@ -62,7 +62,7 @@ class CreateTouristSpot extends Migration
             ],
             'status' => [
                 'type'       => 'ENUM',
-                'constraint' => ['pending', 'approved', 'rejected', 'suspended'],
+                'constraint' => ['pending', 'approved', 'rejected', 'suspended','checked-out','checked-in'],
                 'default'    => 'pending',
             ],
             'price_per_person' => [
