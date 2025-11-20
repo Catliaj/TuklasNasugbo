@@ -163,6 +163,21 @@ class TouristSpotModel extends Model
         }
     }
 
-
+        public function getTopRecommendedHiddenSpots($limit = 5)
+    {
+        // Logic: Get spots with the Highest Average Rating
+        // This replaces the RAND() placeholder.
+        return $this->select('tourist_spots.spot_name, tourist_spots.location')
+                    ->selectAvg('review_feedback.rating', 'recommendation_count') // Alias as recommendation_count for frontend compatibility
+                    ->join('review_feedback', 'review_feedback.spot_id = tourist_spots.spot_id', 'left')
+                    ->where('tourist_spots.status', 'approved')
+                    ->groupBy('tourist_spots.spot_id')
+                    ->orderBy('recommendation_count', 'DESC')
+                    ->limit($limit)
+                    ->find();
+    }
     
+}
+
+   
 
