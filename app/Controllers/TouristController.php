@@ -9,118 +9,260 @@ use App\Models\TouristSpotModel;
 
 class TouristController extends BaseController
 {
-    public function touristDashboard()
-    {
-        $session = session();
-        $userID = $session->get('UserID');
+public function viewSpot($spot_id)
+{
+    // Normalize incoming id
+    $spotId = (int) $spot_id;
+    if ($spotId <= 0) {
+        return $this->response->setJSON(['error' => 'Invalid spot id'], 400);
+    }
 
-        // Load model
+    $session = session();
+    $userID = $session->get('UserID') ?? null;
+    $ipAddress = $this->request->getIPAddress(); // for anonymous dedupe if supported
+
+    // 1) Record view in spot_view_logs (if table exists) with dedupe
+    try {
+        $db = \Config\Database::connect();
+        if ($db->tableExists('spot_view_logs')) {
+            $logModel = new \App\Models\SpotViewLogModel();
+
+            // Determine which dedupe columns are available
+            $fields = $db->getFieldNames('spot_view_logs');
+
+            // Dedup window (adjust as needed)
+            $dedupeWindow = '-24 hours';
+            $since = date('Y-m-d H:i:s', strtotime($dedupeWindow));
+
+            $shouldInsert = true;
+
+            // If table has user_id and we have a logged-in user -> dedupe by user_id
+            if (in_array('user_id', $fields, true) && $userID) {
+                $existing = $logModel
+                    ->where('spot_id', $spotId)
+                    ->where('user_id', $userID)
+                    ->where('viewed_at >=', $since)
+                    ->first();
+                if ($existing) {
+                    $shouldInsert = false;
+                }
+            }
+            // Else if table has ip_address column -> dedupe by IP for anonymous or all users if desired
+            elseif (in_array('ip_address', $fields, true) && $ipAddress) {
+                $existing = $logModel
+                    ->where('spot_id', $spotId)
+                    ->where('ip_address', $ipAddress)
+                    ->where('viewed_at >=', $since)
+                    ->first();
+                if ($existing) {
+                    $shouldInsert = false;
+                }
+            }
+            // Otherwise no suitable dedupe column -> always insert
+
+            if ($shouldInsert) {
+                // Build insert data only with allowed fields present in table
+                $insertData = ['spot_id' => $spotId, 'viewed_at' => date('Y-m-d H:i:s')];
+
+                if (in_array('user_id', $fields, true)) {
+                    $insertData['user_id'] = $userID;
+                }
+                if (in_array('ip_address', $fields, true)) {
+                    $insertData['ip_address'] = $ipAddress;
+                }
+
+                // Insert (wrapped in try/catch to avoid breaking the response on DB errors)
+                try {
+                    $logModel->insert($insertData);
+                } catch (\Throwable $e) {
+                    // log error and continue
+                    log_message('error', 'Failed to insert spot view log: ' . $e->getMessage());
+                }
+            }
+        }
+    } catch (\Throwable $e) {
+        // Don't fail the whole request if logging or schema inspection fails — just continue
+        log_message('error', 'Failed to record spot view (dedupe process): ' . $e->getMessage());
+    }
+
+    // 2) Fetch spot details + gallery for frontend modal
+    $spotModel = new \App\Models\TouristSpotModel();
+    $result = $spotModel->getSpotDetailsWithGallery((int)$spotId);
+    if ($result['status'] === 'error') {
+        return $this->response->setJSON(['error' => $result['message']], 404);
+    }
+    $spot = $result['data'];
+    $gallery = $spot['gallery'] ?? [];
+    unset($spot['gallery']);
+
+    return $this->response->setJSON([
+        'spot'    => $spot,
+        'gallery' => $gallery
+    ]);
+}
+
+
+public function touristDashboard()
+{
+    $session = session();
+    $userID = $session->get('UserID');
+    if (!$userID) {
+        // Redirect to login or show empty dashboard
+        return redirect()->to('/users/login');
+    }
+
+    $db = \Config\Database::connect();
+
+    // --- 1) Saved itineraries (via user preferences + itineraries) ---
+    $TotalSaveItineray = 0;
+    try {
         $preferencesModel = new \App\Models\UserPreferenceModel();
         $itineraryModel = new \App\Models\ItineraryModel();
-        // Find the preference record for this user
-       $preference = $preferencesModel->where('user_id', $userID)->first();
-        $preferenceID = $preference['preference_id'] ?? null; // extract the ID
 
-        $TotalSaveItineray = 0;
-        if ($preferenceID) {
-            $TotalSaveItineray = $itineraryModel->countDistinctDates($preferenceID);
-        }
-
-
-        // Get preference_id if exists
+        $preference = $preferencesModel->where('user_id', $userID)->first();
         $preferenceID = $preference['preference_id'] ?? null;
 
-        // Additional dashboard metrics
-        $db = \Config\Database::connect();
+        if ($preferenceID) {
+            // countDistinctDates is your model helper — leave as is; ensure it exists
+            $TotalSaveItineray = (int) $itineraryModel->countDistinctDates($preferenceID);
+        }
+    } catch (\Exception $e) {
+        $TotalSaveItineray = 0;
+    }
 
-        // 1) Places Visited (createuservisits table)
-        try {
+    // --- 2) Places visited ---
+    $placesVisited = 0;
+    try {
+        // common table name in your code: createuservisits
+        if ($db->tableExists('createuservisits')) {
             $placesVisited = (int) $db->table('createuservisits')->where('user_id', $userID)->countAllResults();
-        } catch (\Exception $e) {
+        } else {
             $placesVisited = 0;
         }
+    } catch (\Exception $e) {
+        $placesVisited = 0;
+    }
 
-        // 2) Favorite spots (try common table names)
-        $favoriteCount = 0;
-        try {
-            if ($db->tableExists('user_favorites')) {
-                $favoriteCount = (int) $db->table('user_favorites')->where('user_id', $userID)->countAllResults();
-            } elseif ($db->tableExists('favorites')) {
-                $favoriteCount = (int) $db->table('favorites')->where('user_id', $userID)->countAllResults();
-            } else {
-                // fallback: check a favorites column on tourist_spots (unlikely)
-                $favoriteCount = 0;
-            }
-        } catch (\Exception $e) {
+    // --- 3) Favorite spots ---
+    $favoriteCount = 0;
+    try {
+        // Try variants; pick the one that stores user_id/customer_id consistently in your app
+        if ($db->tableExists('spot_fav_by_customer')) {
+            $favoriteCount = (int) $db->table('spot_fav_by_customer')->where('user_id', $userID)->countAllResults();
+        } elseif ($db->tableExists('user_favorites')) {
+            $favoriteCount = (int) $db->table('user_favorites')->where('user_id', $userID)->countAllResults();
+        } elseif ($db->tableExists('favorites')) {
+            $favoriteCount = (int) $db->table('favorites')->where('user_id', $userID)->countAllResults();
+        } else {
             $favoriteCount = 0;
         }
+    } catch (\Exception $e) {
+        $favoriteCount = 0;
+    }
 
-        // 3) Upcoming bookings (BookingModel)
-        $upcomingBookings = 0;
-        try {
-            $today = date('Y-m-d');
-            $bookingModel = new \App\Models\BookingModel();
-            $qb = $bookingModel->builder();
-            if ($db->tableExists('bookings')) {
-                $upcomingBookings = (int) $qb->where('user_id', $userID)
-                                           ->where('date >=', $today)
-                                           ->where('status !=', 'cancelled')
-                                           ->countAllResults();
+    // --- 4) Upcoming bookings ---
+    $upcomingBookings = 0;
+    try {
+        $today = date('Y-m-d');
+        $bookingModel = new \App\Models\BookingModel();
+        // Determine whether bookings table uses customer_id or user_id
+        $bookingTable = $bookingModel->getTable() ?? 'bookings';
+        $usesCustomerId = $db->tableExists('bookings') && $db->getFieldData('bookings') ? null : null;
+        // safe approach: check whether bookings table has column 'customer_id'
+        $fields = $db->getFieldNames('bookings');
+        if (in_array('customer_id', $fields, true)) {
+            // need customer_id associated with userID (resolve from customers table)
+            $customerID = null;
+            try {
+                $customerModel = new \App\Models\CustomerModel();
+                $customerRow = $customerModel->where('user_id', $userID)->first();
+                $customerID = $customerRow['customer_id'] ?? null;
+            } catch (\Exception $e) {
+                $customerID = null;
             }
-        } catch (\Exception $e) {
-            $upcomingBookings = 0;
-        }
-
-        // 4) Popular spots (top viewed) - attempt to use SpotViewLogModel if exists
-        $popularSpots = [];
-        try {
-            if ($db->tableExists('spot_view_log') || $db->tableExists('spotviewlogs') || $db->tableExists('spot_view_logs')) {
-                // try SpotViewLogModel
-                $svlModel = new \App\Models\SpotViewLogModel();
-                $builder = $db->table('spot_view_log');
-                if (!$db->tableExists('spot_view_log')) {
-                    // find actual table from model or common variants
-                    if ($db->tableExists('spotviewlogs')) $builder = $db->table('spotviewlogs');
-                    elseif ($db->tableExists('spot_view_logs')) $builder = $db->table('spot_view_logs');
-                }
-                // aggregate top 6
-                $rows = $builder->select('spot_id, COUNT(*) as views')
-                                ->groupBy('spot_id')
-                                ->orderBy('views', 'DESC')
-                                ->limit(6)
-                                ->get()
-                                ->getResultArray();
-                $spotModel = new \App\Models\TouristSpotModel();
-                foreach ($rows as $r) {
-                    $s = $spotModel->where('spot_id', $r['spot_id'])->first();
-                    if ($s) {
-                        $s['views'] = $r['views'];
-                        $popularSpots[] = $s;
-                    }
-                }
+            if ($customerID) {
+                $upcomingBookings = (int) $bookingModel
+                    ->where('customer_id', $customerID)
+                    ->where('visit_date >=', $today)
+                    ->where('booking_status !=', 'cancelled')
+                    ->countAllResults();
             } else {
-                // fallback: take recent 6 spots
-                $spotModel = new \App\Models\TouristSpotModel();
-                $popularSpots = array_slice($spotModel->orderBy('created_at', 'DESC')->findAll(), 0, 6);
+                // fallback to checking user_id column if exists
+                if (in_array('user_id', $fields, true)) {
+                    $upcomingBookings = (int) $bookingModel
+                        ->where('user_id', $userID)
+                        ->where('visit_date >=', $today)
+                        ->where('booking_status !=', 'cancelled')
+                        ->countAllResults();
+                } else {
+                    $upcomingBookings = 0;
+                }
             }
-        } catch (\Exception $e) {
-            // fallback to recent spots
-            $spotModel = new \App\Models\TouristSpotModel();
+        } else {
+            // bookings table does not have customer_id (maybe uses user_id)
+            if (in_array('user_id', $fields, true)) {
+                $upcomingBookings = (int) $bookingModel
+                    ->where('user_id', $userID)
+                    ->where('visit_date >=', $today)
+                    ->where('booking_status !=', 'cancelled')
+                    ->countAllResults();
+            } else {
+                $upcomingBookings = 0;
+            }
+        }
+    } catch (\Exception $e) {
+        $upcomingBookings = 0;
+    }
+
+    // --- 5) Popular spots (top viewed or recent) ---
+    $popularSpots = [];
+    try {
+        $spotModel = new \App\Models\TouristSpotModel();
+        // prefer a view log table if available
+        if ($db->tableExists('spot_view_log') || $db->tableExists('spotviewlogs') || $db->tableExists('spot_view_logs')) {
+            $logTable = $db->tableExists('spot_view_log') ? 'spot_view_log' : ($db->tableExists('spotviewlogs') ? 'spotviewlogs' : 'spot_view_logs');
+            $rows = $db->table($logTable)
+                ->select('spot_id, COUNT(*) AS views')
+                ->groupBy('spot_id')
+                ->orderBy('views', 'DESC')
+                ->limit(6)
+                ->get()
+                ->getResultArray();
+
+            foreach ($rows as $r) {
+                $s = $spotModel->where('spot_id', $r['spot_id'])->first();
+                if ($s) {
+                    $s['views'] = $r['views'];
+                    $popularSpots[] = $s;
+                }
+            }
+        } else {
+            // fallback to recent 6 spots
             $popularSpots = array_slice($spotModel->orderBy('created_at', 'DESC')->findAll(), 0, 6);
         }
-
-        return view('Pages/tourist/dashboard', [
-            'userID'            => $userID,
-            'preferenceID'      => $preferenceID,
-            'FullName'          => $session->get('FirstName') . ' ' . $session->get('LastName'),
-            'email'             => $session->get('Email'),
-            'TotalSaveItineray' => $TotalSaveItineray,
-            'placesVisited'     => $placesVisited,
-            'favoriteCount'     => $favoriteCount,
-            'upcomingBookings'  => $upcomingBookings,
-            'popularSpots'      => $popularSpots,
-        ]);
+    } catch (\Exception $e) {
+        // fallback
+        try {
+            $spotModel = new \App\Models\TouristSpotModel();
+            $popularSpots = array_slice($spotModel->orderBy('created_at', 'DESC')->findAll(), 0, 6);
+        } catch (\Exception $e2) {
+            $popularSpots = [];
+        }
     }
+
+    // --- Finally render view with data ---
+    return view('Pages/tourist/dashboard', [
+        'userID'            => $userID,
+        'preferenceID'      => $preference['preference_id'] ?? null,
+        'FullName'          => $session->get('FirstName') . ' ' . $session->get('LastName'),
+        'email'             => $session->get('Email'),
+        'TotalSaveItineray' => $TotalSaveItineray,
+        'placesVisited'     => $placesVisited,
+        'favoriteCount'     => $favoriteCount,
+        'upcomingBookings'  => $upcomingBookings,
+        'popularSpots'      => $popularSpots,
+    ]);
+}
 
 
     public function exploreSpots()
@@ -149,6 +291,10 @@ class TouristController extends BaseController
             'favoriteSpotIds' => $favoriteSpotIds,
         ]);
     }
+
+    //add a view spot and will get the  spot details and the gallery images
+
+    
 
     public function myBookings()
     {
@@ -532,8 +678,202 @@ public function listUserTrips()
         }
     }
 
+    public function viewSpotDetails($spot_id)
+    {
+        $spotModel = new TouristSpotModel();
+        $result = $spotModel->getSpotDetailsWithGallery((int)$spot_id);
+        if ($result['status'] === 'error') {
+            // Optionally, redirect or show a 404 page
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound($result['message']);
+        }
+        $spot = $result['data'];
+        return view('Pages/tourist/spot_details', [
+            'spot' => $spot
+        ]);
+    }
+ public function generateCheckinToken($booking_id)
+{
+    $session = session();
+    $userID = $session->get('UserID');
+    if (!$userID) {
+        return $this->response->setJSON(['error' => 'Not logged in'], 401);
+    }
 
-    //function for the history will get the title, date, how much, 
+    $bookingModel = new \App\Models\BookingModel();
+    $booking = $bookingModel->find((int)$booking_id);
+    if (!$booking) {
+        return $this->response->setJSON(['error' => 'Booking not found'], 404);
+    }
+
+    // Only allow token generation for confirmed bookings
+    $status = strtolower($booking['booking_status'] ?? '');
+    if ($status !== 'confirmed') {
+        return $this->response->setJSON(['error' => 'Token can be generated only for confirmed bookings'], 403);
+    }
+
+    // Verify ownership: booking.customer_id matches session user (or via CustomerModel)
+    $bookingOwnerId = $booking['customer_id'] ?? null;
+    $isOwner = false;
+    if ($bookingOwnerId !== null && (string)$bookingOwnerId === (string)$userID) {
+        $isOwner = true;
+    } else {
+        try {
+            $customerModel = new \App\Models\CustomerModel();
+            $customerRow = $customerModel->where('user_id', $userID)->first();
+            $customerIdForUser = $customerRow['customer_id'] ?? null;
+            if ($customerIdForUser !== null && (string)$bookingOwnerId === (string)$customerIdForUser) {
+                $isOwner = true;
+            }
+        } catch (\Throwable $e) {
+            // ignore if no CustomerModel
+        }
+    }
+
+    if (!$isOwner) {
+        return $this->response->setJSON(['error' => 'Forbidden: you do not own this booking'], 403);
+    }
+
+    // Normalize visit_date to Y-m-d (try visit_date, booking_date, date)
+    $visit_date_raw = $booking['visit_date'] ?? $booking['booking_date'] ?? $booking['date'] ?? null;
+    $visit_date = $visit_date_raw ? date('Y-m-d', strtotime($visit_date_raw)) : null;
+
+    // Optional: require token generation only for same-day bookings
+    // if ($visit_date !== date('Y-m-d')) {
+    //     return $this->response->setJSON(['error' => 'Token can only be generated on the booking date'])->setStatusCode(400);
+    // }
+
+    // Build payload
+    try {
+        $jti = bin2hex(random_bytes(8));
+    } catch (\Throwable $e) {
+        $jti = uniqid('', true);
+    }
+
+    $payload = [
+        'type'        => 'checkin_token',                      // consistent type
+        'booking_id'  => (int) $booking_id,
+        'customer_id' => isset($booking['customer_id']) ? (int)$booking['customer_id'] : null,
+        'spot_id'     => isset($booking['spot_id']) ? (int)$booking['spot_id'] : null,
+        // include visit_date (canonical) and booking_date for backward compatibility
+        'visit_date'  => $visit_date,                          // normalized Y-m-d
+        'booking_date'=> $visit_date,                          // alias for older clients (optional)
+        'iat'         => time(),
+        'exp'         => time() + 60 * 60 * 24,                // 24h expiry (adjust if needed)
+        'jti'         => $jti
+    ];
+
+    $payloadJson = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    if ($payloadJson === false) {
+        return $this->response->setJSON(['error' => 'Failed to create token payload'], 500);
+    }
+
+    // URL-safe base64 encode
+    $b64 = rtrim(strtr(base64_encode($payloadJson), '+/', '-_'), '=');
+
+    $secret = getenv('VOUCHER_SECRET') ?: (getenv('app.secret') ?: 'change_this_secret');
+    $signature = hash_hmac('sha256', $b64, $secret);
+
+    // token format: <base64url(payload)>.<hex-hmac>
+    $token = $b64 . '.' . $signature;
+
+    return $this->response->setJSON([
+        'token' => $token,
+        'expires_at' => date('c', $payload['exp'])
+    ]);
+}
+// Replace verifyCheckinToken with this implementation.
+
+public function verifyCheckinToken()
+{
+    $input = $this->request->getJSON(true) ?: $this->request->getPost();
+    $token = $input['token'] ?? null;
+    if (!$token) {
+        return $this->response->setJSON(['valid' => false, 'error' => 'Missing token'])->setStatusCode(400);
+    }
+
+    // Expect token as "<b64>.<signature>"
+    if (!is_string($token) || strpos($token, '.') === false) {
+        return $this->response->setJSON(['valid' => false, 'error' => 'Invalid token format'])->setStatusCode(400);
+    }
+
+    list($b64, $sig) = explode('.', $token, 2);
+    $secret = getenv('VOUCHER_SECRET') ?: (getenv('app.secret') ?: 'change_this_secret');
+    $expected = hash_hmac('sha256', $b64, $secret);
+    if (!hash_equals($expected, $sig)) {
+        return $this->response->setJSON(['valid' => false, 'error' => 'Invalid token signature'])->setStatusCode(400);
+    }
+
+    // decode base64url payload
+    $b64padded = strtr($b64, '-_', '+/');
+    $padlen = 4 - (strlen($b64padded) % 4);
+    if ($padlen < 4) $b64padded .= str_repeat('=', $padlen);
+    $json = base64_decode($b64padded);
+    if ($json === false) {
+        return $this->response->setJSON(['valid' => false, 'error' => 'Invalid payload encoding'])->setStatusCode(400);
+    }
+
+    $payload = json_decode($json, true);
+    if (!is_array($payload)) {
+        return $this->response->setJSON(['valid' => false, 'error' => 'Invalid payload JSON'])->setStatusCode(400);
+    }
+
+    // Basic claims checks (allow both type names for backwards compatibility)
+    if (($payload['type'] ?? '') !== 'checkin_token' && ($payload['type'] ?? '') !== 'booking_checkin') {
+        return $this->response->setJSON(['valid' => false, 'error' => 'Unexpected token type'])->setStatusCode(400);
+    }
+
+    if (isset($payload['exp']) && (int)$payload['exp'] < time()) {
+        return $this->response->setJSON(['valid' => false, 'error' => 'Token expired'])->setStatusCode(410);
+    }
+
+    $bookingId = (int) ($payload['booking_id'] ?? 0);
+    if (!$bookingId) {
+        return $this->response->setJSON(['valid' => false, 'error' => 'Missing booking_id'])->setStatusCode(400);
+    }
+
+    // Load booking from DB
+    $bookingModel = new \App\Models\BookingModel();
+    $booking = $bookingModel->find($bookingId);
+    if (!$booking) {
+        return $this->response->setJSON(['valid' => false, 'error' => 'Booking not found'])->setStatusCode(404);
+    }
+
+    // Normalize DB visit_date (try visit_date, booking_date, date)
+    $booking_date_raw = $booking['visit_date'] ?? $booking['booking_date'] ?? $booking['date'] ?? null;
+    $visit_date = $booking_date_raw ? date('Y-m-d', strtotime($booking_date_raw)) : null;
+
+    // If token contains visit_date (or booking_date) ensure it matches DB — protect against token mismatch
+    $tokenVisit = $payload['visit_date'] ?? $payload['visit_date'] ?? null;
+    if (!empty($tokenVisit) && $tokenVisit !== $visit_date) {
+        return $this->response->setJSON(['valid' => false, 'error' => 'Booking date mismatch'])->setStatusCode(400);
+    }
+
+    // Detect existing active checkin for this booking/customer
+    $checkinModel = new \App\Models\CreateVisitorCheckIn();
+    $customerId = $payload['customer_id'] ?? $booking['customer_id'] ?? null;
+
+    $existing = $checkinModel
+        ->where('booking_id', $bookingId)
+        ->where('customer_id', $customerId)
+        ->where('checkout_time', null)
+        ->orderBy('checkin_id', 'DESC')
+        ->first();
+
+    $actionSuggestion = $existing ? 'checkout' : 'checkin';
+
+    return $this->response->setJSON([
+        'valid' => true,
+        'booking_id' => $bookingId,
+        'customer_id' => $customerId,
+        'spot_id' => $payload['spot_id'] ?? $booking['spot_id'] ?? null,
+        'visit_date' => $visit_date,
+        'booking_date' => $visit_date, // backward compat
+        'issued_at' => isset($payload['iat']) ? date('c', (int)$payload['iat']) : null,
+        'expires_at' => isset($payload['exp']) ? date('c', (int)$payload['exp']) : null,
+        'action_suggestion' => $actionSuggestion,
+        'existing_checkin' => $existing ? ['checkin_id' => $existing['checkin_id'], 'checkin_time' => $existing['checkin_time']] : null
+    ]);
+}
 
    
 }

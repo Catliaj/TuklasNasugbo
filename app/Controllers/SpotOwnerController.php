@@ -9,9 +9,172 @@ use App\Models\TouristSpotModel;
 use App\Models\BookingModel;
 use App\Models\UsersModel;
 use App\Models\SpotGalleryModel;
+use App\Models\CreateVisitorCheckIn;
 
 class SpotOwnerController extends BaseController
 {
+
+
+// Replace the recordCheckin method in SpotOwnerController with this implementation.
+
+public function recordCheckin()
+{
+    $session = session();
+    $userID = $session->get('UserID');
+    if (!$userID || !$session->get('isLoggedIn') || $session->get('Role') !== 'Spot Owner') {
+        return $this->response->setJSON(['error' => 'Unauthorized'])->setStatusCode(401);
+    }
+
+    $input = $this->request->getJSON(true) ?? $this->request->getPost();
+
+    $bookingId = isset($input['booking_id']) ? (int)$input['booking_id'] : null;
+    $customerId = $input['customer_id'] ?? null;
+    $actualVisitors = isset($input['actual_visitors']) ? (int)$input['actual_visitors'] : null;
+    $notes = $input['notes'] ?? null;
+    $token = $input['token'] ?? null; // optional: pass token back for authority
+
+    if (!$bookingId) {
+        return $this->response->setJSON(['error' => 'Missing booking_id'])->setStatusCode(400);
+    }
+
+    try {
+        // Resolve owner's business
+        $businessModel = new \App\Models\BusinessModel();
+        $business = $businessModel->where('user_id', $userID)->first();
+        if (!$business) {
+            return $this->response->setJSON(['error' => 'Business not found'])->setStatusCode(404);
+        }
+        $businessId = $business['business_id'];
+
+        // Load booking and verify ownership
+        $bookingModel = new \App\Models\BookingModel();
+        $booking = $bookingModel->find((int)$bookingId);
+        if (!$booking) {
+            return $this->response->setJSON(['error' => 'Booking not found'])->setStatusCode(404);
+        }
+
+        $bookingSpotBusinessId = $booking['business_id'] ?? $booking['businessid'] ?? null;
+        $bookingSpotId = $booking['spot_id'] ?? $booking['spotId'] ?? null;
+
+        if (!$bookingSpotBusinessId && $bookingSpotId) {
+            $spotModel = new \App\Models\TouristSpotModel();
+            $spot = $spotModel->find((int)$bookingSpotId);
+            $bookingSpotBusinessId = $spot['business_id'] ?? null;
+        }
+
+        if ($businessId != $bookingSpotBusinessId) {
+            return $this->response->setJSON(['error' => 'Forbidden: booking does not belong to your business'])->setStatusCode(403);
+        }
+
+        // Determine canonical visit_date from DB (use visit_date, fallback booking_date/date)
+        $booking_date_raw = $booking['visit_date'] ?? $booking['booking_date'] ?? $booking['date'] ?? null;
+        $bookingDateDb = $booking_date_raw ? date('Y-m-d', strtotime($booking_date_raw)) : null;
+
+        // If token provided, verify and use visit_date from token as authority
+        if ($token) {
+            if (!is_string($token) || strpos($token, '.') === false) {
+                return $this->response->setJSON(['error' => 'Invalid token format'])->setStatusCode(400);
+            }
+            list($b64, $sig) = explode('.', $token, 2);
+            $secret = getenv('VOUCHER_SECRET') ?: (getenv('app.secret') ?: 'change_this_secret');
+            $expected = hash_hmac('sha256', $b64, $secret);
+            if (!hash_equals($expected, $sig)) {
+                return $this->response->setJSON(['error' => 'Invalid token signature'])->setStatusCode(400);
+            }
+            $b64padded = strtr($b64, '-_', '+/');
+            $padlen = 4 - (strlen($b64padded) % 4);
+            if ($padlen < 4) $b64padded .= str_repeat('=', $padlen);
+            $json = base64_decode($b64padded);
+            $payload = json_decode($json, true) ?: [];
+            // use token visit_date if present
+            $tokenVisitDate = $payload['visit_date'] ?? $payload['booking_date'] ?? null;
+            if ($tokenVisitDate) {
+                $bookingDateToCheck = $tokenVisitDate;
+            } else {
+                $bookingDateToCheck = $bookingDateDb;
+            }
+        } else {
+            $bookingDateToCheck = $bookingDateDb;
+        }
+
+        // require that bookingDateToCheck exists and is same-day (policy)
+        if (!$bookingDateToCheck) {
+            return $this->response->setJSON(['error' => 'Visit date not available; cannot verify token for today'])->setStatusCode(400);
+        }
+        $today = date('Y-m-d');
+        if ($bookingDateToCheck !== $today) {
+            return $this->response->setJSON(['error' => 'Booking date mismatch', 'visit_date' => $bookingDateToCheck, 'today' => $today])->setStatusCode(400);
+        }
+
+        // Use checkin model to find existing records for this booking/customer
+        $checkinModel = new \App\Models\CreateVisitorCheckIn();
+        $query = $checkinModel->where('booking_id', $bookingId);
+        if ($customerId) $query = $query->where('customer_id', $customerId);
+        $existing = $query->orderBy('checkin_id', 'DESC')->first();
+
+        // If there's an active checkin (checkout_time NULL) => perform checkout
+        if ($existing && empty($existing['checkout_time'])) {
+            $updateData = ['checkout_time' => date('Y-m-d H:i:s')];
+            if ($actualVisitors !== null) $updateData['actual_visitors'] = $actualVisitors;
+            if ($notes !== null) $updateData['notes'] = ($existing['notes'] ?? '') . "\n" . $notes;
+
+            $updated = $checkinModel->update($existing['checkin_id'], $updateData);
+            if ($updated === false) {
+                $errors = $checkinModel->errors() ?: [];
+                log_message('error', '[recordCheckin][checkout] Update failed for checkin_id=' . $existing['checkin_id'] . ' errors: ' . print_r($errors, true));
+                return $this->response->setJSON(['error' => 'Failed to record checkout', 'details' => $errors])->setStatusCode(500);
+            }
+
+            // update booking status (best-effort)
+            try { $bookingModel->update($bookingId, ['booking_status' => 'Checked-out']); } catch (\Throwable $e) { log_message('warning', $e->getMessage()); }
+
+            return $this->response->setJSON(['success' => true, 'action' => 'checkout', 'checkin_id' => $existing['checkin_id']]);
+        }
+
+        // If prior checkin already checked out today -> conflict
+        if ($existing && !empty($existing['checkout_time'])) {
+            $existingCheckinDate = !empty($existing['checkin_time']) ? date('Y-m-d', strtotime($existing['checkin_time'])) : null;
+            if ($existingCheckinDate === date('Y-m-d')) {
+                return $this->response->setJSON(['error' => 'Already checked out for today', 'existing' => $existing])->setStatusCode(409);
+            }
+        }
+
+        // No active checkin: create new check-in record
+        $insertData = [
+            'customer_id'     => $customerId,
+            'booking_id'      => $bookingId,
+            'checkin_time'    => date('Y-m-d H:i:s'),
+            'actual_visitors' => $actualVisitors,
+            'is_walkin'       => 0,
+            'notes'           => $notes
+        ];
+
+        $db = \Config\Database::connect();
+        $db->transStart();
+        $insertId = $checkinModel->insert($insertData);
+        if ($insertId === false) {
+            $db->transRollback();
+            $errors = $checkinModel->errors() ?: [];
+            log_message('error', '[recordCheckin][checkin] Insert failed for booking_id=' . $bookingId . ' errors: ' . print_r($errors, true));
+            return $this->response->setJSON(['error' => 'Failed to record check-in', 'details' => $errors])->setStatusCode(500);
+        }
+
+        try { $bookingModel->update($bookingId, ['booking_status' => 'Checked-in']); } catch (\Throwable $e) { log_message('warning', $e->getMessage()); }
+
+        $db->transComplete();
+        if ($db->transStatus() === false) {
+            log_message('error', '[recordCheckin][checkin] DB transaction failed for booking_id=' . $bookingId);
+            return $this->response->setJSON(['error' => 'Database transaction failed'])->setStatusCode(500);
+        }
+
+        return $this->response->setJSON(['success' => true, 'action' => 'checkin', 'checkin_id' => $insertId]);
+    } catch (\Throwable $e) {
+        log_message('error', '[recordCheckin] Exception: ' . $e->getMessage() . ' Trace: ' . $e->getTraceAsString());
+        return $this->response->setJSON(['error' => 'Server error while recording check-in'])->setStatusCode(500);
+    }
+}
+
+
     public function dashboard()
     {
 

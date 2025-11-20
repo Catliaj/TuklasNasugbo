@@ -33,7 +33,7 @@ async function loadBookings() {
                 <tr>
                     <td>${b.booking_id}</td>
                     <td>${b.customer_name}</td>
-                    <td>${new Date(b.booking_date).toLocaleDateString()}</td>
+                    <td>${new Date(b.visit_date).toLocaleDateString()}</td>
                     <td>${b.total_guests}</td>
                     <td>₱${b.total_price}</td>
                     <td><span class="badge ${badgeClass}">${b.booking_status.toLowerCase()}</span></td>

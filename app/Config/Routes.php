@@ -1,3 +1,4 @@
+
 <?php
 
 use CodeIgniter\Router\RouteCollection;
@@ -67,7 +68,6 @@ $routes->get('/spotowner/spots/edit/(:num)', 'SpotOwnerController::editSpot/$1')
 $routes->post('/spotowner/spots/update/(:num)', 'SpotOwnerController::updateSpot/$1');
 $routes->post('/spotowner/spots/delete/(:num)', 'SpotOwnerController::deleteSpot/$1');
 
-$routes->get('/tourist/runPythonScript', 'TouristController::runPythonScript');
 //Tourist routes
 $routes->get('/tourist/dashboard', 'TouristController::touristDashboard');
 $routes->get('/tourist/exploreSpots', 'TouristController::exploreSpots');
@@ -90,3 +90,23 @@ $routes->get('/test-api/key', 'TestApi::testKey');
 
 $routes->get('itinerary/list', 'TouristController::listUserTrips');
 $routes->get('itinerary/get', 'TouristController::getTrip');
+
+// Route for tourist spot details page (view)
+$routes->get('/tourist/spot/(:num)', 'TouristController::viewSpotDetails/$1');
+// Route for AJAX spot details and gallery (modal/API)
+$routes->get('/tourist/viewSpot/(:num)', 'TouristController::viewSpot/$1');
+// allow GET (used by frontend fetch)
+// Check-in token endpoints
+$routes->get('tourist/generateCheckinToken/(:num)', 'TouristController::generateCheckinToken/$1');
+$routes->post('tourist/generateCheckinToken/(:num)', 'TouristController::generateCheckinToken/$1');
+
+// Verify token (scanner uses POST)
+$routes->post('tourist/verifyCheckinToken', 'TouristController::verifyCheckinToken');
+// optional GET for quick manual testing (remove/disable in production)
+$routes->get('tourist/verifyCheckinToken', 'TouristController::verifyCheckinToken');
+
+// Spot owner endpoints
+$routes->get('spotowner/getBookings', 'SpotOwnerController::getBookings');
+$routes->get('spotowner/getBooking/(:num)', 'SpotOwnerController::getBooking/$1');
+$routes->post('spotowner/recordCheckin', 'SpotOwnerController::recordCheckin');
+$routes->post('spotowner/confirmBooking/(:num)', 'SpotOwnerController::confirmBooking/$1');
