@@ -27,11 +27,17 @@ $routes->group('admin', ['namespace' => 'App\Controllers', 'filter' => 'auth'], 
     $routes->post('registrations/reject/(:num)', 'AdminController::rejectRegistration/$1');
 
 
-    $routes->get('attractions', 'AdminController::attractions'); // Route to display the page
-    $routes->get('attractions/list', 'AdminController::getAttractionList'); // API to get all attractions
-    $routes->get('attractions/view/(:num)', 'AdminController::viewAttraction/$1'); // API for modal details
-    $routes->post('attractions/suspend/(:num)', 'AdminController::suspendAttraction/$1'); // API to SUSPEND an attraction
-    $routes->post('attractions/delete/(:num)', 'AdminController::deleteAttraction/$1'); // API to DELETE an attraction
+    // ATTRACTIONS ROUTES
+    $routes->get('attractions', 'AdminController::attractions');
+    $routes->get('attractions/list', 'AdminController::getAttractionList');
+    $routes->get('attractions/view/(:num)', 'AdminController::viewAttraction/$1');
+    $routes->post('attractions/suspend/(:num)', 'AdminController::suspendAttraction/$1');
+    $routes->post('attractions/delete/(:num)', 'AdminController::deleteAttraction/$1');
+
+    // ==========================================================
+    //  ADD THIS LINE TO FIX THE 404 NOT FOUND ERROR
+    // ==========================================================
+    $routes->post('reports/analytics', 'AdminController::getAnalytics');
    
 });
 

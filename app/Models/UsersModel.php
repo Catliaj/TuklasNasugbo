@@ -45,4 +45,57 @@ class UsersModel extends Model
     protected $afterFind      = [];
     protected $beforeDelete   = [];
     protected $afterDelete    = [];
+<<<<<<< Updated upstream
+=======
+
+    public function getUserCategoryString($userId)
+    {
+        $builder = $this->db->table('user_preferences');
+        $builder->select('category');
+        $builder->where('user_id', $userId);
+        $result = $builder->get()->getRowArray();
+
+        return $result['category'] ?? null; // returns "Historical,Natural,Urban,Adventure"
+    }
+
+    // ==========================================================
+    //  NEW DASHBOARD METHOD
+    // ==========================================================
+    
+    /**
+     * Get the count of new users registered in the current month.
+     */
+    public function getNewUsersThisMonth()
+    {
+        return $this->where('MONTH(created_at)', date('m'))
+                    ->where('YEAR(created_at)', date('Y'))
+                    ->countAllResults();
+    }
+
+     /**
+     * Get the distribution of user preferences for the dashboard doughnut chart.
+     */
+    public function getUserPreferenceDistribution()
+    {
+        return $this->db->table('user_preferences')
+            ->select('category, COUNT(preference_id) as total')
+            ->groupBy('category')
+            ->get()->getResultArray();
+    }
+    
+    /**
+     * Get preference trends over time for the reports page.
+     */
+    public function getPreferenceTrends($startDate, $endDate)
+    {
+        return $this->db->table('user_preferences up')
+            ->select("DATE_FORMAT(up.created_at, '%Y-%m') as month, up.category, COUNT(up.preference_id) as total")
+            ->where('DATE(up.created_at) >=', $startDate)
+            ->where('DATE(up.created_at) <=', $endDate)
+            ->groupBy(['month', 'up.category'])
+            ->orderBy('month', 'ASC')
+            ->get()->getResultArray();
+    }
+
+>>>>>>> Stashed changes
 }
