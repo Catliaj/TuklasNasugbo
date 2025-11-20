@@ -111,6 +111,44 @@ class TouristSpotModel extends Model
         return $builder->countAllResults();
     }
 
+    // ==========================================================
+    // FUNCTION TO GET SPOT DETAILS WITH OWNER INFO AND GALLERY
+    // ==========================================================
+    /**
+     * Get detailed info of a single spot, including business owner and gallery
+     *
+     * @param int $spotID
+     * @return array
+     */
+    public function getSpotDetailsWithGallery(int $spotID)
+    {
+        try {
+            // Get spot details with business and owner info
+            $spot = $this->select('tourist_spots.*, businesses.business_name, users.FirstName, users.LastName')
+                         ->join('businesses', 'businesses.business_id = tourist_spots.business_id')
+                         ->join('users', 'users.UserID = businesses.user_id')
+                         ->where('tourist_spots.spot_id', $spotID)
+                         ->first();
+
+            if (!$spot) {
+                return ['status' => 'error', 'message' => 'Spot not found'];
+            }
+
+            // Get gallery images
+            $spotGalleryModel = new \App\Models\SpotGalleryModel();
+            $gallery = $spotGalleryModel->where('spot_id', $spotID)->findAll();
+            // Add image_url for each gallery image
+            foreach ($gallery as &$img) {
+                $img['image_url'] = '/uploads/spots/gallery/' . $img['image'];
+            }
+            $spot['gallery'] = $gallery;
+
+            return ['status' => 'success', 'data' => $spot];
+
+        } catch (\Exception $e) {
+            return ['status' => 'error', 'message' => 'Error retrieving spot details: ' . $e->getMessage()];
+        }
+    }
 }
 
    

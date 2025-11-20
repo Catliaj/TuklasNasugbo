@@ -184,8 +184,74 @@
                           <h3 class="timeline-title">Trip Timeline</h3>
                           <button class="btn-add-day" onclick="openAddDayModal()"><i class="bi bi-plus-circle"></i> Add Day</button>
                       </div>
+                      <?php if(!empty($itinerary) && is_array($itinerary)): ?>
+                        <?php foreach ($itinerary as $day): ?>
+                        <div class="day-card" id="day<?= $day['day_number'] ?>">
+                            <div class="day-header" onclick="toggleDay('day<?= $day['day_number'] ?>')">
+                                <div class="day-header-left">
+                                    <div class="day-number">Day <?= $day['day_number'] ?></div>
+                                    <div class="day-date"><?= date('l, F d', strtotime($day['date'])) ?></div>
+                                </div>
+                                <div class="day-header-right">
+                                    <div class="day-stats">
+                                        <div class="day-stat"><i class="bi bi-geo-alt"></i><span><?= count($day['activities']) ?> places</span></div>
+                                        <div class="day-stat"><i class="bi bi-cash-stack"></i><span>₱<?= array_sum(array_column($day['activities'], 'cost')) ?></span></div>
+                                    </div>
+                                    <i class="bi bi-chevron-down collapse-icon"></i>
+                                </div>
+                            </div>
 
-                        <!-- Original itinerary rendering logic restored here -->
+                            <div class="day-content">
+                                <?php foreach ($day['activities'] as $activity): ?>
+                                <div class="activity-item" data-type="<?= $activity['type'] ?>">
+                                    <i class="bi bi-grip-vertical activity-drag-handle"></i>
+                                    <div class="activity-icon <?= $activity['type'] ?>">
+                                        <?php
+                                            if($activity['type'] == 'lodging') echo '<i class="bi bi-house-door"></i>';
+                                            elseif($activity['type'] == 'place') echo '<i class="bi bi-geo-alt"></i>';
+                                            elseif($activity['type'] == 'food') echo '<i class="bi bi-cup-hot"></i>';
+                                            elseif($activity['type'] == 'transport') echo '<i class="bi bi-bus-front"></i>';
+                                        ?>
+                                    </div>
+                                    <div class="activity-details">
+                                        <div class="activity-header">
+                                            <h4 class="activity-title"><?= $activity['title'] ?></h4>
+                                             <div class="activity-meta-item"><i class="bi bi-geo-alt"></i><span><?= isset($activity['description']) ? $activity['description'] : '' ?></span></div>
+                                            <div class="activity-time"><i class="bi bi-clock"></i> <?= $activity['start_time'] ?><?= isset($activity['end_time']) ? " - ".$activity['end_time'] : "" ?></div>
+                                        </div>
+                                        <div class="activity-meta">
+                                            <div class="activity-meta-item"><i class="bi bi-geo-alt"></i><span><?= $activity['location'] ?></span></div>
+                                            <div class="activity-meta-item"><i class="bi bi-cash-stack"></i><span>₱<?= $activity['cost'] ?></span></div>
+
+                                        </div>
+                                        <?php if(!empty($activity['notes'])): ?>
+                                            <div class="activity-notes">📝 <?= $activity['notes'] ?></div>
+                                        <?php endif; ?>
+
+                                    </div>
+                                    <div class="activity-actions">
+                                        <button class="btn-activity-action" title="Edit"><i class="bi bi-pencil"></i></button>
+                                        <button class="btn-activity-action delete" title="Delete"><i class="bi bi-trash"></i></button>
+                                    </div>
+                                </div>
+                                <?php endforeach; ?>
+
+                                <button class="add-activity-btn">
+                                    <i class="bi bi-plus-circle"></i> Add Activity
+                                </button>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                      <?php else: ?>
+                        <div class="day-card">
+                            <div class="day-header">
+                                <div class="day-header-left">
+                                    <div class="day-number"></div>
+                                    <div class="day-date"></div>
+                                </div>
+                            </div>
+                        </div>
+                      <?php endif; ?>
                      
                   </div>
                     

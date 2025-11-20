@@ -194,7 +194,7 @@
                     <?php foreach ($spots as $spot): ?>
                         <?php 
                             // IMAGE PATH CHECK
-                            $imagePath = 'uploads' . $spot['primary_image'];
+                            $imagePath = 'uploads/spots/' . $spot['primary_image'];
                             if (!is_file(FCPATH . $imagePath)) { 
                                 $imagePath = 'uploads/spots/Spot-No-Image.png';
                             }
@@ -306,42 +306,55 @@
          
          <!-- Spot Details Modal -->
          <div class="modal fade" id="spotModal" tabindex="-1" aria-labelledby="spotModalLabel" aria-hidden="true">
-          <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content">
-              <div class="modal-header">
-                <h5 class="modal-title" id="spotModalLabel"><i class="bi bi-compass"></i> Spot Details</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="spotModalLabel"><i class="bi bi-compass"></i> Spot Details</h5>
+        
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <!-- Left column: Carousel -->
+          <div class="col-md-6">
+            <div id="spotModalCarousel" class="carousel slide" data-bs-ride="carousel">
+              <div class="carousel-inner" id="spotModalImages">
+                <!-- inserted image items dynamically -->
               </div>
-              <div class="modal-body">
-                <div class="row g-3">
-                  <div class="col-md-6">
-                    <div id="spotModalCarousel" class="carousel slide" data-bs-ride="carousel">
-                      <div class="carousel-inner" id="spotModalImages">
-                        <!-- inserted image items -->
-                      </div>
-                      <button class="carousel-control-prev" type="button" data-bs-target="#spotModalCarousel" data-bs-slide="prev">
-                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                        <span class="visually-hidden">Previous</span>
-                      </button>
-                      <button class="carousel-control-next" type="button" data-bs-target="#spotModalCarousel" data-bs-slide="next">
-                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                        <span class="visually-hidden">Next</span>
-                      </button>
-                    </div>
-                  </div>
-                  <div class="col-md-6">
-                    <p id="spotModalDesc" class="mb-2"></p>
-                    <p class="mb-1"><strong>Category:</strong> <span id="spotModalCategory"></span></p>
-                    <p class="mb-2"><strong>Rating:</strong> <span id="spotModalRating"></span></p>
-                  </div>
-                </div>
-              </div>
-              <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-              </div>
+              <button class="carousel-control-prev" type="button" data-bs-target="#spotModalCarousel" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Previous</span>
+              </button>
+              <button class="carousel-control-next" type="button" data-bs-target="#spotModalCarousel" data-bs-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Next</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Right column: Description + details -->
+          <div class="col-md-6">
+            <div class="mb-3">
+              <p id="spotModalDesc" class="mb-2"></p>
+              <p class="mb-1"><strong>Category:</strong> <span id="spotModalCategory"></span></p>
+              <p class="mb-2"><strong>Rating:</strong> <span id="spotModalRating"></span></p>
+            </div>
+
+            <!-- Extra details -->
+            <div id="spotModalDetails" class="border p-2 rounded bg-light" style="max-height: 400px; overflow-y: auto;">
+              <!-- dynamically inserted details -->
             </div>
           </div>
         </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
      </div>
      
      <!-- Mobile Menu Button -->
@@ -656,64 +669,108 @@
             }
         }
 
-        // Show modal populated from the clicked card
-        function viewDetails(btn) {
-            const card = btn.closest('.spot-card');
-            if (!card) return;
+            // Show modal populated from the clicked card
+    function viewDetails(btn) {
+        const card = btn.closest('.spot-card');
+        if (!card) return;
 
-            const title = card.querySelector('.spot-title')?.textContent.trim() || '';
-            const desc = card.querySelector('.spot-description')?.textContent.trim() || '';
-            const category = card.querySelector('.spot-category')?.textContent.trim() || '';
-            const rating = card.querySelector('.spot-rating span')?.textContent.trim() || '';
+        const spotId = card.dataset.spotId;
+        if (!spotId) return;
 
-            // Extract image from inline background-image style
-            const imgDiv = card.querySelector('.spot-image');
-            let imgUrl = '';
-            if (imgDiv) {
-                const bg = imgDiv.style.backgroundImage; // e.g. url("...")
-                const m = /url\(["']?(.*?)["']?\)/.exec(bg);
-                imgUrl = m ? m[1] : '';
-            }
+        // Show loading state in modal
+        const modalLabel = document.getElementById('spotModalLabel');
+        const descEl = document.getElementById('spotModalDesc');
+        const categoryEl = document.getElementById('spotModalCategory');
+        const ratingEl = document.getElementById('spotModalRating');
+        const imagesContainer = document.getElementById('spotModalImages');
+        const detailsEl = document.getElementById('spotModalDetails'); // extra details container
+        modalLabel.innerHTML = '<i class="bi bi-compass"></i> Loading...';
+        descEl.textContent = 'Loading...';
+        categoryEl.textContent = '';
+        ratingEl.textContent = '';
+        detailsEl.innerHTML = '';
+        imagesContainer.innerHTML = '<div class="carousel-item active"><div class="d-flex align-items-center justify-content-center" style="height:240px;background:#f6f6f6;border-radius:8px;"><div class="spinner-border text-primary" role="status"></div></div></div>';
 
-            // fill modal title and content
-            const modalLabel = document.getElementById('spotModalLabel');
-            modalLabel.innerHTML = `<i class="bi bi-compass"></i> ${title}`;
+        // Show modal immediately (with loading)
+        const modalEl = document.getElementById('spotModal');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
 
-            document.getElementById('spotModalDesc').textContent = desc;
-            document.getElementById('spotModalCategory').textContent = category;
-            document.getElementById('spotModalRating').textContent = rating;
+        fetch(`/tourist/viewSpot/${spotId}`)
+            .then(res => res.json())
+            .then(data => {
+                if (!data || !data.spot) throw new Error('Spot not found');
+                const spot = data.spot;
+                const gallery = data.gallery || [];
 
-            // build carousel items (use single image if only one)
-            const imagesContainer = document.getElementById('spotModalImages');
-            imagesContainer.innerHTML = '';
-            if (imgUrl) {
-                const item = document.createElement('div');
-                item.className = 'carousel-item active';
-                item.innerHTML = `<img src="${imgUrl}" class="d-block w-100 rounded" alt="${title}">`;
-                imagesContainer.appendChild(item);
-            } else {
-                const item = document.createElement('div');
-                item.className = 'carousel-item active';
-                item.innerHTML = `<div class="d-flex align-items-center justify-content-center" style="height:240px;background:#f6f6f6;border-radius:8px;"><i class="bi bi-image fs-1 text-muted"></i></div>`;
-                imagesContainer.appendChild(item);
-            }
+                // Fill main modal content
+                modalLabel.innerHTML = `<i class="bi bi-compass"></i> ${spot.spot_name}`;
+                descEl.textContent = spot.description || '';
+                categoryEl.textContent = spot.category || '';
+                ratingEl.textContent = spot.rating !== undefined ? spot.rating : '';
 
-            // wire modal buttons
-            const favBtn = document.getElementById('spotModalFavBtn');
-            // store spot id on modal fav button for later use
-            favBtn.dataset.spotId = card.dataset.spotId || '';
-            favBtn.onclick = function() {
-                const favToggle = card.querySelector('.favorite-btn');
-                // toggle card UI first
-                if (favToggle) favToggle.classList.toggle('active');
-                toggleFavorite(favToggle || favBtn);
-            };
+                // Build carousel items
+                imagesContainer.innerHTML = '';
+                let hasImage = false;
+                if (gallery.length > 0) {
+                    gallery.forEach((img, idx) => {
+                        const item = document.createElement('div');
+                        item.className = 'carousel-item' + (idx === 0 ? ' active' : '');
+                        item.innerHTML = `<img src="${img.image_url}" class="d-block w-100 rounded" alt="Spot Image">`;
+                        imagesContainer.appendChild(item);
+                        hasImage = true;
+                    });
+                }
+                if (!hasImage) {
+                    let imgUrl = spot.primary_image 
+                        ? `/uploads/spots/${spot.primary_image}` 
+                        : '/uploads/spots/Spot-No-Image.png';
 
-            // show modal
-            const modalEl = document.getElementById('spotModal');
-            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-            modal.show();
-        }
+                    const item = document.createElement('div');
+                    item.className = 'carousel-item active';
+                    item.innerHTML = `
+                        <img src="${imgUrl}" 
+                            onerror="this.src='/uploads/spots/Spot-No-Image.png'" 
+                            class="d-block w-100 rounded" 
+                            alt="Spot Image">
+                    `;
+                    imagesContainer.appendChild(item);
+                }
+
+                // Populate all extra details
+                detailsEl.innerHTML = `
+                    <p><strong>Business ID:</strong> ${spot.business_id || ''}</p>
+                    <p><strong>Latitude / Longitude:</strong> ${spot.latitude || ''}, ${spot.longitude || ''}</p>
+                    <p><strong>Location:</strong> ${spot.location || ''}</p>
+                    <p><strong>Capacity:</strong> ${spot.capacity || ''}</p>
+                    <p><strong>Opening Time:</strong> ${spot.opening_time || ''}</p>
+                    <p><strong>Closing Time:</strong> ${spot.closing_time || ''}</p>
+                    <p><strong>Operating Days:</strong> ${spot.operating_days || ''}</p>
+                    <p><strong>Status:</strong> ${spot.status || ''}</p>
+                    <p><strong>Status Reason:</strong> ${spot.status_reason || ''}</p>
+                    <p><strong>Price per Person:</strong> ${spot.price_per_person || ''}</p>
+                    <p><strong>Child Price:</strong> ${spot.child_price || ''}</p>
+                    <p><strong>Senior Price:</strong> ${spot.senior_price || ''}</p>
+                    <p><strong>Group Discount (%):</strong> ${spot.group_discount_percent || ''}</p>
+                    <p><strong>Created At:</strong> ${spot.created_at || ''}</p>
+                    <p><strong>Updated At:</strong> ${spot.updated_at || ''}</p>
+                `;
+
+                // Wire modal favorite button
+                const favBtn = document.getElementById('spotModalFavBtn');
+        
+        
+            })
+            .catch(err => {
+                modalLabel.innerHTML = '<i class="bi bi-compass"></i> Spot Details';
+                descEl.textContent = 'Failed to load spot details.';
+                categoryEl.textContent = '';
+                ratingEl.textContent = '';
+                detailsEl.innerHTML = '';
+                imagesContainer.innerHTML = '<div class="carousel-item active"><div class="d-flex align-items-center justify-content-center" style="height:240px;background:#f6f6f6;border-radius:8px;"><i class="bi bi-exclamation-triangle text-danger fs-1"></i></div></div>';
+            });
+    }
+
         
         // addToItinerary removed — functionality deprecated
         
