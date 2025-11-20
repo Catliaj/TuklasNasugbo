@@ -35,7 +35,7 @@ class AdminController extends BaseController
         $touristSpotModel = new TouristSpotModel();
         $bookingModel = new BookingModel();
         $feedbackModel = new FeedbackModel();
-        $userPrefModel = new UserPreferenceModel();
+        $userPrefModel = new UsersModel();
 
         // KPI cards
         $data['TotalPendingRequests']   = $businessModel->getTotalPendingRequests();
@@ -43,6 +43,14 @@ class AdminController extends BaseController
         $data['TotalBookingsThisMonth'] = $bookingModel->getTotalBookingsThisMonth();
         $data['TotalTodayBookings']     = $bookingModel->getTotalBookingsToday();
         $data['satisfactionScore']      = $feedbackModel->getOverallAverageRating();
+
+        // 2. CHARTS DATA (JSON for JavaScript)
+        $data['peakVisitTimes'] = json_encode($bookingModel->getPeakVisitTimes());
+        $data['userPreferences'] = json_encode($userPrefModel->getUserPreferenceDistribution());
+
+        // 3. LISTS DATA
+        $data['topHiddenSpots'] = $touristSpotModel->getTopRecommendedHiddenSpots(5);
+        $data['topViewedBusinesses'] = $businessModel->getTopViewedBusinesses(5);
 
         // Monthly bookings trend (build months until current month)
         $getTotalBookingsByMonth = method_exists($bookingModel, 'getMonthlyBookingsTrend') ? $bookingModel->getMonthlyBookingsTrend() : [];
@@ -78,7 +86,9 @@ class AdminController extends BaseController
             'TotalTodayBookings'      => $data['TotalTodayBookings'],
             'MonthlyBookingsTrend'    => $data['monthlyBookingsTrend'],
             'TotalCategories'         => $data['TotalCategoriesJSON'],
-            'satisfactionScore'       => $data['satisfactionScore']
+            'satisfactionScore'       => $data['satisfactionScore'],
+            'peakVisitTimes'          => $data['peakVisitTimes'],
+            'userPreferences'         => $data['userPreferences'],
         ]);
     }
 
@@ -284,4 +294,6 @@ class AdminController extends BaseController
             return $this->response->setStatusCode(500)->setJSON(['error' => 'Server Error', 'message' => $e->getMessage()]);
         }
     }
+
+    
 }

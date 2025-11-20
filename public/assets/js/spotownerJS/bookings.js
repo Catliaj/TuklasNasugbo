@@ -26,6 +26,10 @@ async function loadBookings() {
             ? 'badge-cancelled'
             : b.booking_status === 'Rejected'
             ? 'badge-rejected'
+            : b.booking_status === 'Checked-in'
+            ? 'badge-checkedin'
+            : b.booking_status === 'Checked-out'
+            ? 'badge-checkedout'
             : '';
 
                    
@@ -74,6 +78,10 @@ async function viewBooking(bookingId) {
                 ? 'badge-cancelled'
                 : booking.booking_status === 'Rejected'
                 ? 'badge-rejected'
+                : booking.booking_status === 'Checked-in'
+                ? 'badge-checkedin'
+                : booking.booking_status === 'Checked-out'
+                ? 'badge-checkedout'
                 : '';
         const modalBody = document.getElementById('bookingModalBody');
         modalBody.innerHTML = `

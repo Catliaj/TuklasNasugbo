@@ -96,7 +96,11 @@ class CreateTouristSpot extends Migration
             'status_reason' =>[
                 'type'       => 'TEXT',
                 'null'       => true,
-            ]
+            ],
+            'suspension_reason' =>[
+                'type'       => 'TEXT',
+                'null'       => true,
+            ],
         ];
         $this->forge->addField($data);
         $this->forge->addKey('spot_id', true);

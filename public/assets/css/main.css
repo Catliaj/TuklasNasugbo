@@ -28,6 +28,29 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--ocean);
 }
 
+/* add to assets/css/main.css */
+.badge-checkedin {
+  background-color: #0d6efd; /* bootstrap primary */
+  color: #fff;
+  padding: .35em .6em;
+  border-radius: .25rem;
+  font-size: .85em;
+}
+
+.badge-checkedout {
+  background-color: #6c757d; /* bootstrap secondary */
+  color: #fff;
+  padding: .35em .6em;
+  border-radius: .25rem;
+  font-size: .85em;
+}
+
+/* keep your other custom badges consistent */
+.badge-confirmed { background-color:#198754; color:#fff; }
+.badge-pending { background-color:#ffc107; color:#212529; }
+.badge-cancelled, .badge-rejected { background-color:#dc3545; color:#fff; }
+.badge-checkedin, .badge-checkedout { display:inline-block; }
+
 /* Sidebar Styles */
 .sidebar {
     width: 260px;
