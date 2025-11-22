@@ -80,7 +80,7 @@
             <button class="btn btn-link text-dark" id="sidebarToggle"><i class="bi bi-list fs-4"></i></button>
             <div class="dropdown">
                 <button class="btn btn-link text-dark dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                    <i class="bi bi-person-circle fs-5 me-2"></i><span class="d-none d-md-inline">Admin User</span>
+                    <i class="bi bi-person-circle fs-5 me-2"></i><span class="d-none d-md-inline"><?= esc($FullName) ?></span>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li><a class="dropdown-item text-danger" href="/users/logout"><i class="bi bi-box-arrow-left me-2"></i>Logout</a></li>
@@ -101,7 +101,7 @@
                 </button>
             </div>
 
-            <!-- KPI CARDS (DESIGN MATCHING REPORTS) -->
+            <!-- KPI CARDS -->
             <div class="row g-4 mb-4">
                 <!-- Tourist Satisfaction Score -->
                 <div class="col-xl-3 col-md-6">
@@ -154,7 +154,7 @@
                 <div class="col-lg-8">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-body">
-                            <h5 class="card-title fw-bold mb-4">Peak Visit Times (Last 7 Days)</h5>
+                            <h5 class="card-title fw-bold mb-4">Peak Visit Times</h5>
                             <div class="chart-container">
                                 <canvas id="peakVisitChart"></canvas>
                             </div>
@@ -250,8 +250,11 @@
     <!-- DATA INJECTION -->
     <script>
         window.dashboardData = {
-            peakVisitTimes: <?= $peakVisitTimes ?>,
-            userPreferences: <?= $userPreferences ?>
+            // We use ternary checks here. If the data is null or empty, we pass an empty array '[]'
+            // This prevents the JavaScript from breaking.
+            peakVisitTimes: <?= !empty($peakVisitTimes) ? $peakVisitTimes : '[]' ?>,
+            userPreferences: <?= !empty($userPreferences) ? $userPreferences : '[]' ?>,
+            monthlyBookings: <?= !empty($MonthlyBookingsTrend) ? $MonthlyBookingsTrend : '[]' ?>
         };
     </script>
 

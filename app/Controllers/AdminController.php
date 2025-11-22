@@ -15,9 +15,8 @@ use App\Models\UserPreferenceModel;
 class AdminController extends BaseController
 {
     // ==========================================================
-    //  PAGE RENDERERS
+    //  HELPER: ENFORCE ADMIN ROLE
     // ==========================================================
-
     protected function ensureAdmin()
     {
         if (!session()->get('isLoggedIn') || session()->get('Role') !== 'Admin') {
@@ -26,9 +25,13 @@ class AdminController extends BaseController
         return null;
     }
 
+    // ==========================================================
+    //  PAGE RENDERERS
+    // ==========================================================
+
     public function dashboard()
     {
-        // enforce admin
+        // Enforce admin check
         if ($redirect = $this->ensureAdmin()) return $redirect;
 
         $businessModel = new BusinessModel();
@@ -37,58 +40,81 @@ class AdminController extends BaseController
         $feedbackModel = new FeedbackModel();
         $userPrefModel = new UsersModel();
 
-        // KPI cards
+        // 1. KPI CARDS DATA
         $data['TotalPendingRequests']   = $businessModel->getTotalPendingRequests();
         $data['TotalTouristSpots']      = $touristSpotModel->getTotalTouristSpots();
         $data['TotalBookingsThisMonth'] = $bookingModel->getTotalBookingsThisMonth();
         $data['TotalTodayBookings']     = $bookingModel->getTotalBookingsToday();
         $data['satisfactionScore']      = $feedbackModel->getOverallAverageRating();
 
-        // 2. CHARTS DATA (JSON for JavaScript)
-        $data['peakVisitTimes'] = json_encode($bookingModel->getPeakVisitTimes());
-        $data['userPreferences'] = json_encode($userPrefModel->getUserPreferenceDistribution());
+        // 2. CHARTS DATA (Safely Encoded for JS)
+        // We use the ?: [] operator to ensure we don't encode nulls
+        $peakRaw = $bookingModel->getPeakVisitTimes();
+        $data['peakVisitTimes'] = json_encode($peakRaw ?: []);
 
-        // 3. LISTS DATA
-        $data['topHiddenSpots'] = $touristSpotModel->getTopRecommendedHiddenSpots(5);
-        $data['topViewedBusinesses'] = $businessModel->getTopViewedBusinesses(5);
+        $prefRaw = $userPrefModel->getUserPreferenceDistribution();
+        $data['userPreferences'] = json_encode($prefRaw ?: []);
 
-        // Monthly bookings trend (build months until current month)
+        // 3. MONTHLY TREND (Manual Construction)
         $getTotalBookingsByMonth = method_exists($bookingModel, 'getMonthlyBookingsTrend') ? $bookingModel->getMonthlyBookingsTrend() : [];
-        $BookingData = array_fill(1, 12, ['month' => '', 'total_bookings' => 0]);
-        foreach (range(1, 12) as $m) {
+        
+        // Initialize array for 12 months
+        $BookingData = [];
+        for ($m = 1; $m <= 12; $m++) {
             $BookingData[$m] = [
                 'month' => date('F', mktime(0, 0, 0, $m, 1)),
                 'total_bookings' => 0
             ];
         }
-        foreach ($getTotalBookingsByMonth as $row) {
-            $month = (int)($row['month'] ?? 0);
-            if ($month >= 1 && $month <= 12) {
-                $BookingData[$month]['total_bookings'] = (int)($row['total'] ?? 0);
+        
+        // Fill with actual data
+        if (!empty($getTotalBookingsByMonth)) {
+            foreach ($getTotalBookingsByMonth as $row) {
+                $month = (int)($row['month'] ?? 0);
+                if ($month >= 1 && $month <= 12) {
+                    $BookingData[$month]['total_bookings'] = (int)($row['total'] ?? 0);
+                }
             }
         }
+        
+        // Slice to current month so the line chart doesn't flatline for future months
         $currentMonth = (int)date('n');
         $BookingData = array_slice($BookingData, 0, $currentMonth, true);
-
+        
         $data['monthlyBookingsTrend'] = json_encode(array_values($BookingData), JSON_NUMERIC_CHECK);
-        $data['TotalCategories'] = $touristSpotModel->getTotalCategories();
-        $data['TotalCategoriesJSON'] = json_encode($data['TotalCategories'], JSON_NUMERIC_CHECK);
 
+        // 4. LISTS DATA
+        $data['topHiddenSpots'] = $touristSpotModel->getTopRecommendedHiddenSpots(5);
+        $data['topViewedBusinesses'] = $businessModel->getTopViewedBusinesses(5);
+        
+        // Categories
+        $data['TotalCategories'] = $touristSpotModel->getTotalCategories();
+        $data['TotalCategoriesJSON'] = json_encode($data['TotalCategories'] ?: [], JSON_NUMERIC_CHECK);
+
+        // Pass everything to View
         return view('Pages/admin/dashboard', [
             'data'                    => $data,
             'userID'                  => session()->get('UserID'),
             'FullName'                => session()->get('FirstName') . ' ' . session()->get('LastName'),
             'email'                   => session()->get('Email'),
             'currentID'               => session()->get('UserID'),
+            
+            // Explicit variables for View
             'TotalPendingRequests'    => $data['TotalPendingRequests'],
             'TotalTouristSpots'       => $data['TotalTouristSpots'],
             'TotalBookingsThisMonth'  => $data['TotalBookingsThisMonth'],
             'TotalTodayBookings'      => $data['TotalTodayBookings'],
-            'MonthlyBookingsTrend'    => $data['monthlyBookingsTrend'],
-            'TotalCategories'         => $data['TotalCategoriesJSON'],
             'satisfactionScore'       => $data['satisfactionScore'],
+            
+            // JSON Strings for JS
+            'MonthlyBookingsTrend'    => $data['monthlyBookingsTrend'],
             'peakVisitTimes'          => $data['peakVisitTimes'],
             'userPreferences'         => $data['userPreferences'],
+            'TotalCategories'         => $data['TotalCategoriesJSON'],
+            
+            // Lists
+            'topHiddenSpots'          => $data['topHiddenSpots'],
+            'topViewedBusinesses'     => $data['topViewedBusinesses']
         ]);
     }
 
@@ -123,7 +149,7 @@ class AdminController extends BaseController
     {
         $businessModel = new BusinessModel();
         $data = $businessModel->getAllRegistrations();
-        return $this->response->setJSON($data);
+        return $this->response->setJSON($data ?: []);
     }
 
     public function viewRegistration($id = null)
@@ -166,7 +192,8 @@ class AdminController extends BaseController
     public function getAttractionList()
     {
         $spotModel = new TouristSpotModel();
-        return $this->response->setJSON($spotModel->getAllTouristSpots());
+        $data = $spotModel->getAllTouristSpots();
+        return $this->response->setJSON($data ?: []);
     }
 
     public function viewAttraction($id = null)
@@ -174,8 +201,8 @@ class AdminController extends BaseController
         $spotModel = new TouristSpotModel();
 
         $attraction = $spotModel->select('tourist_spots.*, businesses.business_name, users.FirstName, users.LastName')
-            ->join('businesses', 'businesses.business_id = tourist_spots.business_id')
-            ->join('users', 'users.UserID = businesses.user_id')
+            ->join('businesses', 'businesses.business_id = tourist_spots.business_id', 'left')
+            ->join('users', 'users.UserID = businesses.user_id', 'left')
             ->where('tourist_spots.spot_id', $id)
             ->first();
 
@@ -277,11 +304,11 @@ class AdminController extends BaseController
                     'activeAttractions' => $spotModel->where('status', 'approved')->countAllResults()
                 ],
                 'charts' => [
-                    'visitorDemographics' => $bookingModel->getVisitorDemographics($startDate, $endDate),
+                    'visitorDemographics' => $bookingModel->getVisitorDemographics($startDate, $endDate) ?: [],
                     'peakBookingDays' => $bookingModel->getPeakDays($startDate, $endDate)['peak_booking_days'] ?? [],
-                    'bookingLeadTime' => $bookingModel->getBookingLeadTime($startDate, $endDate),
-                    'revenueByCategory' => $bookingModel->getRevenueByCategory($startDate, $endDate),
-                    'performanceMetrics' => $bookingModel->getTopSpotsPerformanceMetrics($startDate, $endDate)
+                    'bookingLeadTime' => $bookingModel->getBookingLeadTime($startDate, $endDate) ?: [],
+                    'revenueByCategory' => $bookingModel->getRevenueByCategory($startDate, $endDate) ?: [],
+                    'performanceMetrics' => $bookingModel->getTopSpotsPerformanceMetrics($startDate, $endDate) ?: []
                 ],
                 'tables' => [
                     'topPerformingSpots' => $bookingModel->getTopSpotsPerformanceMetrics($startDate, $endDate),
@@ -294,6 +321,4 @@ class AdminController extends BaseController
             return $this->response->setStatusCode(500)->setJSON(['error' => 'Server Error', 'message' => $e->getMessage()]);
         }
     }
-
-    
 }
