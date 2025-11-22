@@ -776,7 +776,7 @@
         previewSection.style.display = 'block';
         generateBtn.disabled = true;
 
-        const url = `https://tuklasnasugbu.com/api/recommend/?days=${formData.day}&budget=${formData.budget}&adults=${formData.adults}&children=${formData.children}&seniors=${formData.seniors}&preference=${userPreference}&start_date=${formData.start_date}&end_date=${formData.end_date}`;
+       const url = `http://127.0.0.1:8000/api/recommend/?days=${formData.day}&budget=${formData.budget}&adults=${formData.adults}&children=${formData.children}&seniors=${formData.seniors}&preference=${userPreference}&start_date=${formData.start_date}&end_date=${formData.end_date}`;  
 
         try {
           const response = await fetch(url);
@@ -905,7 +905,7 @@
             end_date: lastItineraryRequest.end_date || ''
           });
 
-          const saveUrl = `https://tuklasnasugbu.com/api/recommend/?${params.toString()}`;
+          const saveUrl = `http://127.0.0.1:8000/api/recommend/?${params.toString()}`;
 
           try {
             const resp = await fetch(saveUrl);
