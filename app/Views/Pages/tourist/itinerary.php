@@ -776,7 +776,8 @@
         previewSection.style.display = 'block';
         generateBtn.disabled = true;
 
-       const url = `https://tuklasnasugbu.com/api/recommend/?days=${formData.day}&budget=${formData.budget}&adults=${formData.adults}&children=${formData.children}&seniors=${formData.seniors}&preference=${userPreference}&start_date=${formData.start_date}&end_date=${formData.end_date}`;  
+       const url = `https://tuklasnasugbu.com/api/recommend/?days=${formData.day}&budget=${formData.budget}&adults=${formData.adults}&children=${formData.children}&seniors=${formData.seniors}&preference=${userPreference}&start_date=${formData.start_date}&end_date=${formData.end_date}`;
+
 
         try {
           const response = await fetch(url);
