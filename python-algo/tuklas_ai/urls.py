@@ -18,15 +18,16 @@ from django.contrib import admin
 from django.urls import path, include
 from recommender.views import recommend_itinerary
 from django.shortcuts import redirect
+from django.urls import re_path
+from recommender import views
 
 # Redirect root URL to /recommend_itinerary/
 def redirect_to_recommend(request):
     return redirect('recommend_itinerary')
 
 urlpatterns = [
-    path('', redirect_to_recommend),  # Root redirects to /recommend_itinerary/
-    path('admin/', admin.site.urls),
-    path('api/', include('recommender.urls')),  # Your API routes
-    path('recommend_itinerary/', recommend_itinerary, name='recommend_itinerary'),  # Trailing slash added
+    re_path(r'^recommend/?$', views.recommend_itinerary, name='recommend_itinerary'),
 ]
+
+
 
