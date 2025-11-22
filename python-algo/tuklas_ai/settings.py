@@ -88,13 +88,13 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'tuklas_nasugbu',
-        'USER': 'root',
-        'PASSWORD': '',        # leave blank if you didn’t set one in XAMPP
-        'HOST': 'localhost',   # because MySQL runs inside XAMPP locally
+        'USER': 'tuklas_user',
+        'PASSWORD': 'StrongPasswordHere',
+        'HOST': 'localhost',
         'PORT': '3306',
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-             'charset': 'utf8mb4',
+            'charset': 'utf8mb4',
             'use_unicode': True,
         },
     }
