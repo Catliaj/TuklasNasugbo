@@ -16,15 +16,17 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from recommender.views import recommend_itinerary  # import the view
+from recommender.views import recommend_itinerary
 from django.shortcuts import redirect
 
+# Redirect root URL to /recommend_itinerary/
 def redirect_to_recommend(request):
     return redirect('recommend_itinerary')
 
 urlpatterns = [
-    path('', lambda request: redirect('recommend_itinerary')),  # Redirect root to /recommend_itinerary
+    path('', redirect_to_recommend),  # Root redirects to /recommend_itinerary/
     path('admin/', admin.site.urls),
-    path('api/', include('recommender.urls')),
-    path('recommend_itinerary', recommend_itinerary, name='recommend_itinerary'),
+    path('api/', include('recommender.urls')),  # Your API routes
+    path('recommend_itinerary/', recommend_itinerary, name='recommend_itinerary'),  # Trailing slash added
 ]
+

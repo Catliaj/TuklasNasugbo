@@ -906,7 +906,7 @@
             end_date: lastItineraryRequest.end_date || ''
           });
 
-          const saveUrl = `https://tuklasnasugbu.com/api/recommend/?${params.toString()}`;
+        const saveUrl = `https://tuklasnasugbu.com/api/recommend/?${params.toString()}/`;
 
           try {
             const resp = await fetch(saveUrl);
