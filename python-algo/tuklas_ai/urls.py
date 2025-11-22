@@ -23,7 +23,7 @@ def redirect_to_recommend(request):
     return redirect('recommend_itinerary')
 
 urlpatterns = [
-    path('', redirect_to_recommend),  # redirect root to your endpoint
+    path('', lambda request: redirect('recommend_itinerary')),  # Redirect root to /recommend_itinerary
     path('admin/', admin.site.urls),
     path('api/', include('recommender.urls')),
     path('recommend_itinerary', recommend_itinerary, name='recommend_itinerary'),
