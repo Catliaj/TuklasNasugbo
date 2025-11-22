@@ -351,10 +351,17 @@ public function getTopPerformingDays($businessID, $limit = 5)
     $builder->where('b.booking_status', 'Confirmed');
     $builder->where('MONTH(b.booking_date)', date('m'));
     $builder->where('YEAR(b.booking_date)', date('Y'));
-    $builder->groupBy('DATE(b.booking_date)');
+
+    // FIX: include all non-aggregated SELECT expressions in the GROUP BY
+    $builder->groupBy([
+        'DATE(b.booking_date)',
+        'DAYNAME(b.booking_date)',
+        'DATE_FORMAT(b.booking_date, "%M %d")'
+    ]);
+
     $builder->orderBy('revenue', 'DESC');
     $builder->limit($limit);
-    
+
     return $builder->get()->getResultArray();
 }
 
