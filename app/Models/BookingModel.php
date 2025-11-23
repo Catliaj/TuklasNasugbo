@@ -539,4 +539,32 @@ public function getTopSpotsPerformanceMetrics($startDate, $endDate, $limit = 3)
 
     return $builder->get()->getResultArray();
 }
+
+     public function getVisitedPlacesByUser(int $userId)
+    {
+        $builder = $this->db->table('bookings b');
+
+        // Select only the fields you asked for
+        $builder->select([
+            'b.booking_id',
+            'b.booking_date',
+            'b.visit_date',
+            'b.visit_time',
+            'b.total_guests',
+            'b.total_price',
+            'ts.spot_name',
+            'ts.location',
+            'ts.primary_image'
+        ]);
+
+        $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id', 'left');
+
+        $builder->where('b.customer_id', $userId);
+        $builder->whereIn('b.booking_status', ['Checked-in', 'Checked-out']);
+
+        // Order by visit_date (or booking_date if visit_date is null) desc, then visit_time desc no order by
+        $builder->orderBy('COALESCE(b.visit_date, b.booking_date) DESC, b.visit_time DESC');
+
+        return $builder->get()->getResultArray();
+    }
 }

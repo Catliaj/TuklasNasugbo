@@ -199,6 +199,62 @@ class TouristSpotModel extends Model
                     ->limit($limit)
                     ->find();
     }
+
+    public function getTopSpotsByViews(int $limit = 6): array
+    {
+        $db = $this->db;
+
+        // Preferred: aggregate from spot_view_logs table
+        try {
+            $sql = "
+                SELECT ts.*, COALESCE(v.views, 0) AS views
+                FROM " . $this->table . " ts
+                LEFT JOIN (
+                    SELECT spot_id, COUNT(*) AS views
+                    FROM spot_view_logs
+                    GROUP BY spot_id
+                ) v ON ts.spot_id = v.spot_id
+                WHERE ts.status = 'approved'
+                ORDER BY v.views DESC, ts.created_at DESC
+                LIMIT ?
+            ";
+            $result = $db->query($sql, [(int)$limit])->getResultArray();
+            if (is_array($result)) {
+                return $result;
+            }
+        } catch (\Throwable $e) {
+            // Log and continue to fallback
+            log_message('warning', 'getTopSpotsByViews (view_logs) failed: ' . $e->getMessage());
+        }
+
+        // Fallback: use view_count column via Query Builder with table alias
+        try {
+            $builder = $this->db->table($this->table . ' ts');
+            $builder->select('ts.*, COALESCE(ts.view_count, 0) AS views');
+            $builder->where('ts.status', 'approved');
+            $builder->orderBy('ts.view_count', 'DESC');
+            $builder->orderBy('ts.created_at', 'DESC');
+            $builder->limit((int)$limit);
+            $rows = $builder->get()->getResultArray();
+            if (is_array($rows)) {
+                return $rows;
+            }
+        } catch (\Throwable $e) {
+            log_message('warning', 'getTopSpotsByViews (fallback) failed: ' . $e->getMessage());
+        }
+
+        // Last fallback: return active spots ordered by created_at
+        try {
+            $rows = $this->where('status', 'approved')
+                         ->orderBy('created_at', 'DESC')
+                         ->limit((int)$limit)
+                         ->findAll();
+            return is_array($rows) ? $rows : [];
+        } catch (\Throwable $e) {
+            log_message('error', 'getTopSpotsByViews final fallback failed: ' . $e->getMessage());
+            return [];
+        }
+    }
     
 }
 
