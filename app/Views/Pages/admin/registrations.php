@@ -43,7 +43,7 @@
             <a href="/admin/registrations" class="nav-item active">
                 <i class="bi bi-person-plus"></i>
                 <span>Registrations</span>
-                <span class="badge">12</span>
+                <span class="badge-pending-registrations badge bg-danger text-white ms-2" style="display:none;font-size:0.7rem;padding:2px 6px;border-radius:12px"></span>
             </a>
             <a href="/admin/attractions" class="nav-item">
                 <i class="bi bi-geo-alt"></i>
@@ -75,15 +75,17 @@
             </button>
             
             <div class="d-flex align-items-center gap-3">
-                <div class="search-box d-none d-md-block">
-                    <i class="bi bi-search"></i>
-                    <input type="text" placeholder="Search...">
-                </div>
+                <!-- search moved to page header for registrations (see below) -->
                 
-                <button class="btn btn-link text-dark position-relative">
-                    <i class="bi bi-bell fs-5"></i>
-                    <span class="notification-dot"></span>
-                </button>
+                <div class="dropdown">
+                    <button class="btn btn-link text-dark position-relative notification-button" id="notificationButtonRegistrations" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-bell fs-5"></i>
+                        <span class="notification-dot"></span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end p-2" id="notificationMenuRegistrations" style="min-width:320px">
+                        <li class="dropdown-item text-muted small">No new notifications</li>
+                    </ul>
+                </div>
                 
                 <div class="dropdown">
                     <button class="btn btn-link text-dark dropdown-toggle" type="button" data-bs-toggle="dropdown">
@@ -122,6 +124,9 @@
                      <button class="btn btn-outline-danger" onclick="filterRegistrations_API('rejected')">
                         <i class="bi bi-x-circle me-2"></i>Rejected
                     </button>
+                    <div class="ms-3" style="min-width:260px;">
+                        <input id="searchRegistrations" class="form-control form-control-sm" placeholder="Search registrations by business, owner, email...">
+                    </div>
                 </div>
             </div>
 
