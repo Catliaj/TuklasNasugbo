@@ -274,14 +274,22 @@
                                                 <div class="mb-3">
                                                     <label for="category" class="form-label">Category</label>
                                                     <select class="form-select" name="category" id="category" required>
-                                                        <option value="">Select category</option>
+                                                        <!-- 'Historical', 'Cultural', 'Natural', 'Recreational', 'Religious', 'Adventure', 'Ecotourism', 'Urban', 'Rural' ,'Beach' ,'Mountain' ,'Resort', 'Park', 'Restaurant' -->
+                                                        <option value="" disabled selected>Select category</option>
+                                                        <option value="Historical">Historical</option>
+                                                        <option value="Cultural">Cultural</option>
+                                                        <option value="Natural">Natural</option>
+                                                        <option value="Recreational">Recreational</option>
+                                                        <option value="Religious">Religious</option>
+                                                        <option value="Adventure">Adventure</option>
+                                                        <option value="Ecotourism">Ecotourism</option>
+                                                        <option value="Urban">Urban</option>
+                                                        <option value="Rural">Rural</option>
                                                         <option value="Beach">Beach</option>
                                                         <option value="Mountain">Mountain</option>
+                                                        <option value="Resort">Resort</option>
                                                         <option value="Park">Park</option>
-                                                        <option value="Museum">Museum</option>
                                                         <option value="Restaurant">Restaurant</option>
-                                                        <option value="Restaurant">Historical</option>
-                                                        <option value="Other">Other</option>
                                                     </select>
                                                 </div>
                                             </div>

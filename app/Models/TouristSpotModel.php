@@ -201,3 +201,6 @@ class TouristSpotModel extends Model
     }
     
 }
+
+   
+
