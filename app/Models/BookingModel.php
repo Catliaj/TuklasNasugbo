@@ -89,17 +89,17 @@ class BookingModel extends Model
     }
 
     //select sum(b.total_price) from bookings inner join tourist spots on bookings.spot_id = tourist_spots.spot_id where business_id = ? where booking is confirmed
-    public function getTotalRevenueByBusiness($businessID)
-    {
-        $builder = $this->builder(); 
-        $builder->select('SUM(DISTINCT b.total_price) AS total_revenue');
-        $builder->from('bookings b');
-        $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
-        $builder->where('ts.business_id', $businessID);
-        $builder->whereIn('b.booking_status', ['Confirmed', 'Checked-in', 'Checked-out']);
-        $result = $builder->get()->getRowArray();
-        return $result['total_revenue'] ?? 0;
-    }
+   public function getTotalRevenueByBusiness($businessID)
+{
+    $builder = $this->db->table('bookings b');
+    $builder->select('SUM(b.total_price) AS total_revenue');
+    $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
+    $builder->where('ts.business_id', $businessID);
+    $builder->whereIn('b.booking_status', ['Confirmed', 'Checked-in', 'Checked-out']);
+
+    $result = $builder->get()->getRowArray();
+    return (float) ($result['total_revenue'] ?? 0);
+}
      public function getPeakVisitTimes()
     {
         $defaults = ['Monday'=>0,'Tuesday'=>0,'Wednesday'=>0,'Thursday'=>0,'Friday'=>0,'Saturday'=>0,'Sunday'=>0];
@@ -137,34 +137,29 @@ class BookingModel extends Model
 
     //will get the name of the customer total_guestfrom users table by joining bookings.customer_id = users.user_id and get the booking by business id
     public function getBookingsByBusinessID($businessID)
-    {
-        
-        $builder = $this->builder(); 
-        $builder->select('b.*, CONCAT(u.FirstName, " ", u.LastName) as customer_name', 'u.email', 'c.phone_number as phone');
-        $builder->from('bookings b');
-        $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
-        $builder->join('users u', 'b.customer_id = u.UserID');
-        $builder->join('customers c', 'b.customer_id = c.customer_id');
-        $builder->where('ts.business_id', $businessID);
-        $builder->groupBy('b.booking_id');
+{
+    $builder = $this->db->table('bookings b');
+    $builder->select('b.*, CONCAT(u.FirstName, " ", u.LastName) as customer_name, u.email, c.phone as phone');
+    $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
+    $builder->join('users u', 'b.customer_id = u.UserID', 'left');
+    $builder->join('customers c', 'b.customer_id = c.customer_id', 'left');
+    $builder->where('ts.business_id', $businessID);
 
-        return $builder->get()->getResultArray();
-    }
+    // No GROUP BY needed — booking_id is unique, b.* is safe without grouping
+    return $builder->get()->getResultArray();
+}
 
     //will get the name of the customer total_guestfrom users table by joining bookings.customer_id = users.user_id and get the booking by spot id email and phone number 
     public function getBookingDetails($bookingID)
-    {
-        
-        $builder = $this->builder(); 
-        $builder->select('b.*, CONCAT(u.FirstName, " ", u.LastName) as customer_name, u.email as email, c.phone as phone');
-        $builder->from('bookings b');
-        $builder->join('users u', 'b.customer_id = u.UserID');
-        $builder->join('customers c', 'b.customer_id = c.customer_id');
-        $builder->where('b.booking_id', $bookingID);
-        $builder->groupBy('b.booking_id');
+{
+    $builder = $this->db->table('bookings b');
+    $builder->select('b.*, CONCAT(u.FirstName, " ", u.LastName) as customer_name, u.email as email, c.phone as phone');
+    $builder->join('users u', 'b.customer_id = u.UserID', 'left');
+    $builder->join('customers c', 'b.customer_id = c.customer_id', 'left');
+    $builder->where('b.booking_id', $bookingID);
 
-        return $builder->get()->getRowArray();
-    }
+    return $builder->get()->getRowArray();
+}
 
     //get total visitors where booking is confirmed
     public function getTotalVisitor($businessID)
@@ -191,7 +186,7 @@ public function getMonthlyRevenueByBusiness($businessID, $months = 6)
     $builder = $this->db->table('bookings b');
     $builder->select('
         DATE_FORMAT(b.booking_date, "%Y-%m") as month,
-        MONTHNAME(b.booking_date) as month_name,
+        MONTHNAME(MIN(b.booking_date)) as month_name,
         SUM(b.total_price) as revenue,
         COUNT(b.booking_id) as bookings
     ');
@@ -201,7 +196,7 @@ public function getMonthlyRevenueByBusiness($businessID, $months = 6)
     $builder->where('b.booking_date >=', date('Y-m-d', strtotime("-{$months} months")));
     $builder->groupBy('DATE_FORMAT(b.booking_date, "%Y-%m")');
     $builder->orderBy('month', 'ASC');
-    
+
     return $builder->get()->getResultArray();
 }
 
@@ -356,10 +351,17 @@ public function getTopPerformingDays($businessID, $limit = 5)
     $builder->where('b.booking_status', 'Confirmed');
     $builder->where('MONTH(b.booking_date)', date('m'));
     $builder->where('YEAR(b.booking_date)', date('Y'));
-    $builder->groupBy('DATE(b.booking_date)');
+
+    // FIX: include all non-aggregated SELECT expressions in the GROUP BY
+    $builder->groupBy([
+        'DATE(b.booking_date)',
+        'DAYNAME(b.booking_date)',
+        'DATE_FORMAT(b.booking_date, "%M %d")'
+    ]);
+
     $builder->orderBy('revenue', 'DESC');
     $builder->limit($limit);
-    
+
     return $builder->get()->getResultArray();
 }
 

@@ -354,6 +354,21 @@ public function recordCheckin()
                 return redirect()->back()->with('error', 'Failed to add tourist spot.');
             }
 
+            // Notify admin about new pending tourist spot
+            try {
+                $notifModel = new \App\Models\NotificationModel();
+                $notifModel->insert([
+                    'user_id' => null,
+                    'message' => 'New tourist spot submission: ' . $data['spot_name'],
+                    // Keep notifications informational only — do not include clickable link
+                    'url' => '',
+                    'is_read' => 0,
+                    'created_at' => date('Y-m-d H:i:s')
+                ]);
+            } catch (\Exception $e) {
+                log_message('error', 'Failed to insert notification for new spot: ' . $e->getMessage());
+            }
+
             // --- Handle gallery images (multiple) ---
             $galleryImages = $this->request->getFiles();
             if (isset($galleryImages['gallery_images'])) {

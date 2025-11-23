@@ -101,11 +101,34 @@ class TouristSpotModel extends Model
     
     public function getAllTouristSpots()
     {
+        // Return all attractions (admin usage). Use new getApprovedTouristSpots() for public lists.
         return $this->select('tourist_spots.*, businesses.business_name, users.FirstName, users.LastName')
                     ->join('businesses', 'businesses.business_id = tourist_spots.business_id')
                     ->join('users', 'users.UserID = businesses.user_id')
                     ->orderBy('tourist_spots.created_at', 'DESC')
                     ->findAll();
+    }
+
+    /**
+     * Returns only approved tourist spots (for public listing)
+     */
+    public function getApprovedTouristSpots()
+    {
+        return $this->select('tourist_spots.*, businesses.business_name, users.FirstName, users.LastName')
+                    ->join('businesses', 'businesses.business_id = tourist_spots.business_id')
+                    ->join('users', 'users.UserID = businesses.user_id')
+                    ->where('tourist_spots.status', 'approved')
+                    ->orderBy('tourist_spots.created_at', 'DESC')
+                    ->findAll();
+    }
+
+    /**
+     * Count total pending attractions (status = 'pending')
+     * Useful for admin pending requests UI.
+     */
+    public function getTotalPendingSpots()
+    {
+        return $this->where('status', 'pending')->countAllResults();
     }
     
     //get total spots by business id for spot owner dashboard where status is approved
@@ -163,6 +186,18 @@ class TouristSpotModel extends Model
         }
     }
 
-
+        public function getTopRecommendedHiddenSpots($limit = 5)
+    {
+        // Logic: Get spots with the Highest Average Rating
+        // This replaces the RAND() placeholder.
+        return $this->select('tourist_spots.spot_name, tourist_spots.location')
+                    ->selectAvg('review_feedback.rating', 'recommendation_count') // Alias as recommendation_count for frontend compatibility
+                    ->join('review_feedback', 'review_feedback.spot_id = tourist_spots.spot_id', 'left')
+                    ->where('tourist_spots.status', 'approved')
+                    ->groupBy('tourist_spots.spot_id')
+                    ->orderBy('recommendation_count', 'DESC')
+                    ->limit($limit)
+                    ->find();
+    }
     
-
+}

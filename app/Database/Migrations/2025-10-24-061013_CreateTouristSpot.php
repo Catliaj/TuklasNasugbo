@@ -40,7 +40,7 @@ class CreateTouristSpot extends Migration
 
             'category' => [
                 'type'       => 'ENUM',
-                'constraint' => ['Historical', 'Cultural', 'Natural', 'Recreational', 'Religious', 'Adventure', 'Ecotourism', 'Urban'],
+                'constraint' => ['Eateries', 'Beaches', 'Events', 'Islands', 'Heritage', 'Adventure', 'Waterfalls'],
             ],
             'location' => [
                 'type'       => 'VARCHAR',

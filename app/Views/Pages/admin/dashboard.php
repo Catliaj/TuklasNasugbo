@@ -56,6 +56,14 @@
             border-radius: 50%; display: flex; align-items: center; justify-content: center; 
             font-size: 0.8rem; font-weight: bold; margin-right: 10px;
         }
+
+        /* KPI grid: show up to 5 cards per row on very wide screens */
+        @media (min-width: 1400px) {
+            .kpi-row > [class*="col-"] {
+                flex: 0 0 20%;
+                max-width: 20%;
+            }
+        }
     </style>
 </head>
 <body>
@@ -64,8 +72,8 @@
         <div class="sidebar-header"><i class="bi bi-compass"></i><span>Tourism Admin</span></div>
         <nav class="sidebar-nav">
             <a href="/admin/dashboard" class="nav-item active"><i class="bi bi-grid"></i><span>Dashboard</span></a>
-            <a href="/admin/registrations" class="nav-item"><i class="bi bi-person-plus"></i><span>Registrations</span></a>
-            <a href="/admin/attractions" class="nav-item"><i class="bi bi-geo-alt"></i><span>Attractions</span></a>
+            <a href="/admin/registrations" class="nav-item"><i class="bi bi-person-plus"></i><span>Registrations</span><span class="badge-pending-registrations badge bg-danger text-white ms-2" style="display:none;font-size:0.7rem;padding:2px 6px;border-radius:12px"></span></a>
+            <a href="/admin/attractions" class="nav-item"><i class="bi bi-geo-alt"></i><span>Attractions</span><span class="badge-pending-attractions badge bg-danger text-white ms-2" style="display:none;font-size:0.7rem;padding:2px 6px;border-radius:12px"></span></a>
             <a href="/admin/reports" class="nav-item"><i class="bi bi-file-bar-graph"></i><span>Reports & Analytics</span></a>
         </nav>
         <div class="sidebar-footer"><a href="/users/logout" class="nav-item text-danger"><i class="bi bi-box-arrow-left"></i><span>Logout</span></a></div>
@@ -76,16 +84,31 @@
     <div class="main-content">
         
         <!-- TOPBAR -->
-        <div class="top-bar">
+            <div class="top-bar">
             <button class="btn btn-link text-dark" id="sidebarToggle"><i class="bi bi-list fs-4"></i></button>
-            <div class="dropdown">
-                <button class="btn btn-link text-dark dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                    <i class="bi bi-person-circle fs-5 me-2"></i><span class="d-none d-md-inline"><?= esc($FullName) ?></span>
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end">
-                    <li><a class="dropdown-item text-danger" href="/users/logout"><i class="bi bi-box-arrow-left me-2"></i>Logout</a></li>
-                </ul>
+
+            <div class="d-flex align-items-center gap-3">
+                <div class="dropdown">
+                    <button class="btn btn-link text-dark position-relative notification-button" id="notificationButtonDashboard" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-bell fs-5"></i>
+                        <span class="notification-dot"></span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end p-2" id="notificationMenuDashboard" style="min-width:320px">
+                        <li class="dropdown-item text-muted small">No new notifications</li>
+                    </ul>
+                </div>
+
+                <div class="dropdown">
+                    <button class="btn btn-link text-dark dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-person-circle fs-5 me-2"></i><span class="d-none d-md-inline"><?= esc($FullName) ?></span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item text-danger" href="/users/logout"><i class="bi bi-box-arrow-left me-2"></i>Logout</a></li>
+                    </ul>
+                </div>
             </div>
+
+            <!-- Pending Spots Card removed from top-bar; it's displayed with KPI cards below -->
         </div>
 
         <div class="container-fluid p-4">
@@ -96,13 +119,10 @@
                     <h1 class="h3 fw-bold text-gray-800">Dashboard Overview</h1>
                     <p class="text-muted">Real-time insights and performance metrics.</p>
                 </div>
-                <button class="btn btn-primary" onclick="window.location.reload()">
-                    <i class="bi bi-arrow-clockwise me-2"></i>Refresh
-                </button>
             </div>
 
             <!-- KPI CARDS -->
-            <div class="row g-4 mb-4">
+            <div class="row g-4 mb-4 kpi-row">
                 <!-- Tourist Satisfaction Score -->
                 <div class="col-xl-3 col-md-6">
                     <div class="analytics-card">
@@ -121,6 +141,17 @@
                         <div class="content">
                             <div class="value"><?= esc($TotalPendingRequests) ?></div>
                             <div class="label">Pending Requests</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pending Attractions (spots) -->
+                <div class="col-xl-3 col-md-6">
+                    <div class="analytics-card">
+                        <div class="icon-wrapper bg-soft-warning"><i class="bi bi-flag"></i></div>
+                        <div class="content">
+                            <div class="value"><?= esc($TotalPendingSpots ?? 0) ?></div>
+                            <div class="label">Pending Attractions</div>
                         </div>
                     </div>
                 </div>

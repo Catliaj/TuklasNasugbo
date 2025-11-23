@@ -11,6 +11,7 @@ use App\Models\FeedbackModel;
 use App\Models\SpotGalleryModel;
 use App\Models\UsersModel;
 use App\Models\UserPreferenceModel;
+use App\Models\NotificationModel;
 
 class AdminController extends BaseController
 {
@@ -43,6 +44,7 @@ class AdminController extends BaseController
         // 1. KPI CARDS DATA
         $data['TotalPendingRequests']   = $businessModel->getTotalPendingRequests();
         $data['TotalTouristSpots']      = $touristSpotModel->getTotalTouristSpots();
+        $data['TotalPendingSpots']      = $touristSpotModel->getTotalPendingSpots();
         $data['TotalBookingsThisMonth'] = $bookingModel->getTotalBookingsThisMonth();
         $data['TotalTodayBookings']     = $bookingModel->getTotalBookingsToday();
         $data['satisfactionScore']      = $feedbackModel->getOverallAverageRating();
@@ -101,6 +103,7 @@ class AdminController extends BaseController
             
             // Explicit variables for View
             'TotalPendingRequests'    => $data['TotalPendingRequests'],
+            'TotalPendingSpots'       => $data['TotalPendingSpots'],
             'TotalTouristSpots'       => $data['TotalTouristSpots'],
             'TotalBookingsThisMonth'  => $data['TotalBookingsThisMonth'],
             'TotalTodayBookings'      => $data['TotalTodayBookings'],
@@ -196,6 +199,42 @@ class AdminController extends BaseController
         return $this->response->setJSON($data ?: []);
     }
 
+    /**
+     * Return all pending attraction registration requests for admin review
+     */
+    public function getPendingAttractionList()
+    {
+        $spotModel = new TouristSpotModel();
+        $builder = $spotModel->select('tourist_spots.*, businesses.business_name, users.FirstName, users.LastName')
+                             ->join('businesses', 'businesses.business_id = tourist_spots.business_id')
+                             ->join('users', 'users.UserID = businesses.user_id')
+                             ->where('tourist_spots.status', 'pending')
+                             ->orderBy('tourist_spots.created_at', 'DESC');
+
+        $data = $builder->get()->getResultArray();
+        return $this->response->setJSON($data ?: []);
+    }
+
+    /**
+     * Return count of pending registrations (businesses)
+     */
+    public function getRegistrationsPendingCount()
+    {
+        $businessModel = new \App\Models\BusinessModel();
+        $count = (int) $businessModel->getTotalPendingRequests();
+        return $this->response->setJSON(['pending' => $count]);
+    }
+
+    /**
+     * Return count of pending attractions (tourist_spots)
+     */
+    public function getAttractionsPendingCount()
+    {
+        $spotModel = new \App\Models\TouristSpotModel();
+        $count = (int) $spotModel->getTotalPendingSpots();
+        return $this->response->setJSON(['pending' => $count]);
+    }
+
     public function viewAttraction($id = null)
     {
         $spotModel = new TouristSpotModel();
@@ -258,6 +297,66 @@ class AdminController extends BaseController
         }
 
         return $this->response->setStatusCode(500)->setJSON(['error' => 'Failed to delete attraction.']);
+    }
+
+    // ==========================================================
+    // NOTIFICATIONS API (Admin)
+    // ==========================================================
+    public function getNotificationsList()
+    {
+        $notifModel = new NotificationModel();
+        $data = $notifModel->getLatestForAdmin(20);
+        return $this->response->setJSON($data ?: []);
+    }
+
+    public function getUnreadNotificationsCount()
+    {
+        $notifModel = new NotificationModel();
+        $count = (int) $notifModel->getUnreadCount();
+        return $this->response->setJSON(['unread' => $count]);
+    }
+
+    public function markNotificationsRead()
+    {
+        $notifModel = new NotificationModel();
+        try {
+            $notifModel->markAllRead();
+            return $this->response->setJSON(['success' => 'Notifications marked as read.']);
+        } catch (\Exception $e) {
+            return $this->response->setStatusCode(500)->setJSON(['error' => 'Failed to mark notifications read.']);
+        }
+    }
+
+    /**
+     * Approve a pending attraction (set status to 'approved')
+     */
+    public function approveAttraction($id = null)
+    {
+        $spotModel = new TouristSpotModel();
+        if (!$id) return $this->response->setStatusCode(400)->setJSON(['error' => 'Missing ID']);
+
+        $data = ['status' => 'approved', 'suspension_reason' => null];
+        if ($spotModel->update($id, $data)) {
+            return $this->response->setJSON(['success' => 'Attraction approved.']);
+        }
+        return $this->response->setStatusCode(500)->setJSON(['error' => 'Failed to approve attraction.']);
+    }
+
+    /**
+     * Reject a pending attraction (set status to 'rejected' and save reason)
+     */
+    public function rejectAttraction($id = null)
+    {
+        $spotModel = new TouristSpotModel();
+        $reason = $this->request->getPost('reason');
+        if (empty($reason)) {
+            return $this->response->setStatusCode(400)->setJSON(['error' => 'Reason is required.']);
+        }
+        $data = ['status' => 'rejected', 'suspension_reason' => null, 'status_reason' => $reason];
+        if ($spotModel->update($id, $data)) {
+            return $this->response->setJSON(['success' => 'Attraction rejected.']);
+        }
+        return $this->response->setStatusCode(500)->setJSON(['error' => 'Failed to reject attraction.']);
     }
 
     // ==========================================================
