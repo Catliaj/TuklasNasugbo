@@ -101,11 +101,34 @@ class TouristSpotModel extends Model
     
     public function getAllTouristSpots()
     {
+        // Return all attractions (admin usage). Use new getApprovedTouristSpots() for public lists.
         return $this->select('tourist_spots.*, businesses.business_name, users.FirstName, users.LastName')
                     ->join('businesses', 'businesses.business_id = tourist_spots.business_id')
                     ->join('users', 'users.UserID = businesses.user_id')
                     ->orderBy('tourist_spots.created_at', 'DESC')
                     ->findAll();
+    }
+
+    /**
+     * Returns only approved tourist spots (for public listing)
+     */
+    public function getApprovedTouristSpots()
+    {
+        return $this->select('tourist_spots.*, businesses.business_name, users.FirstName, users.LastName')
+                    ->join('businesses', 'businesses.business_id = tourist_spots.business_id')
+                    ->join('users', 'users.UserID = businesses.user_id')
+                    ->where('tourist_spots.status', 'approved')
+                    ->orderBy('tourist_spots.created_at', 'DESC')
+                    ->findAll();
+    }
+
+    /**
+     * Count total pending attractions (status = 'pending')
+     * Useful for admin pending requests UI.
+     */
+    public function getTotalPendingSpots()
+    {
+        return $this->where('status', 'pending')->countAllResults();
     }
     
     //get total spots by business id for spot owner dashboard where status is approved

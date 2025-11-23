@@ -220,6 +220,22 @@ public function handleLogin()
                 'created_at' => date('Y-m-d H:i:s'),
                 'updated_at' => date('Y-m-d H:i:s')
             ]);
+
+            // Create admin notification about new registration request
+            try {
+                $notifModel = new \App\Models\NotificationModel();
+                $notifModel->insert([
+                    'user_id' => null,
+                    'message' => 'New spot owner registration: ' . $request->getPost('businessName'),
+                        // No clickable URL for admin notifications — render as informational only
+                        'url' => '',
+                    'is_read' => 0,
+                    'created_at' => date('Y-m-d H:i:s')
+                ]);
+            } catch (\Exception $e) {
+                // non-fatal: log and continue
+                log_message('error', 'Failed to insert notification for new registration: ' . $e->getMessage());
+            }
         }
 
         return $this->response->setJSON([
