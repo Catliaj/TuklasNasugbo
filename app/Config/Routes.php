@@ -88,6 +88,7 @@ $routes->get('/tourist/favorites', 'TouristController::touristFavorites');
 // Ajax endpoints for tourist actions
 $routes->post('/tourist/createBooking', 'TouristController::createBooking');
 $routes->post('/tourist/toggleFavorite', 'TouristController::toggleFavorite');
+$routes->get('tourist/visited/ajax', 'TouristController::getVisitedPlacesAjax');
 
 //TEST API ROUTE
 $routes->get('/test-api/key', 'TestApi::testKey');
@@ -116,3 +117,5 @@ $routes->get('spotowner/getBookings', 'SpotOwnerController::getBookings');
 $routes->get('spotowner/getBooking/(:num)', 'SpotOwnerController::getBooking/$1');
 $routes->post('spotowner/recordCheckin', 'SpotOwnerController::recordCheckin');
 $routes->post('spotowner/confirmBooking/(:num)', 'SpotOwnerController::confirmBooking/$1');
+$routes->get('api/attractions/top/(:num)?', 'AttractionsController::topSpotsAjax/$1');
+$routes->post('api/attractions/view', 'AttractionsController::logViewAjax');

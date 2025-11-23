@@ -81,7 +81,7 @@
             </div>
             <div class="row g-4 mb-5">
                 <div class="col-md-6 col-lg-3"><div class="stat-card"><div class="stat-icon"><i class="bi bi-geo-alt-fill"></i></div><div class="stat-value">70km</div><div class="stat-label">From Manila</div></div></div>
-                <div class="col-md-6 col-lg-3"><div class="stat-card"><div class="stat-icon"><i class="bi bi-water"></i></div><div class="stat-value">15+</div><div class="stat-label">Beach Resorts</div></div></div>
+                <div class="col-md-6 col-lg-3"><div class="stat-card"><div class="stat-icon"><i class="bi bi-water"></i></div><div class="stat-value">15+</div><div class="stat-label">Total Spots</div></div></div>
                 <div class="col-md-6 col-lg-3"><div class="stat-card"><div class="stat-icon"><i class="bi bi-people-fill"></i></div><div class="stat-value">150k+</div><div class="stat-label">Annual Visitors</div></div></div>
                 <div class="col-md-6 col-lg-3"><div class="stat-card"><div class="stat-icon"><i class="bi bi-award-fill"></i></div><div class="stat-value">Top 10</div><div class="stat-label">Beach Destinations</div></div></div>
             </div>
@@ -100,14 +100,10 @@
                 <h1 class="section-title">Must-Visit Destinations</h1>
                 <p class="section-description">Discover the must-visit destinations that make Nasugbu a premier tourist spot.</p>
             </div>
-            <div class="row g-4">
-                <div class="col-md-6 col-lg-4"><div class="attraction-card"><div style="overflow: hidden;"><img src="https://images.unsplash.com/photo-1710104434497-d7417d2d7d2b?w=600" alt="Fortune Island" class="attraction-image"></div><div class="attraction-body"><h3 class="attraction-title">Fortune Island</h3><div class="attraction-location"><i class="bi bi-geo-alt-fill"></i><span>30 min boat ride from Nasugbu shore</span></div><p class="attraction-description">A stunning island featuring Greek-inspired ruins, lighthouse, and crystal-clear waters perfect for snorkeling and diving.</p></div></div></div>
-                <div class="col-md-6 col-lg-4"><div class="attraction-card"><div style="overflow: hidden;"><img src="https://images.unsplash.com/photo-1646064722199-947b34d0529b?w=600" alt="Munting Buhangin Beach" class="attraction-image"></div><div class="attraction-body"><h3 class="attraction-title">Munting Buhangin Beach</h3><div class="attraction-location"><i class="bi bi-geo-alt-fill"></i><span>Barangay Wawa</span></div><p class="attraction-description">A hidden gem with powdery white sand and turquoise waters, ideal for day trips and swimming.</p></div></div></div>
-                <div class="col-md-6 col-lg-4"><div class="attraction-card"><div style="overflow: hidden;"><img src="https://images.unsplash.com/photo-1635159804596-06b79defff8e?w=600" alt="Mount Batulao" class="attraction-image"></div><div class="attraction-body"><h3 class="attraction-title">Mount Batulao</h3><div class="attraction-location"><i class="bi bi-geo-alt-fill"></i><span>Barangay Aga</span></div><p class="attraction-description">A popular hiking destination offering panoramic views of Batangas and nearby provinces.</p></div></div></div>
-                <div class="col-md-6 col-lg-4"><div class="attraction-card"><div style="overflow: hidden;"><img src="https://images.unsplash.com/photo-1744656317897-c97c8f3b1371?w=600" alt="Coral Reefs" class="attraction-image"></div><div class="attraction-body"><h3 class="attraction-title">Coral Reefs & Marine Sanctuaries</h3><div class="attraction-location"><i class="bi bi-geo-alt-fill"></i><span>Various diving spots</span></div><p class="attraction-description">Explore vibrant underwater ecosystems teeming with colorful fish and coral formations.</p></div></div></div>
-                <div class="col-md-6 col-lg-4"><div class="attraction-card"><div style="overflow: hidden;"><img src="https://images.unsplash.com/photo-1729718110342-83f7c6b0e333?w=600" alt="Beach Resorts" class="attraction-image"></div><div class="attraction-body"><h3 class="attraction-title">Beach Resorts</h3><div class="attraction-location"><i class="bi bi-geo-alt-fill"></i><span>Throughout Nasugbu</span></div><p class="attraction-description">Luxurious and budget-friendly resorts offering world-class amenities and stunning ocean views.</p></div></div></div>
-                <div class="col-md-6 col-lg-4"><div class="attraction-card"><div style="overflow: hidden;"><img src="https://images.unsplash.com/photo-1617945174127-e47d409e47c1?w=600" alt="Water Sports" class="attraction-image"></div><div class="attraction-body"><h3 class="attraction-title">Water Sports Paradise</h3><div class="attraction-location"><i class="bi bi-geo-alt-fill"></i><span>Beach resorts</span></div><p class="attraction-description">Enjoy kayaking, jet skiing, banana boat rides, and other exciting water activities.</p></div></div></div>
+            <div class="row g-4" id="attractionsGrid">
+              <div class="col-12 text-center p-4 text-muted">Loading attractions...</div>
             </div>
+
         </div>
     </section>
 
@@ -647,6 +643,109 @@ function handleSignup(event) {
 
 
 </script>
+
+<script>
+ // assets/js/attractions-ajax.js
+// Live-load top attractions (by view logs) and log views when users click a card.
+
+(function () {
+  'use strict';
+
+  // BASE_URL must be defined in page (see HTML snippet). Fallback to '/' if missing.
+  const BASE = (typeof BASE_URL !== 'undefined' ? BASE_URL.replace(/\/+$/, '') + '/' : '/');
+  const API_TOP = BASE + 'api/attractions/top/6';
+  const API_LOG = BASE + 'api/attractions/view';
+  const UPLOADS = BASE + 'uploads/spots/';
+  const FALLBACK = UPLOADS + 'Spot-No-Image.png';
+
+  function esc(s) {
+    if (s === null || s === undefined) return '';
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  async function loadTopSpots() {
+    try {
+      const res = await fetch(API_TOP, { credentials: 'same-origin' });
+      if (!res.ok) throw new Error('Network response not ok: ' + res.status);
+      const payload = await res.json();
+      if (!payload || !payload.success) throw new Error('API returned error');
+      renderSpots(payload.data || []);
+    } catch (err) {
+      console.error('Failed to load top spots', err);
+      // Keep static markup if present or show friendly message
+      const container = document.getElementById('attractionsGrid');
+      if (container && container.children.length === 0) {
+        container.innerHTML = '<div class="col-12 text-center p-4 text-muted">Unable to load attractions.</div>';
+      }
+    }
+  }
+
+  function renderSpots(spots) {
+    const container = document.getElementById('attractionsGrid');
+    if (!container) return;
+
+    if (!Array.isArray(spots) || spots.length === 0) {
+      container.innerHTML = '<div class="col-12 text-center p-4 text-muted">No attractions found.</div>';
+      return;
+    }
+
+    const html = spots.map(s => {
+      const imgSrc = s.primary_image ? (UPLOADS + encodeURIComponent(s.primary_image)) : FALLBACK;
+      const shortDesc = s.short_description ? esc(s.short_description) : '';
+      return `
+        <div class="col-md-6 col-lg-4">
+          <div class="attraction-card" data-spot-id="${esc(s.spot_id)}" role="button" tabindex="0">
+            <div style="overflow: hidden;">
+              <img src="${imgSrc}" onerror="this.onerror=null;this.src='${FALLBACK}';" alt="${esc(s.spot_name)}" class="attraction-image">
+            </div>
+            <div class="attraction-body">
+              <h3 class="attraction-title">${esc(s.spot_name)}</h3>
+              <div class="attraction-location"><i class="bi bi-geo-alt-fill"></i><span>${esc(s.location)}</span></div>
+              <p class="attraction-description">${shortDesc}</p>
+              <div class="d-flex justify-content-between align-items-center mt-2">
+                <small class="text-muted">${esc(s.category)}</small>
+                <small class="text-muted"><i class="bi bi-eye"></i> ${Number(s.views ?? 0)}</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    container.innerHTML = html;
+
+    // Attach handlers: log view on click or keyboard (Enter / Space)
+    container.querySelectorAll('.attraction-card').forEach(card => {
+      const sendLog = () => {
+        const spotId = card.getAttribute('data-spot-id');
+        if (!spotId) return;
+        // Fire-and-forget POST to log endpoint
+        fetch(API_LOG, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ spot_id: Number(spotId) })
+        }).catch(err => console.warn('Failed to log view', err));
+        // Optional: navigate to detail page
+        // window.location.href = BASE + 'attractions/view/' + spotId;
+      };
+
+      card.addEventListener('click', sendLog);
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') sendLog();
+      });
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', loadTopSpots);
+  window.reloadTopAttractions = loadTopSpots;
+})();
+  </script>
 
 
 

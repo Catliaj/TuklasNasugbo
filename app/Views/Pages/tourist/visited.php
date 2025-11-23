@@ -544,5 +544,138 @@
     .sidebar.show{transform:translateX(0);box-shadow:0 8px 32px rgba(0,0,0,.16);animation:sidebarPopIn .5s cubic-bezier(.77,0,.18,1)}
     @keyframes sidebarPopIn{0%{transform:translateX(-120%) scale(.96);opacity:.6}80%{transform:translateX(8px) scale(1.03);opacity:1}100%{transform:translateX(0) scale(1);opacity:1}}
     </style>
+
+    <script>
+// assets/js/visited-ajax.js
+// Fetch visited places (Checked-in / Checked-out) via AJAX and render timeline/grid views.
+// Ensures images come from uploads/spots/ and fall back to Spot-No-Image.png on missing files.
+
+(function () {
+  'use strict';
+
+  // Ensure BASE_URL is defined on the page. If not, default to '/'.
+  const BASE = (typeof BASE_URL !== 'undefined' ? BASE_URL.replace(/\/+$/, '') + '/' : '/');
+
+  const FALLBACK_IMAGE = BASE + 'uploads/spots/Spot-No-Image.png';
+
+  function escHtml(s) {
+    if (s === null || s === undefined) return '';
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return escHtml(iso);
+    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  async function loadVisitedPlaces() {
+    const url = BASE + 'tourist/visited/ajax';
+    try {
+      const res = await fetch(url, { credentials: 'same-origin' });
+      if (res.status === 401) {
+        console.warn('User not authenticated for visited AJAX');
+        return;
+      }
+      if (!res.ok) {
+        console.error('Visited AJAX error', res.status);
+        return;
+      }
+      const payload = await res.json();
+      if (!payload || !payload.success) {
+        console.warn('Visited AJAX no data or failure', payload);
+        return;
+      }
+      renderVisited(payload.data || []);
+    } catch (err) {
+      console.error('Error fetching visited places', err);
+    }
+  }
+
+  function buildImageTag(fileName, altText = '') {
+    // If primary_image is empty/null use fallback immediately, otherwise construct path and add onerror fallback
+    if (!fileName) {
+      return `<img src="${FALLBACK_IMAGE}" alt="${escHtml(altText)}" class="photo-thumbnail">`;
+    }
+    const src = BASE + 'uploads/spots/' + escHtml(fileName);
+    // Use onerror to swap to fallback if the file is missing or 404s
+    return `<img src="${src}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';" alt="${escHtml(altText)}" class="photo-thumbnail">`;
+  }
+
+  function renderVisited(items) {
+    const timeline = document.getElementById('timelineView');
+    const grid = document.getElementById('gridView');
+    if (!timeline && !grid) return;
+
+    // Timeline
+    if (timeline) {
+      if (!items.length) {
+        timeline.innerHTML = '<p class="text-muted p-3">You have no visited places yet.</p>';
+      } else {
+        const html = items.map(it => {
+          const imgTag = buildImageTag(it.primary_image, it.spot_name);
+          return `
+            <div class="timeline-item">
+              <div class="timeline-dot"></div>
+              <div class="timeline-content">
+                <div class="timeline-header">
+                  <div>
+                    <h4 class="timeline-title">${escHtml(it.spot_name)}</h4>
+                    <p class="timeline-date"><i class="bi bi-calendar"></i> ${formatDate(it.visit_date || it.booking_date)}</p>
+                  </div>
+                  <span class="check-in-badge"><i class="bi bi-check-circle"></i> ${escHtml(it.booking_status || '')}</span>
+                </div>
+                <div class="timeline-meta">
+                  <div class="timeline-meta-item"><i class="bi bi-geo-alt"></i><span>${escHtml(it.location)}</span></div>
+                  <div class="timeline-meta-item"><i class="bi bi-people"></i><span>${escHtml(it.total_guests)}</span></div>
+                  <div class="timeline-meta-item"><i class="bi bi-currency-dollar"></i><span>₱${escHtml(it.total_price)}</span></div>
+                </div>
+                <div class="timeline-photos">
+                  ${imgTag}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+        timeline.innerHTML = html;
+      }
+    }
+
+    // Grid
+    if (grid) {
+      if (!items.length) {
+        grid.innerHTML = '<p class="text-muted p-3">No visited places to show.</p>';
+      } else {
+        const html = items.map(it => {
+          const imgTag = buildImageTag(it.primary_image, it.spot_name)
+            // in grid layout we want an <img> without the photo-thumbnail class used in timeline,
+            // so adjust if you need different sizing. For now reuse same class.
+          return `
+            <div class="grid-card">
+               ${imgTag.replace('photo-thumbnail', '')}
+               <div class="grid-card-content">
+                   <h4>${escHtml(it.spot_name)}</h4>
+                   <p><i class="bi bi-calendar"></i> ${formatDate(it.visit_date || it.booking_date)}</p>
+                   <p class="small text-muted">${escHtml(it.booking_status || '')}</p>
+               </div>
+            </div>
+          `;
+        }).join('');
+        grid.innerHTML = html;
+      }
+    }
+  }
+
+  // Expose reload and auto-run on DOM ready
+  window.reloadVisitedPlaces = loadVisitedPlaces;
+  document.addEventListener('DOMContentLoaded', loadVisitedPlaces);
+})();
+        </script>
 </body>
 </html>
