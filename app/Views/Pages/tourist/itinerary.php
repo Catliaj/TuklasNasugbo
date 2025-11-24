@@ -17,6 +17,14 @@
     <link rel="stylesheet" href="<?= base_url('assets/css/globals.css')?>">
     <link rel="stylesheet" href="<?= base_url('assets/css/touristStyle/itinerary.css')?>">
     <style>
+      /* Ensure modals appear above custom overlays (sidebar-overlay etc.) */
+      .modal {
+        z-index: 20050 !important;
+      }
+      .modal-backdrop {
+        z-index: 20040 !important;
+      }
+      .modal .modal-footer .btn { pointer-events: auto; }
       /* Enhanced Page Header (from Explore) */
       :root { --ocean-accent:#4ecbff; --ocean-accent-soft:#b5ecff; --ocean-text:#e6f8ff; }
       .page-header {background:#002e55;color:var(--ocean-text);height:210px;min-height:210px;padding:1.6rem 2.4rem 1.8rem;border-radius:28px;position:relative;overflow:hidden;box-shadow:0 12px 34px -10px rgba(0,56,108,.55);display:flex;flex-direction:column;justify-content:center;margin-bottom:2rem;}
@@ -172,8 +180,9 @@
                             </div>
 
                             <div class="day-content">
-                                <?php foreach ($day['activities'] as $activity): ?>
-                                <div class="activity-item" data-type="<?= $activity['type'] ?>">
+                              <div class="activities-list" data-day="<?= $day['day_number'] ?>">
+                              <?php foreach ($day['activities'] as $activity): ?>
+                              <div class="activity-item" data-type="<?= $activity['type'] ?>" data-id="<?= $activity['id'] ?? '' ?>" data-title="<?= esc($activity['title'] ?? '') ?>" data-location="<?= esc($activity['location'] ?? '') ?>" data-lat="<?= $activity['lat'] ?? ($activity['latitude'] ?? '') ?>" data-lng="<?= $activity['lng'] ?? ($activity['longitude'] ?? '') ?>">
                                     <i class="bi bi-grip-vertical activity-drag-handle"></i>
                                     <div class="activity-icon <?= $activity['type'] ?>">
                                         <?php
@@ -205,11 +214,12 @@
                                     </div>
                                 </div>
                                 <?php endforeach; ?>
+                                </div>
 
-                                <button class="add-activity-btn">
-                                    <i class="bi bi-plus-circle"></i> Add Activity
+                                <button class="add-activity-btn" data-day="<?= $day['day_number'] ?>">
+                                  <i class="bi bi-plus-circle"></i> Add Activity
                                 </button>
-                            </div>
+                              </div>
                         </div>
                         <?php endforeach; ?>
                       <?php else: ?>
@@ -231,7 +241,7 @@
                         <div class="summary-card ocean-card map-card">
                           <h3 class="summary-card-title"><i class="bi bi-map"></i> Map View</h3>
                           <div class="map-container">
-                            <div id="map" class="map-placeholder">Map placeholder</div>
+                            <div id="itineraryMap" class="map-placeholder" aria-hidden="false">Map placeholder</div>
                           </div>
                         </div>
 
@@ -686,9 +696,9 @@
           <div class="modal-body">
             <form id="addDayForm">
               <div class="mb-3">
-                <label class="form-label">Day Number</label>
+                <label class="form-label">Number of Days to Add</label>
                 <input type="number" class="form-control" id="newDayNumber" placeholder="e.g., 3" min="1" required>
-                <small class="form-text text-muted">The date will be calculated automatically based on your trip dates.</small>
+                <small class="form-text text-muted">Adds this many consecutive days after the last existing day.</small>
               </div>
             </form>
           </div>
@@ -928,6 +938,9 @@
         .summary-card-title i {background:linear-gradient(135deg,#004b8d,#002e55);color:#fff;padding:.55rem .6rem;border-radius:14px;font-size:1.15rem;box-shadow:0 6px 16px -6px rgba(0,46,85,.45);}
         .map-placeholder {display:flex;align-items:center;justify-content:center;height:160px;border:2px dashed rgba(0,75,141,0.30);border-radius:16px;color:#0d4d7d;font-weight:600;font-size:.9rem;background:linear-gradient(135deg,#e9f4fb,#d9ecf7);position:relative;overflow:hidden;}
         .map-placeholder:after {content:"";position:absolute;inset:0;background:radial-gradient(circle at 30% 25%,rgba(0,75,141,0.18),transparent 60%);mix-blend-mode:overlay;opacity:.6;}
+        /* Numbered markers for itinerary map */
+        .numbered-marker .marker-number{background:#007bff;color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.25);}
+        .map-route-summary{font-size:0.9rem;color:#034;display:flex;flex-direction:column;gap:4px;margin-top:6px}
         .budget-total {background:rgba(255,255,255,0.6);border:1px solid rgba(0,75,141,0.15);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;}
         .budget-label {font-size:.75rem;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#004b8d;opacity:.85;}
         .budget-amount {font-size:1.4rem;font-weight:700;color:#003a6e;letter-spacing:.5px;background:linear-gradient(90deg,#004b8d,#0072c6);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 4px 10px rgba(0,46,85,.25));}
@@ -942,6 +955,11 @@
     <!-- jQuery is available but the main rendering uses vanilla JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+    <!-- SortableJS for drag-and-drop and Leaflet for maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 
     <!-- Minimal UI-only dropdown script -->
     <script>
@@ -979,12 +997,189 @@
       })();
     </script>
 
+    <script>
+      // Map fallback + resize handling
+      (function(){
+        document.addEventListener('DOMContentLoaded', function(){
+          const mapEl = document.getElementById('itineraryMap');
+          if (!mapEl) return;
+
+          // If Leaflet didn't load, show a graceful message
+          if (typeof L === 'undefined') {
+            mapEl.classList.add('map-placeholder');
+            mapEl.innerHTML = '<div class="text-muted">Map not available (Leaflet not loaded)</div>';
+            return;
+          }
+
+          // Ensure map resizes correctly when window changes
+          try {
+            window.addEventListener('resize', () => {
+              try { if (window.itineraryMap && typeof window.itineraryMap.invalidateSize === 'function') window.itineraryMap.invalidateSize(); } catch(e){}
+            });
+          } catch (e) {
+            console.warn('Could not attach resize handler for itineraryMap', e);
+          }
+        });
+      })();
+    </script>
+
+    <script>
+      // Helpers for add/edit activity modal interactions
+      function openAddActivityModalForDay(day) {
+        const modal = document.getElementById('addActivityModal');
+        if (!modal) return;
+        // reset form
+        const form = document.getElementById('activityForm');
+        if (form) form.reset();
+        // clear any previously selected suggested cards and search
+        const grid = document.getElementById('suggestedGrid');
+        if (grid) {
+          grid.querySelectorAll('.suggested-card.selected').forEach(c=>c.classList.remove('selected'));
+        }
+        const recSearch = document.getElementById('recommendSearch');
+        if (recSearch) recSearch.value = '';
+        // store current day on form for later insertion
+        form.dataset.targetDay = day;
+        // also keep a global quick-reference for immediate '+' adds
+        window.lastAddActivityTargetDay = day;
+        bootstrap.Modal.getOrCreateInstance(modal).show();
+      }
+
+      function openEditActivityModal(itemEl) {
+        const modal = document.getElementById('addActivityModal');
+        if (!modal) return;
+        const form = document.getElementById('activityForm');
+        if (!form) return;
+        // populate with existing values
+        const title = itemEl.querySelector('.activity-title')?.textContent || itemEl.dataset.title || '';
+        const desc = itemEl.querySelector('.activity-notes')?.textContent || '';
+        const nameInput = form.querySelector('#activityName');
+        const descInput = form.querySelector('#activityNotes');
+        if (nameInput) nameInput.value = title;
+        if (descInput) descInput.value = desc;
+        // mark edit mode
+        form.dataset.editingId = itemEl.dataset.id || '';
+        form.dataset.targetDay = itemEl.closest('.day-card')?.id?.replace('day','') || '';
+        bootstrap.Modal.getOrCreateInstance(modal).show();
+      }
+
+      // Save handler for activity form
+      (function(){
+        const form = document.getElementById('activityForm');
+        const saveBtn = document.getElementById('activitySaveBtn');
+        // Handler logic extracted so we can attach it via multiple strategies and log diagnostics
+        function handleActivitySave(e) {
+          if (e) e.preventDefault();
+          console.log('Activity save triggered', { formExists: !!form, targetDay: form?.dataset?.targetDay });
+          if (!form) { alert('Form not found; cannot save activity.'); return; }
+          const targetDay = form.dataset.targetDay || '';
+          if (!targetDay) { alert('Please open Add Activity from a specific day.'); return; }
+
+          // If user selected suggested cards, add them first
+          const grid = document.getElementById('suggestedGrid');
+          const selectedCards = grid ? Array.from(grid.querySelectorAll('.suggested-card.selected')) : [];
+
+          if (selectedCards.length > 0) {
+            selectedCards.forEach(card => {
+              const title = card.dataset.title || card.querySelector('.sugg-title')?.textContent || 'Untitled';
+              const type = card.dataset.type || 'place';
+              const location = card.dataset.location || '';
+              const cost = card.dataset.cost || '';
+
+              const node = document.createElement('div');
+              node.className = 'activity-item';
+              node.setAttribute('data-type', type);
+              node.setAttribute('data-id', card.dataset.id || ('tmp-' + Date.now() + Math.floor(Math.random()*1000)));
+              node.setAttribute('data-title', title);
+              node.setAttribute('data-location', location);
+              if (card.dataset.lat) node.setAttribute('data-lat', card.dataset.lat);
+              if (card.dataset.lng) node.setAttribute('data-lng', card.dataset.lng);
+              node.innerHTML = `
+                <i class="bi bi-grip-vertical activity-drag-handle"></i>
+                <div class="activity-icon ${type}"><i class="bi bi-geo-alt"></i></div>
+                <div class="activity-details">
+                  <div class="activity-header">
+                    <h4 class="activity-title">${title}</h4>
+                    <div class="activity-time"><i class="bi bi-clock"></i></div>
+                  </div>
+                  <div class="activity-meta"><div class="activity-meta-item"><i class="bi bi-geo-alt"></i><span>${location}</span></div><div class="activity-meta-item"><i class="bi bi-cash-stack"></i><span>₱${cost}</span></div></div>
+                </div>
+                <div class="activity-actions">
+                  <button class="btn-activity-action" title="Edit"><i class="bi bi-pencil"></i></button>
+                  <button class="btn-activity-action delete" title="Delete"><i class="bi bi-trash"></i></button>
+                </div>
+              `;
+
+              const list = document.querySelector(`.activities-list[data-day="${targetDay}"]`);
+              if (list) list.appendChild(node);
+            });
+            // update in-memory itinerary and map
+            setTimeout(()=>{ if (typeof window.__rebuildCurrentItinerary === 'function') window.__rebuildCurrentItinerary(); }, 80);
+          } else {
+            // gather fields (simple: title, description, type)
+            const title = form.querySelector('#activityName')?.value || 'Untitled';
+            const description = form.querySelector('#activityNotes')?.value || '';
+            const type = form.querySelector('#activityType')?.value || 'place';
+            const editingId = form.dataset.editingId || '';
+
+            // build activity node
+            const node = document.createElement('div');
+            node.className = 'activity-item';
+            node.setAttribute('data-type', type);
+            node.setAttribute('data-id', editingId || ('tmp-' + Date.now()));
+            node.setAttribute('data-title', title);
+            node.setAttribute('data-location', '');
+            node.innerHTML = `
+              <i class="bi bi-grip-vertical activity-drag-handle"></i>
+              <div class="activity-icon ${type}"><i class="bi bi-geo-alt"></i></div>
+              <div class="activity-details">
+                <div class="activity-header">
+                  <h4 class="activity-title">${title}</h4>
+                  <div class="activity-time"><i class="bi bi-clock"></i></div>
+                </div>
+                <div class="activity-notes">${description}</div>
+              </div>
+              <div class="activity-actions">
+                <button class="btn-activity-action" title="Edit"><i class="bi bi-pencil"></i></button>
+                <button class="btn-activity-action delete" title="Delete"><i class="bi bi-trash"></i></button>
+              </div>
+            `;
+
+            // insert into day list
+            const list = document.querySelector(`.activities-list[data-day="${targetDay}"]`);
+            if (list) list.appendChild(node);
+            // update in-memory itinerary and map
+            setTimeout(()=>{ if (typeof window.__rebuildCurrentItinerary === 'function') window.__rebuildCurrentItinerary(); }, 80);
+          }
+
+          // cleanup
+          delete form.dataset.editingId;
+          delete form.dataset.targetDay;
+          // clear selected in suggested grid
+          if (selectedCards.length && grid) selectedCards.forEach(c => c.classList.remove('selected'));
+          bootstrap.Modal.getInstance(document.getElementById('addActivityModal'))?.hide();
+        }
+
+        // Attach handler directly if button exists
+        if (saveBtn) saveBtn.addEventListener('click', handleActivitySave);
+
+        // Also attach delegated listener to catch clicks if something intercepts the button
+        document.addEventListener('click', function(e){
+          const btn = e.target.closest && e.target.closest('#activitySaveBtn');
+          if (btn) handleActivitySave(e);
+        });
+      })();
+    </script>
+
     <!-- Lightweight UI behavior, generator and history integration -->
     <script>
     (function () {
       // Utilities
       const $ = (sel, root = document) => root.querySelector(sel);
       const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+      // Global flag whether we're running on localhost
+      const isLocalhostGlobal = ['localhost','127.0.0.1'].includes(window.location.hostname);
 
       // Elements for auto-generate modal (kept from your earlier code)
       const modalEl = $('#generatedModal');
@@ -1044,12 +1239,14 @@
         previewSection.style.display = 'block';
         generateBtn.disabled = true;
 
-      const url = `https://tuklasnasugbu.com/api/recommend/?days=${formData.day}&budget=${formData.budget}&adults=${formData.adults}&children=${formData.children}&seniors=${formData.seniors}&preference=${userPreference}&start_date=${formData.start_date}&end_date=${formData.end_date}`;
+      // Use local Django recommend API only when running Django locally; otherwise use relative API
+      const recommendBase = isLocalhostGlobal ? 'http://127.0.0.1:8000/api/recommend/' : '/api/recommend/';
+      const url = `${recommendBase}?days=${formData.day}&budget=${formData.budget}&adults=${formData.adults}&children=${formData.children}&seniors=${formData.seniors}&preference=${userPreference}&start_date=${formData.start_date}&end_date=${formData.end_date}`;
 
 
         try {
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000);
+          const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout for AI recommendation
           const response = await fetch(url, { signal: controller.signal });
           clearTimeout(timeoutId);
 
@@ -1157,6 +1354,18 @@
       }
 
       document.addEventListener('DOMContentLoaded', () => {
+        // Debug banner so you can visually confirm the enhanced itinerary script is loaded
+        try {
+          const itCont = document.querySelector('.itinerary-container');
+          if (itCont && !document.getElementById('itineraryEnhBanner')) {
+            const b = document.createElement('div');
+            b.id = 'itineraryEnhBanner';
+            b.style.cssText = 'background:linear-gradient(90deg,#004b8d,#0072c6);color:#fff;padding:6px 10px;border-radius:10px;display:inline-block;font-weight:700;margin-bottom:12px;';
+            b.textContent = 'Itinerary: Interactive mode enabled';
+            itCont.insertBefore(b, itCont.firstChild);
+          }
+          console.log('Itinerary enhancements loaded (Leaflet + Sortable)');
+        } catch(e){console.warn('Failed to insert itinerary debug banner', e)}
         if (!btn || !modalEl) return;
 
         btn.addEventListener('click', () => {
@@ -1197,7 +1406,8 @@
 
           
 
-        const saveUrl = `/api/recommend/?${params.toString()}`;
+        const saveBase = isLocalhostGlobal ? 'http://127.0.0.1:8000/api/recommend/' : '/api/recommend/';
+        const saveUrl = `${saveBase}?${params.toString()}`;
 
           try {
             const resp = await fetch(saveUrl);
@@ -1237,6 +1447,117 @@
 
         modalEl.addEventListener('hidden.bs.modal', resetModal);
       });
+
+      // --------------------------
+      // Map helper: update markers & routes from an itinerary (supports day filter)
+      // --------------------------
+      window.__updateMapMarkers = function(itinerary, dayFilter = 'all'){
+        try {
+          if (typeof L === 'undefined' || !window.itineraryMap) return;
+          // ensure markers layer
+          if (window.itineraryMarkers && typeof window.itineraryMarkers.clearLayers === 'function') {
+            window.itineraryMarkers.clearLayers();
+          } else {
+            window.itineraryMarkers = L.layerGroup().addTo(window.itineraryMap);
+          }
+          // remove previous route and distance markers
+          if (window.itineraryRoute) { try { window.itineraryMap.removeLayer(window.itineraryRoute); } catch(e){} window.itineraryRoute = null; }
+          if (window.__routeDistanceMarkers && Array.isArray(window.__routeDistanceMarkers)) { window.__routeDistanceMarkers.forEach(m => { try { window.itineraryMap.removeLayer(m); } catch(e){} }); window.__routeDistanceMarkers = []; }
+
+          // Build orderedPoints based on filter
+          const orderedPoints = [];
+          (itinerary || []).forEach((dayData, idx) => {
+            const day = dayData.day ?? dayData.day_number ?? (dayData.index ?? (idx+1));
+            const spots = dayData.spots || dayData.places || dayData.activities || [];
+            spots.forEach(s => {
+              const lat = Number(s.lat || s.latitude || 0) || null;
+              const lng = Number(s.lng || s.longitude || s.lon || 0) || null;
+              if (!lat || !lng) return;
+              if (dayFilter !== 'all' && Number(dayFilter) !== Number(day)) return;
+              orderedPoints.push({ lat, lng, meta: s, day });
+            });
+          });
+
+          // helper: haversine
+          const toRad = v => v * Math.PI / 180;
+          const haversineKm = (a,b) => {
+            const R = 6371; const dLat = toRad(b[0]-a[0]); const dLon = toRad(b[1]-a[1]); const lat1=toRad(a[0]); const lat2=toRad(b[0]); const aa = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2; return 2*R*Math.atan2(Math.sqrt(aa), Math.sqrt(1-aa));
+          };
+
+          const routeLatLngs = orderedPoints.map(p => [p.lat, p.lng]);
+          let totalKm = 0;
+
+          // add numbered markers
+          orderedPoints.forEach((p, i) => {
+            try {
+              const num = i+1;
+              const icon = L.divIcon({ className: 'numbered-marker', html: `<div class="marker-number">${num}</div>`, iconSize: [28,28], iconAnchor: [14,28] });
+              const marker = L.marker([p.lat, p.lng], { icon }).addTo(window.itineraryMarkers);
+              let popup = `<strong>${(p.meta.name||p.meta.title||p.meta.place_name||'Untitled')}</strong><div class="small text-muted">Day ${p.day}</div>`;
+              if (i>0) { const prev = routeLatLngs[i-1]; const cur = routeLatLngs[i]; const km = haversineKm(prev, cur); totalKm += km; popup += `<div class="small text-muted">Distance from previous: ${km.toFixed(2)} km</div>`; }
+              marker.bindPopup(popup);
+            } catch(e){ console.warn('marker add fail',e); }
+          });
+
+          // draw polyline
+          window.__routeDistanceMarkers = [];
+          if (routeLatLngs.length >= 2) {
+            try {
+              window.itineraryRoute = L.polyline(routeLatLngs, { color: '#007bff', weight: 4, opacity: 0.9 }).addTo(window.itineraryMap);
+              for (let i=1;i<routeLatLngs.length;i++){
+                const a = routeLatLngs[i-1]; const b = routeLatLngs[i]; const mid = [(a[0]+b[0])/2,(a[1]+b[1])/2]; const km = haversineKm(a,b);
+                const lbl = L.divIcon({ className: 'map-route-distance', html: `<div class="small text-muted" style="background:rgba(255,255,255,0.85);padding:4px 6px;border-radius:6px;border:1px solid rgba(0,0,0,0.06)">${km.toFixed(2)} km</div>`, iconSize:[80,20], iconAnchor:[40,10] });
+                const m = L.marker(mid, { icon: lbl, interactive: false }).addTo(window.itineraryMap);
+                window.__routeDistanceMarkers.push(m);
+              }
+              const bounds = L.latLngBounds(routeLatLngs);
+              if (bounds.isValid && bounds.isValid()) window.itineraryMap.fitBounds(bounds.pad(0.25));
+              else window.itineraryMap.setView(routeLatLngs[0], 12);
+            } catch(e){ console.warn('polyline fail',e); }
+          } else if (routeLatLngs.length === 1) {
+            window.itineraryMap.setView(routeLatLngs[0], 12);
+          }
+
+          // update summary
+          try {
+            const mapContainer = document.getElementById('itineraryMap');
+            if (mapContainer) {
+              let summary = document.getElementById('mapRouteSummary');
+              if (!summary) { summary = document.createElement('div'); summary.id='mapRouteSummary'; summary.className='map-route-summary'; mapContainer.parentElement.appendChild(summary); }
+              if (routeLatLngs.length >= 2) summary.innerHTML = `<div><strong>Route</strong>: ${routeLatLngs.length} points • Total: ${totalKm.toFixed(2)} km</div>`;
+              else if (routeLatLngs.length === 1) summary.innerHTML = `<div><strong>Point</strong>: 1 location</div>`;
+              else summary.innerHTML = `<div class="text-muted">No geocoded spots to show on the map.</div>`;
+            }
+          } catch(e){ console.warn('summary fail', e); }
+          try { if (window.itineraryMap && typeof window.itineraryMap.invalidateSize === 'function') window.itineraryMap.invalidateSize(); } catch(e){}
+        } catch (err) {
+          console.warn('updateMapMarkers failed', err);
+        }
+      };
+
+      // helper to rebuild window.currentItinerary from DOM and update map
+      window.__rebuildCurrentItinerary = function(){
+        try {
+          const timelineSection = document.querySelector('.timeline-section');
+          if (!timelineSection) return;
+          const rebuilt = [];
+          timelineSection.querySelectorAll('.day-card').forEach(dc => {
+            const dayId = dc.id ? dc.id.replace('day','') : '';
+            const activities = [];
+            dc.querySelectorAll('.activity-item').forEach(ai => {
+              const rawLat = ai.dataset.lat ?? ai.getAttribute('data-lat') ?? '';
+              const rawLng = ai.dataset.lng ?? ai.getAttribute('data-lng') ?? '';
+              const lat = rawLat !== '' ? parseFloat(String(rawLat).replace(/,/g,'.')) : undefined;
+              const lng = rawLng !== '' ? parseFloat(String(rawLng).replace(/,/g,'.')) : undefined;
+              activities.push({ id: ai.dataset.id || undefined, name: ai.querySelector('.activity-title')?.textContent || ai.dataset.title || '', location: ai.dataset.location || '', lat: Number.isFinite(lat) ? lat : undefined, lng: Number.isFinite(lng) ? lng : undefined });
+            });
+            rebuilt.push({ day: dayId, spots: activities });
+          });
+          window.currentItinerary = rebuilt;
+          const selected = document.getElementById('mapDayFilter')?.value || 'all';
+          if (typeof window.__updateMapMarkers === 'function') window.__updateMapMarkers(window.currentItinerary, selected);
+        } catch(e){ console.warn('rebuildItinerary failed', e); }
+      };
 
       // --------------------------
       // Renderer + history modal helpers
@@ -1287,12 +1608,35 @@
         let timelineHTML = `
           <div class="timeline-header">
             <h3 class="timeline-title">Trip Timeline</h3>
-            <button class="btn-add-day" onclick="openAddDayModal()"><i class="bi bi-plus-circle"></i> Add Day</button>
+            <div style="display:flex;gap:.5rem;align-items:center;">
+              <button class="btn-add-day btn btn-sm btn-outline-primary" onclick="openAddDayModal()"><i class="bi bi-plus-circle"></i> Add Day</button>
+              <small class="text-muted">Drag items between days to reorder</small>
+            </div>
           </div>
         `;
 
-        itinerary.forEach((dayData) => {
-          const dayIndex = dayData.day ?? dayData.day_number ?? (dayData.index ?? '');
+        itinerary.forEach((dayData, __idx) => {
+          const dayIndex = dayData.day ?? dayData.day_number ?? (dayData.index ?? (__idx + 1));
+          // Compute a human-friendly date for this day when trip start is known
+          let dayDateText = '';
+          try {
+            if (tripInfo.start_date) {
+              const startDateObj = new Date(tripInfo.start_date);
+              const numericDay = Number(dayIndex);
+              if (!Number.isNaN(numericDay) && numericDay > 0 && !Number.isNaN(startDateObj.getTime())) {
+                const d = new Date(startDateObj);
+                d.setDate(d.getDate() + (numericDay - 1));
+                dayDateText = d.toLocaleDateString();
+              } else {
+                // If dayIndex is already a date string, try parsing it
+                const parsed = new Date(dayIndex);
+                if (!Number.isNaN(parsed.getTime())) dayDateText = parsed.toLocaleDateString();
+              }
+            } else if (dayData.date) {
+              const parsed = new Date(dayData.date);
+              if (!Number.isNaN(parsed.getTime())) dayDateText = parsed.toLocaleDateString();
+            }
+          } catch (e) { /* silently ignore date parsing errors */ }
           const spots = dayData.spots || dayData.places || dayData.activities || [];
 
           const totalCost = spots.reduce((sum, spot) => {
@@ -1310,6 +1654,7 @@
               <div class="day-header" onclick="toggleDay('day${dayIndex}')">
                 <div class="day-header-left">
                   <div class="day-number">Day ${dayIndex}</div>
+                  ${dayDateText ? `<div class="day-date">${dayDateText}</div>` : ''}
                 </div>
                 <div class="day-header-right">
                   <div class="day-stats">
@@ -1320,6 +1665,7 @@
                 </div>
               </div>
               <div class="day-content">
+                <div class="activities-list" data-day="${dayIndex}">
                 ${spots.map((spot) => {
                   const name = spot.name || spot.title || spot.place_name || 'Untitled';
                   const location = spot.location || spot.address || '';
@@ -1336,7 +1682,7 @@
                       <li>Price (Senior): ₱${spot.senior_price ?? 0}</li>
                     `;
                   return `
-                    <div class="activity-item" data-type="${spot.type || 'place'}">
+                    <div class="activity-item" data-type="${spot.type || 'place'}" data-id="${spot.id || ''}" data-title="${(name||'').replace(/"/g,'\"')}" data-location="${(location||'').replace(/"/g,'\"')}" data-lat="${spot.lat || spot.latitude || ''}" data-lng="${spot.lng || spot.longitude || spot.lon || ''}">
                       <i class="bi bi-grip-vertical activity-drag-handle"></i>
                       <div class="activity-icon place"><i class="bi bi-geo-alt"></i></div>
                       <div class="activity-details">
@@ -1364,22 +1710,225 @@
                     </div>
                   `;
                 }).join('')}
-                <button class="add-activity-btn">
-                  <i class="bi bi-plus-circle"></i> Add Activity
-                </button>
+                </div>
+                <div style="margin-top:10px;">
+                  <button class="add-activity-btn btn btn-sm btn-outline-success" data-day="${dayIndex}">
+                    <i class="bi bi-plus-circle"></i> Add Activity
+                  </button>
+                </div>
               </div>
             </div>
            
-             <button id="bookItineraryBtn" class="btn btn-primary w-100">Book Itinerary</button>
-            
           `;
         });
 
         timelineSection.innerHTML = timelineHTML;
 
+        // Ensure a single Book Itinerary button exists at the bottom
+        (function(){
+          const existing = timelineSection.querySelector('.book-itinerary-wrapper');
+          if (!existing) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'book-itinerary-wrapper';
+            wrapper.style.marginTop = '14px';
+            wrapper.innerHTML = '<button id="bookItineraryBtn" class="btn btn-primary w-100">Book Itinerary</button>';
+            timelineSection.appendChild(wrapper);
+          }
+        })();
+
+        // Delegated click handler for Book Itinerary (persists across re-renders)
+        if (!window.__bookItineraryHandlerAdded) {
+          window.__bookItineraryHandlerAdded = true;
+          document.addEventListener('click', async function(e){
+          const btn = e.target.closest && e.target.closest('#bookItineraryBtn');
+          if (!btn) return;
+          e.preventDefault();
+
+          // Collect itinerary from DOM
+          function collectItineraryFromDOM(){
+            const days = [];
+            const dayCards = timelineSection.querySelectorAll('.day-card');
+            dayCards.forEach(dc => {
+              const dayNumMatch = dc.id && dc.id.replace('day','');
+              const dayNumber = dayNumMatch || dc.querySelector('.day-number')?.textContent?.trim() || '';
+              const dateText = dc.querySelector('.day-date')?.textContent?.trim() || '';
+              const activities = [];
+              const list = dc.querySelectorAll('.activity-item');
+              list.forEach(ai => {
+                activities.push({
+                  id: ai.dataset.id || null,
+                  title: ai.dataset.title || ai.querySelector('.activity-title')?.textContent?.trim() || null,
+                  type: ai.dataset.type || null,
+                  location: ai.dataset.location || ai.querySelector('.activity-meta .activity-meta-item span')?.textContent || null,
+                  lat: ai.dataset.lat || null,
+                  lng: ai.dataset.lng || null,
+                });
+              });
+              days.push({ day_number: dayNumber, date: dateText, activities });
+            });
+            return days;
+          }
+
+          const itineraryPayload = collectItineraryFromDOM();
+          if (!itineraryPayload || itineraryPayload.length === 0) {
+            showAlert('Please add at least one day with activities before booking.', 'warning');
+            return;
+          }
+
+          // Disable button while submitting
+          btn.disabled = true;
+          const originalText = btn.innerHTML;
+          btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Booking...';
+
+          try {
+            const resp = await fetch('/tourist/createBooking', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'same-origin',
+              body: JSON.stringify({ itinerary: itineraryPayload, title: document.getElementById('tripTitle')?.textContent || '' })
+            });
+            const json = await resp.json().catch(()=>({ success: resp.ok }));
+            if (resp.ok && json && (json.success === true || json.success === 'true')) {
+              showAlert('Itinerary booked successfully!', 'success');
+              // Optionally redirect to bookings page
+              setTimeout(()=>{ window.location.href = '/tourist/myBookings'; }, 900);
+            } else {
+              console.error('Booking failed', json);
+              showAlert(json.message || 'Failed to create booking. Try again.', 'danger');
+            }
+          } catch (err) {
+            console.error('Booking error', err);
+            showAlert('Network error while creating booking.', 'danger');
+          } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+          }
+        });
+      } // end __bookItineraryHandlerAdded guard
+
+        // Simple alert helper that shows transient alerts in #toastContainer
+        function showAlert(message, type='info'){
+          const container = document.getElementById('toastContainer');
+          if (!container) { alert(message); return; }
+          const el = document.createElement('div');
+          const map = { success: 'success', danger: 'danger', warning: 'warning', info: 'info' };
+          const cls = 'alert alert-' + (map[type] || 'info');
+          el.className = cls;
+          el.style.marginBottom = '8px';
+          el.innerText = message;
+          container.appendChild(el);
+          setTimeout(()=>{ el.style.transition = 'opacity .4s'; el.style.opacity = '0'; setTimeout(()=>el.remove(),400); }, 3000);
+        }
+
+            // Initialize or show map if present (guard Leaflet availability)
+        try {
+          if (typeof L === 'undefined') {
+            console.warn('Leaflet library not loaded; skipping map initialization');
+          } else {
+            const mapEl = document.getElementById('itineraryMap');
+            if (mapEl) {
+              // Make sure the placeholder visuals don't cover Leaflet's map
+              mapEl.style.display = 'block';
+              try { mapEl.innerHTML = ''; } catch(e){}
+              mapEl.classList.remove('map-placeholder');
+              if (!mapEl.style.height) mapEl.style.height = '320px';
+            }
+
+            if (!window.itineraryMap || !window.itineraryMap._container) {
+              // Create map only once
+              window.itineraryMap = L.map('itineraryMap', { zoomControl: true }).setView([12.92, 121.06], 9);
+              L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+              }).addTo(window.itineraryMap);
+              window.itineraryMarkers = L.layerGroup().addTo(window.itineraryMap);
+              // Ensure correct sizing after it's added to DOM
+              setTimeout(() => { try { window.itineraryMap.invalidateSize(); } catch(e){} }, 250);
+            } else {
+              if (window.itineraryMarkers && typeof window.itineraryMarkers.clearLayers === 'function') {
+                window.itineraryMarkers.clearLayers();
+              } else {
+                window.itineraryMarkers = L.layerGroup().addTo(window.itineraryMap);
+              }
+            }
+
+            // Build map day filter UI (based on number of days) and refresh markers/route using helper
+            try {
+              const mapCard = document.querySelector('.summary-card.map-card');
+              const numDays = Math.max(itinerary.length || 0, (tripInfo.days || 0));
+              if (mapCard && numDays > 0) {
+                let controls = mapCard.querySelector('.map-controls');
+                if (!controls) {
+                  controls = document.createElement('div');
+                  controls.className = 'map-controls d-flex align-items-center gap-2 mb-2';
+                  controls.style.justifyContent = 'flex-end';
+                  controls.innerHTML = `<label class="small text-muted mb-0">Show:</label><select id="mapDayFilter" class="form-select form-select-sm" style="width:auto"><option value="all">All days</option></select>`;
+                  const container = mapCard.querySelector('.map-container');
+                  if (container) mapCard.insertBefore(controls, container);
+                  else mapCard.appendChild(controls);
+                }
+                const select = controls.querySelector('#mapDayFilter');
+                if (select) {
+                  // populate options
+                  select.innerHTML = '<option value="all">All days</option>';
+                  for (let i=1;i<=numDays;i++) select.insertAdjacentHTML('beforeend', `<option value="${i}">Day ${i}</option>`);
+                  select.value = select.value || 'all';
+                  select.onchange = function(){ try { if (typeof window.__updateMapMarkers === 'function') window.__updateMapMarkers(window.currentItinerary || itinerary, select.value); } catch(e){console.warn(e);} };
+                }
+              }
+              if (typeof window.__updateMapMarkers === 'function') window.__updateMapMarkers(itinerary, document.getElementById('mapDayFilter')?.value || 'all');
+            } catch(e){ console.warn('failed to setup map controls or call updateMapMarkers', e); }
+          }
+        } catch (err) {
+          console.warn('Map init failed', err);
+        }
+
+        // Make activities sortable (drag & drop between days)
+        window.currentItinerary = itinerary; // keep in-memory copy
+        try {
+          const activityLists = timelineSection.querySelectorAll('.activities-list');
+          activityLists.forEach(list => {
+            Sortable.create(list, {
+              group: 'days',
+              animation: 150,
+              handle: '.activity-drag-handle',
+              onEnd: function (evt) {
+                // Rebuild in-memory itinerary and refresh map
+                if (typeof window.__rebuildCurrentItinerary === 'function') {
+                  window.__rebuildCurrentItinerary();
+                  console.log('Itinerary reordered and map refreshed');
+                }
+              }
+            });
+          });
+        } catch (err) {
+          console.warn('Sortable init failed', err);
+        }
+
+        // Attach delegated handlers for edit/delete/add activity
+        timelineSection.querySelectorAll('.add-activity-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const day = btn.getAttribute('data-day');
+            openAddActivityModalForDay(day);
+          });
+        });
+
+        timelineSection.addEventListener('click', (e) => {
+          const editBtn = e.target.closest('.btn-activity-action');
+          const delBtn = e.target.closest('.btn-activity-action.delete');
+          if (delBtn) {
+            const item = delBtn.closest('.activity-item');
+            if (item && confirm('Delete this activity?')) {
+              item.remove();
+            }
+          } else if (editBtn) {
+            const item = editBtn.closest('.activity-item');
+            if (item) openEditActivityModal(item);
+          }
+        });
+
         // Update budget card
         let totalEstimatedCost = 0;
-        itinerary.forEach((dayData) => {
+        itinerary.forEach((dayData, __idx) => {
           const spots = dayData.spots || dayData.places || [];
           spots.forEach((spot) => {
             const adultCost = (tripInfo.adults || 0) * (Number(spot.price_per_person) || Number(spot.adult_price) || 0);
@@ -1454,6 +2003,7 @@
       // Provide a backward-compatible loadSavedTrip that uses renderer
       window.loadSavedTrip = async function(tripTitle, startDate) {
         try {
+          // Use relative endpoint on the main app instead of hitting Django on port 8000
           const resp = await fetch(`/itinerary/get?trip_title=${encodeURIComponent(tripTitle)}&start_date=${encodeURIComponent(startDate)}`);
           if (!resp.ok) throw new Error('Failed to load trip');
           const data = await resp.json();
@@ -1474,14 +2024,14 @@
           const grid = document.getElementById('suggestedGrid');
           if(!grid) return;
           
-          // Check if Django server is accessible first
-          const nbUrl = 'http://127.0.0.1:8000/recommender/nb_recommend/?user_id=<?= esc($userID ?? '') ?>&preference=<?= urlencode($categories ?? '') ?>&limit=8';
+          // Use server-side recommended spots endpoint (from DB)
+          const nbUrl = `/tourist/recommendedSpots?limit=8`;
           
           try {
             grid.innerHTML = '<div class="text-center text-muted py-3"><div class="spinner-border spinner-border-sm"></div><p class="small mb-0 mt-2">Loading recommendations...</p></div>';
             
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
             
             const resp = await fetch(nbUrl, { signal: controller.signal });
             clearTimeout(timeoutId);
@@ -1492,23 +2042,22 @@
             
             const data = await resp.json();
             
-            if(!data.results || !Array.isArray(data.results) || data.results.length===0){
-              // Fallback to default recommendations
+            const spots = data.spots || data.results || [];
+            if (!Array.isArray(spots) || spots.length === 0) {
               loadDefaultRecommendations(grid);
               return;
             }
-            
-            grid.innerHTML = data.results.map(r => {
-              const price = Number(r.price_per_person||0);
-              const score = (r.nb_score!==undefined)? r.nb_score.toFixed(3):'';
-              const freeTag = price===0 ? '<span class="badge bg-success ms-1">Free</span>' : '';
+
+            grid.innerHTML = spots.map(s => {
+              const price = Number(s.price_per_person || 0);
+              const freeTag = price === 0 ? '<span class="badge bg-success ms-1">Free</span>' : '';
+              const img = s.primary_image ? s.primary_image : '';
               return `
-                <div class="suggested-card" data-type="place" data-title="${r.name}" data-location="${r.location}" data-cost="${price}">
+                <div class="suggested-card" data-id="${s.id||''}" data-type="place" data-title="${(s.name||'').replace(/"/g,'\"')}" data-location="${(s.location||'').replace(/"/g,'\"')}" data-cost="${price}" data-lat="${s.lat||''}" data-lng="${s.lng||''}">
                   <div class="sugg-icon place"><i class="bi bi-geo-alt"></i></div>
                   <div class="sugg-info">
-                    <div class="sugg-title">${r.name}</div>
-                    <div class="sugg-meta">${r.category || 'Spot'} • ${r.location || ''} • ₱${price}${freeTag}</div>
-                    <small class="text-muted">AI Score: ${score}</small>
+                    <div class="sugg-title">${s.name}</div>
+                    <div class="sugg-meta">${s.category || 'Spot'} • ${s.location || ''} • ₱${price}${freeTag}</div>
                   </div>
                   <button class="sugg-add" type="button"><i class="bi bi-plus-lg"></i></button>
                 </div>`;
@@ -1572,6 +2121,165 @@
         document.addEventListener('DOMContentLoaded', () => {
           // Defer slightly to avoid blocking other scripts
           setTimeout(loadNbRecommendations, 400);
+
+          // Delegated click handler for suggested grid (works for static + dynamic cards)
+          const grid = document.getElementById('suggestedGrid');
+          if (grid) {
+            // Helper to add a suggested card immediately to the target day
+            function addSuggestedCardToDay(card) {
+              const form = document.getElementById('activityForm');
+              const targetDay = (form && form.dataset.targetDay) || window.lastAddActivityTargetDay || '';
+              if (!targetDay) {
+                alert('Open Add Activity from a specific day first.');
+                return;
+              }
+              const title = card.dataset.title || card.querySelector('.sugg-title')?.textContent || 'Untitled';
+              const type = card.dataset.type || 'place';
+              const location = card.dataset.location || '';
+              const cost = card.dataset.cost || '';
+
+              const node = document.createElement('div');
+              node.className = 'activity-item';
+              node.setAttribute('data-type', type);
+              node.setAttribute('data-id', 'tmp-' + Date.now() + Math.floor(Math.random()*1000));
+              node.setAttribute('data-title', title);
+              node.setAttribute('data-location', location);
+              node.innerHTML = `
+                <i class="bi bi-grip-vertical activity-drag-handle"></i>
+                <div class="activity-icon ${type}"><i class="bi bi-geo-alt"></i></div>
+                <div class="activity-details">
+                  <div class="activity-header">
+                    <h4 class="activity-title">${title}</h4>
+                    <div class="activity-time"><i class="bi bi-clock"></i></div>
+                  </div>
+                  <div class="activity-meta"><div class="activity-meta-item"><i class="bi bi-geo-alt"></i><span>${location}</span></div><div class="activity-meta-item"><i class="bi bi-cash-stack"></i><span>₱${cost}</span></div></div>
+                </div>
+                <div class="activity-actions">
+                  <button class="btn-activity-action" title="Edit"><i class="bi bi-pencil"></i></button>
+                  <button class="btn-activity-action delete" title="Delete"><i class="bi bi-trash"></i></button>
+                </div>
+              `;
+
+              const list = document.querySelector(`.activities-list[data-day="${targetDay}"]`);
+              if (list) {
+                list.appendChild(node);
+                console.log('Added suggested card to day', targetDay, title);
+                // If map is present and the suggested card has lat/lng, add a temporary marker
+                try {
+                  const lat = node.getAttribute('data-lat');
+                  const lng = node.getAttribute('data-lng');
+                  if (lat && lng && window.itineraryMap && window.itineraryMarkers) {
+                    const m = L.marker([Number(lat), Number(lng)]).bindPopup(`<strong>${title}</strong><div class="small text-muted">Day ${targetDay}</div>`);
+                    window.itineraryMarkers.addLayer(m);
+                    try { const bounds = window.itineraryMarkers.getBounds(); if (bounds.isValid && bounds.isValid()) window.itineraryMap.fitBounds(bounds.pad(0.25)); } catch(e){}
+                  }
+                } catch(e){ console.warn('Could not add suggested marker to map', e); }
+              } else {
+                alert('Could not find the target day list to add activity.');
+              }
+            }
+
+            grid.addEventListener('click', (e) => {
+              const btn = e.target.closest('.sugg-add');
+              const card = e.target.closest('.suggested-card');
+              if (btn && card) {
+                // Immediate add when + button clicked
+                addSuggestedCardToDay(card);
+                return;
+              }
+              // Clicking the card toggles selection (for multi-select before Save)
+              if (card && !e.target.closest('.sugg-add')) {
+                card.classList.toggle('selected');
+              }
+            });
+          }
+
+          // Simple search/filter for suggested cards
+          const searchInput = document.getElementById('recommendSearch');
+          if (searchInput && grid) {
+            searchInput.addEventListener('input', (ev) => {
+              const q = ev.target.value.trim().toLowerCase();
+              Array.from(grid.querySelectorAll('.suggested-card')).forEach(card => {
+                const title = (card.dataset.title || card.querySelector('.sugg-title')?.textContent || '').toLowerCase();
+                const meta = (card.querySelector('.sugg-meta')?.textContent || '').toLowerCase();
+                if (!q || title.includes(q) || meta.includes(q)) {
+                  card.style.display = '';
+                } else {
+                  card.style.display = 'none';
+                }
+              });
+            });
+          }
+
+          // Initialize Sortable on existing activity lists so drag & drop works on server-rendered page
+          try {
+            if (typeof Sortable !== 'undefined') {
+              document.querySelectorAll('.activities-list').forEach(list => {
+                Sortable.create(list, {
+                  group: 'days', animation: 150, handle: '.activity-drag-handle',
+                  onEnd: function (evt) {
+                    // Rebuild in-memory itinerary from DOM order
+                    const timelineSection = document.querySelector('.timeline-section');
+                    if (!timelineSection) return;
+                    const rebuilt = [];
+                    timelineSection.querySelectorAll('.day-card').forEach(dc => {
+                      const dayId = dc.id ? dc.id.replace('day','') : '';
+                      const activities = [];
+                      dc.querySelectorAll('.activity-item').forEach(ai => {
+                        activities.push({ id: ai.dataset.id || undefined, name: ai.querySelector('.activity-title')?.textContent || ai.dataset.title || '' });
+                      });
+                      rebuilt.push({ day: dayId, spots: activities });
+                    });
+                    window.currentItinerary = rebuilt;
+                    console.log('Itinerary reordered (init)', window.currentItinerary);
+                  }
+                });
+              });
+            }
+          } catch (err) {
+            console.warn('Init sortable failed', err);
+          }
+
+          // Wire add/edit/delete handlers for server-rendered timeline
+          try {
+            const timelineSection = document.querySelector('.timeline-section');
+            if (timelineSection) {
+              // add-activity buttons
+              timelineSection.querySelectorAll('.add-activity-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                  const day = btn.getAttribute('data-day') || '';
+                  openAddActivityModalForDay(day);
+                });
+              });
+
+              // delegated edit/delete
+              timelineSection.addEventListener('click', (e) => {
+                const editBtn = e.target.closest('.btn-activity-action');
+                const delBtn = e.target.closest('.btn-activity-action.delete');
+                if (delBtn) {
+                  const item = delBtn.closest('.activity-item');
+                  if (item && confirm('Delete this activity?')) item.remove();
+                } else if (editBtn) {
+                  const item = editBtn.closest('.activity-item');
+                  if (item) openEditActivityModal(item);
+                }
+              });
+
+              // build initial in-memory itinerary
+              const rebuilt = [];
+              timelineSection.querySelectorAll('.day-card').forEach(dc => {
+                const dayId = dc.id ? dc.id.replace('day','') : '';
+                const activities = [];
+                dc.querySelectorAll('.activity-item').forEach(ai => {
+                  activities.push({ id: ai.dataset.id || undefined, name: ai.querySelector('.activity-title')?.textContent || ai.dataset.title || '' });
+                });
+                rebuilt.push({ day: dayId, spots: activities });
+              });
+              window.currentItinerary = rebuilt;
+            }
+          } catch (err) {
+            console.warn('Init timeline handlers failed', err);
+          }
         });
       })();
     </script>
@@ -1981,10 +2689,27 @@
             return;
           }
 
+          // Build form data and ensure start/end dates are present.
+          let startVal = document.getElementById('newTripStart').value || '';
+          let endVal = document.getElementById('newTripEnd').value || '';
+          // Fallback: try to parse visible date range input if hidden fields empty
+          if ((!startVal || !endVal) && document.getElementById('newTripDateRange')) {
+            const dr = document.getElementById('newTripDateRange').value || '';
+            if (dr && dr.indexOf(' to ') !== -1) {
+              const parts = dr.split(' to ').map(s => s.trim());
+              if (parts[0]) startVal = startVal || parts[0];
+              if (parts[1]) endVal = endVal || parts[1];
+            } else if (dr) {
+              // single date selected, use it for both
+              startVal = startVal || dr;
+              endVal = endVal || dr;
+            }
+          }
+
           const formData = {
             title: document.getElementById('newTripTitle').value,
-            start_date: document.getElementById('newTripStart').value,
-            end_date: document.getElementById('newTripEnd').value,
+            start_date: startVal,
+            end_date: endVal,
             adults: parseInt(document.getElementById('itAdults').value) || 0,
             children: parseInt(document.getElementById('itChildren').value) || 0,
             seniors: parseInt(document.getElementById('itSeniors').value) || 0,
@@ -1998,10 +2723,38 @@
             }))
           };
 
-          console.log('Creating itinerary with data:', formData);
-          alert(`Itinerary created: ${formData.title}\nDates: ${formData.start_date} to ${formData.end_date}\nGuests - Adults: ${formData.adults}, Children: ${formData.children}, Seniors: ${formData.seniors}\nSelected Spots: ${formData.selected_spots.length}`);
-          // Close modal only; no persistence
-          bootstrap.Modal.getInstance(createModal).hide();
+          try {
+            console.log('Creating itinerary with data:', formData);
+            const resp = await fetch('/itinerary/create', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(formData)
+            });
+            const data = await resp.json();
+            if (!resp.ok) {
+              console.error('Failed creating itinerary', data);
+              alert('Failed to create itinerary: ' + (data.error || resp.statusText));
+              return;
+            }
+
+            if (data.success) {
+              // Close modal
+              bootstrap.Modal.getInstance(createModal).hide();
+              // Try to reload/display the saved trip in the timeline (if loader exists)
+              if (typeof window.loadSavedTrip === 'function') {
+                try { window.loadSavedTrip(formData.title, formData.start_date); } catch(e) { console.warn('loadSavedTrip failed', e); }
+              } else {
+                // fallback: reload page
+                window.location.reload();
+              }
+            } else {
+              console.warn('Create itinerary returned:', data);
+              alert('Could not create itinerary. Check console for details.');
+            }
+          } catch (err) {
+            console.error('Create itinerary error', err);
+            alert('An error occurred while creating itinerary');
+          }
         });
       }
 
@@ -2076,6 +2829,116 @@
           bsModal.show();
         }
       }
+
+      // Toggle expand/collapse for a day card
+      function toggleDay(id) {
+        try {
+          const el = document.getElementById(id);
+          if (!el) return;
+          const content = el.querySelector('.day-content');
+          const icon = el.querySelector('.collapse-icon');
+          if (!content) return;
+          const isHidden = getComputedStyle(content).display === 'none' || content.classList.contains('collapsed');
+          if (isHidden) {
+            content.style.display = '';
+            content.classList.remove('collapsed');
+            if (icon) { icon.classList.remove('bi-chevron-up'); icon.classList.add('bi-chevron-down'); }
+          } else {
+            content.style.display = 'none';
+            content.classList.add('collapsed');
+            if (icon) { icon.classList.remove('bi-chevron-down'); icon.classList.add('bi-chevron-up'); }
+          }
+        } catch (err) {
+          console.warn('toggleDay failed', err);
+        }
+      }
+
+      // Handler to actually add a new day card into the timeline
+      (function(){
+        const addBtn = document.getElementById('addDayBtn');
+        if (!addBtn) return;
+        addBtn.addEventListener('click', (e) => {
+          try {
+            const input = document.getElementById('newDayNumber');
+            if (!input) { alert('Day input not found'); return; }
+            const count = parseInt(input.value, 10);
+            if (!count || count < 1) { alert('Please enter a valid number of days to add (>= 1)'); return; }
+
+            // Find last existing day number
+            const dayCards = Array.from(document.querySelectorAll('.day-card'));
+            let maxDay = 0;
+            dayCards.forEach(dc => {
+              const match = (dc.id || '').match(/day(\d+)/);
+              if (match) {
+                const n = parseInt(match[1], 10);
+                if (!isNaN(n) && n > maxDay) maxDay = n;
+              }
+            });
+
+            const timeline = document.querySelector('.timeline-section');
+            if (!timeline) { alert('Timeline section not found'); return; }
+
+            const newDays = [];
+            for (let i = 1; i <= count; i++) {
+              const num = maxDay + i;
+              // Build simple day card markup
+              const card = document.createElement('div');
+              card.className = 'day-card';
+              card.id = 'day' + num;
+              card.innerHTML = `
+                <div class="day-header" onclick="toggleDay('day${num}')">
+                  <div class="day-header-left">
+                    <div class="day-number">Day ${num}</div>
+                    <div class="day-date">To be set</div>
+                  </div>
+                  <div class="day-header-right">
+                    <div class="day-stats">
+                      <div class="day-stat"><i class="bi bi-geo-alt"></i><span>0 places</span></div>
+                      <div class="day-stat"><i class="bi bi-cash-stack"></i><span>₱0</span></div>
+                    </div>
+                    <i class="bi bi-chevron-down collapse-icon"></i>
+                  </div>
+                </div>
+                <div class="day-content">
+                  <div class="activities-list" data-day="${num}"></div>
+                  <button class="add-activity-btn" data-day="${num}"><i class="bi bi-plus-circle"></i> Add Activity</button>
+                </div>
+              `;
+
+              // Insert before the Book Itinerary wrapper if present, otherwise append at end
+              const bookWrapper = timeline.querySelector('.book-itinerary-wrapper');
+              if (bookWrapper) timeline.insertBefore(card, bookWrapper);
+              else timeline.appendChild(card);
+
+              // Initialize Sortable for the new list (if Sortable available)
+              const list = card.querySelector('.activities-list');
+              if (window.Sortable && list) {
+                Sortable.create(list, { group: 'days', animation: 150, handle: '.activity-drag-handle' });
+              }
+
+              // Attach Add Activity click handler for the new day's Add button
+              const addActBtn = card.querySelector('.add-activity-btn');
+              if (addActBtn) {
+                addActBtn.addEventListener('click', (ev) => {
+                  const day = addActBtn.getAttribute('data-day') || '';
+                  openAddActivityModalForDay(day);
+                });
+              }
+
+              // Track for in-memory itinerary
+              newDays.push({ day: String(num), spots: [] });
+            }
+
+            // Update in-memory itinerary
+            window.currentItinerary = window.currentItinerary || [];
+            window.currentItinerary = window.currentItinerary.concat(newDays);
+            console.log('Added days', newDays.map(d=>d.day), window.currentItinerary);
+          } catch (err) {
+            console.error('Failed to add day(s)', err);
+            alert('Could not add day(s): ' + (err && err.message));
+          }
+        });
+      })();
     </script>
 
   </body>
