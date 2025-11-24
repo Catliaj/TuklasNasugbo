@@ -639,9 +639,9 @@ function loadTouristSpotsGrid() {
 
     grid.innerHTML = window.sharedTouristSpots.map(spot => {
                 // Ensure images array exists and has valid data
-                const imageUrl = spot.images && spot.images.length > 0 ?
+                    const imageUrl = spot.images && spot.images.length > 0 ?
                     spot.images[0] :
-                    (spot.image || '/uploads/default.jpg');
+                    (spot.image || '/uploads/spots/Spot-No-Image.png');
 
                 const imageCount = spot.images ? spot.images.length : 0;
 
@@ -653,7 +653,7 @@ function loadTouristSpotsGrid() {
                          alt="${spot.name}" 
                          class="img-fluid rounded-top" 
                          style="height: 220px; width: 100%; object-fit: cover;"
-                         onerror="this.src='/uploads/default.jpg'">
+                         onerror="this.src='/uploads/spots/Spot-No-Image.png'">
                     <div class="position-absolute top-0 end-0 m-3">
                         <span class="badge ${spot.status === 'active' ? 'bg-success' : 'bg-secondary'}">${spot.status}</span>
                     </div>
@@ -761,7 +761,7 @@ function generateSimpleViewModalContent(spot) {
     const spotId = spot.id || spot.spot_id;
     
     // Get the first image or use a placeholder
-    const mainImage = spot.images && spot.images.length > 0 ? spot.images[0] : '/uploads/default.jpg';
+    const mainImage = spot.images && spot.images.length > 0 ? spot.images[0] : '/uploads/spots/Spot-No-Image.png';
     const imageCount = spot.images ? spot.images.length : 0;
     
     return `
@@ -773,7 +773,7 @@ function generateSimpleViewModalContent(spot) {
                          alt="${spotName}" 
                          class="img-fluid rounded" 
                          style="width: 100%; height: 400px; object-fit: cover;"
-                         onerror="this.src='/uploads/default.jpg'">
+                         onerror="this.src='/uploads/spots/Spot-No-Image.png'">
                     ${imageCount > 1 ? `
                         <p class="text-center text-muted mt-2">
                             <i class="bi bi-images"></i> ${imageCount} photos available

@@ -651,7 +651,7 @@ function updateNewSpotImagePreview() {
         
         previewGrid.innerHTML = newSpotImageData.map((img, idx) => `
             <div class="position-relative mb-2">
-                <img src="${img}" alt="Preview ${idx + 1}" class="img-fluid rounded" style="max-height: 150px; width: 100%; object-fit: cover;">
+                <img src="${img}" alt="Preview ${idx + 1}" class="img-fluid rounded" style="max-height: 150px; width: 100%; object-fit: cover;" onerror="this.src='<?= esc(base_url('uploads/spots/Spot-No-Image.png')) ?>'">
                 <button class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2" onclick="removeNewSpotImageAt(${idx})" type="button">
                     <i class="bi bi-x-lg"></i>
                 </button>
@@ -1168,11 +1168,11 @@ async function fetchManageSpots() {
         <div class="col-lg-4 col-md-6" data-spot-id="${spot.id}" data-status="${spot.status}">
             <div class="custom-card h-100">
                 <div class="position-relative">
-                    <img src="${spot.images && spot.images.length > 0 ? spot.images[0] : spot.image}" 
+                    <img src="${spot.images && spot.images.length > 0 ? spot.images[0] : spot.image}" onerror="this.src='<?= esc(base_url('uploads/spots/Spot-No-Image.png')) ?>'" 
                          alt="${spot.name}" 
                          class="img-fluid rounded-top" 
                          style="height: 200px; width: 100%; object-fit: cover;"
-                         onerror="this.src='<?= base_url('uploads/default.jpg') ?>'">
+                         onerror="this.src='<?= esc(base_url('uploads/spots/Spot-No-Image.png')) ?>'">
                     <div class="position-absolute top-0 end-0 m-3">
                         <span class="badge ${spot.status === 'active' ? 'bg-success' : 'bg-secondary'}">${spot.status}</span>
                     </div>
@@ -1431,7 +1431,7 @@ async function fetchManageSpots() {
         imageCount.textContent = spot.images.length;
         imagePreviewGrid.innerHTML = spot.images.map((img, idx) => `
             <div class="image-preview-item">
-                <img src="${img}" alt="Spot image ${idx + 1}">
+                <img src="${img}" alt="Spot image ${idx + 1}" onerror="this.src='<?= esc(base_url('uploads/spots/Spot-No-Image.png')) ?>'">
                 <div class="image-preview-overlay">
                     <button class="btn btn-danger btn-sm btn-remove-image" data-image-index="${idx}">
                         <i class="bi bi-x-lg"></i>
@@ -1719,7 +1719,7 @@ function generateEditSpotModalContent(spot) {
     } else if (spot.image) {
         images = [spot.image];
     } else {
-        images = ['<?= base_url("uploads/default.jpg") ?>'];
+        images = ['<?= esc(base_url("uploads/spots/Spot-No-Image.png")) ?>'];
     }
     
     const totalVisits = spot.totalVisits || 0;
@@ -1830,10 +1830,10 @@ function generateEditSpotModalContent(spot) {
                     </div>
                     <div class="custom-card-body">
                         <div class="position-relative mb-3">
-                            <img src="${images[0]}" alt="${spot.spot_name || spot.name || 'Spot'}" 
+                            <img src="${images[0]}" alt="${spot.spot_name || spot.name || 'Spot'}" onerror="this.src='<?= esc(base_url('uploads/spots/Spot-No-Image.png')) ?>'" 
                                 class="rounded img-fluid" id="editSpotImage" 
                                 style="width: 100%; height: 200px; object-fit: cover;"
-                                onerror="this.src='<?= base_url("uploads/default.jpg") ?>'">
+                                onerror="this.src='<?= esc(base_url("uploads/spots/Spot-No-Image.png")) ?>'">
                         </div>
                     </div>
                 </div>
