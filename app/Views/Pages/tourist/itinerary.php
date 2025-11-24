@@ -1197,7 +1197,7 @@
 
           
 
-        const saveUrl = `/api/recommend/?${params.toString()}`;
+        const saveUrl = `https://tuklasnasugbu.com/api/recommend/?${params.toString()}`;
 
           try {
             const resp = await fetch(saveUrl);
@@ -1475,7 +1475,7 @@
           if(!grid) return;
           
           // Check if Django server is accessible first
-          const nbUrl = 'http://127.0.0.1:8000/recommender/nb_recommend/?user_id=<?= esc($userID ?? '') ?>&preference=<?= urlencode($categories ?? '') ?>&limit=8';
+          const nbUrl = 'https://tuklasnasugbu.com/recommender/nb_recommend/?user_id=<?= esc($userID ?? '') ?>&preference=<?= urlencode($categories ?? '') ?>&limit=8';
           
           try {
             grid.innerHTML = '<div class="text-center text-muted py-3"><div class="spinner-border spinner-border-sm"></div><p class="small mb-0 mt-2">Loading recommendations...</p></div>';
