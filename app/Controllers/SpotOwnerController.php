@@ -333,16 +333,36 @@ public function recordCheckin()
 
             // --- Handle primary image ---
             $primaryImage = $this->request->getFile('primary_image');
-            if ($primaryImage && $primaryImage->isValid() && !$primaryImage->hasMoved()) {
-                $newName = $primaryImage->getRandomName();
-                $uploadPath = FCPATH . 'uploads/spots/';
+            if ($primaryImage) {
+                if ($primaryImage->isValid() && !$primaryImage->hasMoved()) {
+                    $newName = $primaryImage->getRandomName();
+                    $uploadPath = FCPATH . 'uploads/spots/';
 
-                if (!is_dir($uploadPath)) {
-                    mkdir($uploadPath, 0777, true);
+                    if (!is_dir($uploadPath)) {
+                        if (!mkdir($uploadPath, 0777, true) && !is_dir($uploadPath)) {
+                            log_message('error', '[storeMySpots] Failed to create upload directory: ' . $uploadPath);
+                        }
+                    }
+
+                    try {
+                        $primaryImage->move($uploadPath, $newName);
+                        // verify file exists after move
+                        if (is_file($uploadPath . $newName)) {
+                            $data['primary_image'] = $newName; // store filename in tourist_spots table
+                        } else {
+                            log_message('error', '[storeMySpots] primaryImage moved but file not found at destination: ' . $uploadPath . $newName);
+                            session()->setFlashdata('spot_image_error', 'Primary image upload failed (file missing after move).');
+                        }
+                    } catch (\Throwable $t) {
+                        log_message('error', '[storeMySpots] Exception while moving primary image: ' . $t->getMessage());
+                        session()->setFlashdata('spot_image_error', 'Primary image upload failed: ' . $t->getMessage());
+                    }
+                } else {
+                    // Log the specific upload error code to help debug (production vs local differences)
+                    $errCode = method_exists($primaryImage, 'getError') ? $primaryImage->getError() : 'unknown';
+                    log_message('warning', "[storeMySpots] primary_image not uploaded or invalid. isValid=" . var_export($primaryImage->isValid(), true) . ", hasMoved=" . var_export($primaryImage->hasMoved(), true) . ", error={$errCode}");
+                    session()->setFlashdata('spot_image_error', 'Primary image not uploaded or invalid (code: ' . $errCode . ').');
                 }
-
-                $primaryImage->move($uploadPath, $newName);
-                $data['primary_image'] = $newName; // store filename in tourist_spots table
             }
 
             // --- Insert tourist spot ---
@@ -387,23 +407,35 @@ try {
 
             // --- Handle gallery images (multiple) ---
             $galleryImages = $this->request->getFiles();
-            if (isset($galleryImages['gallery_images'])) {
+            if (isset($galleryImages['gallery_images']) && is_array($galleryImages['gallery_images'])) {
+                $galleryPath = FCPATH . 'uploads/spots/gallery/';
+                if (!is_dir($galleryPath)) {
+                    if (!mkdir($galleryPath, 0777, true) && !is_dir($galleryPath)) {
+                        log_message('error', '[storeMySpots] Failed to create gallery directory: ' . $galleryPath);
+                    }
+                }
+
                 foreach ($galleryImages['gallery_images'] as $image) {
+                    if (!$image) continue;
                     if ($image->isValid() && !$image->hasMoved()) {
                         $newName = $image->getRandomName();
-                        $galleryPath = FCPATH . 'uploads/spots/gallery/';
-
-                        if (!is_dir($galleryPath)) {
-                            mkdir($galleryPath, 0777, true);
+                        try {
+                            $image->move($galleryPath, $newName);
+                            if (is_file($galleryPath . $newName)) {
+                                // insert to SpotGallery model
+                                $spotGalleryModel->insert([
+                                    'spot_id' => $spotId,
+                                    'image' => $newName
+                                ]);
+                            } else {
+                                log_message('error', '[storeMySpots] Gallery image moved but not found: ' . $galleryPath . $newName);
+                            }
+                        } catch (\Throwable $t) {
+                            log_message('error', '[storeMySpots] Exception while moving gallery image: ' . $t->getMessage());
                         }
-
-                        $image->move($galleryPath, $newName);
-
-                        // insert to SpotGallery model
-                        $spotGalleryModel->insert([
-                            'spot_id' => $spotId,
-                            'image' => $newName
-                        ]);
+                    } else {
+                        $err = method_exists($image, 'getError') ? $image->getError() : 'unknown';
+                        log_message('warning', "[storeMySpots] gallery image invalid or already moved. error={$err}");
                     }
                 }
             }
