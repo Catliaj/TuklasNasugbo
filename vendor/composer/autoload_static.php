@@ -101,6 +101,7 @@ class ComposerStaticInit657ac079313fab046eb8c29fe1d6992b
 
     public static $classMap = array (
         'App\\Controllers\\AdminController' => __DIR__ . '/../..' . '/app/Controllers/AdminController.php',
+        'App\\Controllers\\AttractionsController' => __DIR__ . '/../..' . '/app/Controllers/AttractionsController.php',
         'App\\Controllers\\AuthController' => __DIR__ . '/../..' . '/app/Controllers/AuthController.php',
         'App\\Controllers\\BaseController' => __DIR__ . '/../..' . '/app/Controllers/BaseController.php',
         'App\\Controllers\\Home' => __DIR__ . '/../..' . '/app/Controllers/Home.php',
@@ -122,6 +123,7 @@ class ComposerStaticInit657ac079313fab046eb8c29fe1d6992b
         'App\\Models\\CustomerModel' => __DIR__ . '/../..' . '/app/Models/CustomerModel.php',
         'App\\Models\\FeedbackModel' => __DIR__ . '/../..' . '/app/Models/FeedbackModel.php',
         'App\\Models\\ItineraryModel' => __DIR__ . '/../..' . '/app/Models/ItineraryModel.php',
+        'App\\Models\\NotificationModel' => __DIR__ . '/../..' . '/app/Models/NotificationModel.php',
         'App\\Models\\RecommendationModel' => __DIR__ . '/../..' . '/app/Models/RecommendationModel.php',
         'App\\Models\\SpotFavByCustomerModel' => __DIR__ . '/../..' . '/app/Models/SpotFavByCustomerModel.php',
         'App\\Models\\SpotGalleryModel' => __DIR__ . '/../..' . '/app/Models/SpotGalleryModel.php',
