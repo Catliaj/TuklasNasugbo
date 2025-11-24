@@ -560,7 +560,8 @@ public function getTopSpotsPerformanceMetrics($startDate, $endDate, $limit = 3)
         $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id', 'left');
 
         $builder->where('b.customer_id', $userId);
-        $builder->whereIn('b.booking_status', ['Checked-in', 'Checked-out']);
+        // Include common finalized/visited statuses so users' past visits show up
+        $builder->whereIn('b.booking_status', ['Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out', 'Confirmed', 'Completed']);
 
         // Order by visit_date (or booking_date if visit_date is null) desc, then visit_time desc no order by
         $builder->orderBy('COALESCE(b.visit_date, b.booking_date) DESC, b.visit_time DESC');

@@ -15,6 +15,14 @@
     <link rel="stylesheet" href="<?= base_url('assets/css/globals.css')?>">
     <!-- Custom CSS -->
     <link rel="stylesheet" href="<?= base_url('assets/css/touristStyle/dashboard.css')?>">
+<?php
+// Get session values for profile display
+$session = session();
+$userFirstName = $session->get('FirstName') ?? '';
+$userLastName = $session->get('LastName') ?? '';
+$userEmail = $session->get('Email') ?? '';
+$userInitials = strtoupper(substr($userFirstName,0,1) . substr($userLastName,0,1));
+?>
 </head>
 <body>
     <div class="dashboard-wrapper">
@@ -517,6 +525,7 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="<?= base_url('assets/js/tourist-ui.js') ?>"></script>
     
     <script>
         function toggleMobileSidebar() {

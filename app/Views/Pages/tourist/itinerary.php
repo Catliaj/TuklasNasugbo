@@ -109,20 +109,21 @@
             <!-- Page Header (Ocean Theme) -->
             <div class="page-header">
                 <div class="page-header-actions">
-                    <div style="position: relative;">
-                        <div class="user-avatar" onclick="toggleUserDropdown()">JD</div>
-                        <div class="user-dropdown" id="userDropdown">
-                            <div class="dropdown-header">
-                                <h6>Juan Dela Cruz</h6>
-                                <p>juan.delacruz@email.com</p>
-                            </div>
-                            <ul class="menu">
-                                <li><a href="#" onclick="openProfile(event); hideUserDropdown(event)"><i class="bi bi-person-circle"></i> <span>My Profile</span></a></li>
-                                <li><a class="logout" href="#" onclick="handleLogout(event)"><i class="bi bi-box-arrow-right"></i> <span>Logout</span></a></li>
-                            </ul>
-                        </div>
+                <div style="position: relative;">
+                  <?php $session = session(); $userFirstName = $session->get('FirstName') ?? ''; $userLastName = $session->get('LastName') ?? ''; $userEmail = $session->get('Email') ?? ''; $userInitials = strtoupper(substr($userFirstName,0,1).substr($userLastName,0,1)); ?>
+                  <div class="user-avatar" onclick="toggleUserDropdown()"><?= esc($userInitials ?: 'JD') ?></div>
+                  <div class="user-dropdown" id="userDropdown">
+                    <div class="dropdown-header">
+                      <h6><?= esc(($userFirstName ?: 'Juan') . ' ' . ($userLastName ?: 'Dela Cruz')) ?></h6>
+                      <p><?= esc($userEmail ?: 'juan.delacruz@email.com') ?></p>
                     </div>
+                    <ul class="menu">
+                      <li><a href="#" onclick="openProfile(event); hideUserDropdown(event)"><i class="bi bi-person-circle"></i> <span>My Profile</span></a></li>
+                      <li><a class="logout" href="/users/logout" onclick="handleLogout(event)"><i class="bi bi-box-arrow-right"></i> <span>Logout</span></a></li>
+                    </ul>
+                  </div>
                 </div>
+              </div>
                 <h2><i class="bi bi-calendar-check"></i> My Itinerary</h2>
                 <p>Plan your perfect Nasugbu adventure with personalized trip schedules.</p>
             </div>
@@ -952,6 +953,7 @@
 
     <!-- Bootstrap JS only (no app logic) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="<?= base_url('assets/js/tourist-ui.js') ?>"></script>
     <!-- jQuery is available but the main rendering uses vanilla JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>

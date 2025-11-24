@@ -100,6 +100,15 @@ $routes->get('/tourist/favorites', 'TouristController::touristFavorites');
 $routes->post('/tourist/createBooking', 'TouristController::createBooking');
 $routes->post('/tourist/toggleFavorite', 'TouristController::toggleFavorite');
 $routes->get('tourist/visited/ajax', 'TouristController::getVisitedPlacesAjax');
+<<<<<<< Updated upstream
+=======
+// Favorites API for dashboard AJAX
+$routes->get('/tourist/getFavorites', 'TouristController::getFavorites');
+// Dashboard live stats (AJAX)
+$routes->get('/tourist/dashboardStats', 'TouristController::dashboardStats');
+// Save review (AJAX)
+$routes->post('/tourist/saveReview', 'TouristController::saveReview');
+>>>>>>> Stashed changes
 
 //TEST API ROUTE
 $routes->get('/test-api/key', 'TestApi::testKey');

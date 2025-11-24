@@ -186,15 +186,16 @@
 
                 <!-- Avatar -->
                 <div style="position: relative;">
-                    <div class="user-avatar" onclick="toggleUserDropdown()">JD</div>
+                    <?php $session = session(); $userFirstName = $session->get('FirstName') ?? ''; $userLastName = $session->get('LastName') ?? ''; $userEmail = $session->get('Email') ?? ''; $userInitials = strtoupper(substr($userFirstName,0,1).substr($userLastName,0,1)); ?>
+                    <div class="user-avatar" onclick="toggleUserDropdown()"><?= esc($userInitials ?: 'JD') ?></div>
                     <div class="user-dropdown" id="userDropdown">
                         <div class="dropdown-header">
-                            <h6>Juan Dela Cruz</h6>
-                            <p>juan.delacruz@email.com</p>
+                            <h6><?= esc(($userFirstName ?: 'Juan') . ' ' . ($userLastName ?: 'Dela Cruz')) ?></h6>
+                            <p><?= esc($userEmail ?: 'juan.delacruz@email.com') ?></p>
                         </div>
                         <ul class="menu">
                             <li><a href="#" onclick="openProfile(event); hideUserDropdown(event)"><i class="bi bi-person-circle"></i> <span>My Profile</span></a></li>
-                            <li><a class="logout" href="#" onclick="handleLogout(event)"><i class="bi bi-box-arrow-right"></i> <span>Logout</span></a></li>
+                            <li><a class="logout" href="/users/logout" onclick="handleLogout(event)"><i class="bi bi-box-arrow-right"></i> <span>Logout</span></a></li>
                         </ul>
                     </div>
                 </div>
@@ -424,6 +425,7 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="<?= base_url('assets/js/tourist-ui.js') ?>"></script>
 
     <!-- qrcode library (browser build) -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
@@ -971,26 +973,36 @@
         function bookAgain() { alert('Navigate to book again (implement).'); }
 
         // Dropdown, profile, small toasts and other UI helpers (unchanged)
-        function toggleNotificationDropdown() {
-            const dd = document.getElementById('notificationDropdown');
-            const ud = document.getElementById('userDropdown');
-            ud?.classList.remove('show');
-            dd.classList.toggle('show');
+        if (typeof toggleNotificationDropdown === 'undefined') {
+            function toggleNotificationDropdown() {
+                const dd = document.getElementById('notificationDropdown');
+                const ud = document.getElementById('userDropdown');
+                ud?.classList.remove('show');
+                dd.classList.toggle('show');
+            }
         }
-        function toggleUserDropdown() {
-            const dd = document.getElementById('userDropdown');
-            const nd = document.getElementById('notificationDropdown');
-            nd?.classList.remove('show');
-            dd.classList.toggle('show');
+        if (typeof toggleUserDropdown === 'undefined') {
+            function toggleUserDropdown() {
+                const dd = document.getElementById('userDropdown');
+                const nd = document.getElementById('notificationDropdown');
+                nd?.classList.remove('show');
+                dd.classList.toggle('show');
+            }
         }
-        function hideUserDropdown(e){ e?.preventDefault?.(); document.getElementById('userDropdown')?.classList.remove('show'); }
-        function markAllAsRead() {
-            document.querySelectorAll('.notification-item.unread').forEach(li => li.classList.remove('unread'));
-            const badge = document.getElementById('notifBadge');
-            if (badge) { badge.textContent = '0'; badge.style.display = 'none'; }
-            showToast('Notifications', 'All notifications marked as read.');
+        if (typeof hideUserDropdown === 'undefined') {
+            function hideUserDropdown(e){ e?.preventDefault?.(); document.getElementById('userDropdown')?.classList.remove('show'); }
         }
-        function viewAllNotifications(e){ e.preventDefault(); showToast('Notifications', 'Opening all notifications...'); }
+        if (typeof markAllAsRead === 'undefined') {
+            function markAllAsRead() {
+                document.querySelectorAll('.notification-item.unread').forEach(li => li.classList.remove('unread'));
+                const badge = document.getElementById('notifBadge');
+                if (badge) { badge.textContent = '0'; badge.style.display = 'none'; }
+                showToast && showToast('Notifications', 'All notifications marked as read.');
+            }
+        }
+        if (typeof viewAllNotifications === 'undefined') {
+            function viewAllNotifications(e){ e.preventDefault(); showToast && showToast('Notifications', 'Opening all notifications...'); }
+        }
 
         // Profile functions & DOMContentLoaded remains the same as before
         function setLoading(btn, isLoading) {

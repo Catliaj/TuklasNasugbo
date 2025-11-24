@@ -36,7 +36,7 @@ class App extends BaseConfig
      * Index File
      * --------------------------------------------------------------------------
      *
-     * Typically, this will be your `index.php` file, unless you've renamed it to
+     * Typically, this will be your index.php file, unless you've renamed it to
      * something else. If you have configured your web server to remove this file
      * from your site URIs, set this variable to an empty string.
      */
@@ -71,7 +71,7 @@ class App extends BaseConfig
     | As a security measure you are STRONGLY encouraged to restrict URLs to
     | as few characters as possible.
     |
-    | By default, only these are allowed: `a-z 0-9~%.:_-`
+    | By default, only these are allowed: a-z 0-9~%.:_-
     |
     | Set an empty string to allow all characters -- but only if you are insane.
     |
@@ -190,7 +190,7 @@ class App extends BaseConfig
      * Enables the Response's Content Secure Policy to restrict the sources that
      * can be used for images, scripts, CSS files, audio, video, etc. If enabled,
      * the Response object will populate default values for the policy from the
-     * `ContentSecurityPolicy.php` file. Controllers can always add to those
+     * ContentSecurityPolicy.php file. Controllers can always add to those
      * restrictions at run time.
      *
      * For a better understanding of CSP, see these documents:

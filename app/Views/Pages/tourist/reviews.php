@@ -152,7 +152,7 @@
                 <div class="page-header">
                     <div class="page-header-actions">
                         <div style="position: relative;">
-                            <div class="user-avatar" onclick="toggleUserDropdown()"><?= $userInitials ?></div>
+                            <div class="user-avatar" onclick="toggleUserDropdown()"><?= esc($userInitials ?: 'JD') ?></div>
                             <div class="user-dropdown" id="userDropdown">
                                 <div class="dropdown-header">
                                     <h6><?= esc($userFirstName . ' ' . $userLastName) ?></h6>
@@ -160,7 +160,7 @@
                                 </div>
                                 <ul class="dropdown-menu-custom">
                                     <li>
-                                        <a href="#" class="dropdown-item-custom logout" onclick="handleLogout(event)">
+                                        <a href="/users/logout" class="dropdown-item-custom logout" onclick="handleLogout(event)">
                                             <i class="bi bi-box-arrow-right"></i>
                                             <span>Logout</span>
                                         </a>
@@ -293,12 +293,16 @@
                             <div class="modal-body">
                                 <div class="mb-3">
                                     <label for="reviewPlace" class="form-label"><strong>Place</strong></label>
-                                    <input type="text" class="form-control" id="reviewPlace" placeholder="e.g., Mount Batulao" required>
+                                    <select id="reviewPlace" class="form-select" required>
+                                        <option value="">Loading your visited places...</option>
+                                    </select>
+                                    <div class="form-text">Only places you've checked in to are available here.</div>
                                 </div>
                                 <div class="row mb-3">
                                     <div class="col-md-6">
-                                        <label for="reviewDate" class="form-label"><strong>Date visited</strong></label>
-                                        <input type="text" class="form-control" id="reviewDate" placeholder="Select date" autocomplete="off" required>
+                                        <label class="form-label"><strong>Date visited</strong></label>
+                                        <div id="reviewDateDisplay" class="form-control-plaintext" style="padding:.5rem .75rem;border:1px solid #e9ecef;border-radius:.375rem;background:#fff;">—</div>
+                                        <input type="hidden" id="reviewVisitDate" name="visit_date" required>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label"><strong>Rating</strong></label>
@@ -344,7 +348,7 @@
                             <div class="modal-body">
                                 <div class="text-center mb-4">
                                     <div class="profile-avatar-large" id="profileAvatar">
-                                        JD
+                                        <?= esc($userInitials ?: 'JD') ?>
                                         <label class="avatar-upload-btn">
                                             <i class="bi bi-camera-fill"></i>
                                             <input type="file" id="avatarUpload" accept="image/*">
@@ -356,31 +360,31 @@
                                 <div class="row g-3">
                                     <div class="col-md-6">
                                         <label for="profileFirstName" class="form-label"><strong>First Name</strong></label>
-                                        <input type="text" class="form-control" id="profileFirstName" value="Juan" required>
+                                        <input type="text" class="form-control" id="profileFirstName" value="<?= esc($userFirstName) ?>" required>
                                     </div>
                                     <div class="col-md-6">
                                         <label for="profileLastName" class="form-label"><strong>Last Name</strong></label>
-                                        <input type="text" class="form-control" id="profileLastName" value="Dela Cruz" required>
+                                        <input type="text" class="form-control" id="profileLastName" value="<?= esc($userLastName) ?>" required>
                                     </div>
                                     <div class="col-12">
                                         <label for="profileEmail" class="form-label"><strong>Email Address</strong></label>
-                                        <input type="email" class="form-control" id="profileEmail" value="juan.delacruz@email.com" required>
+                                        <input type="email" class="form-control" id="profileEmail" value="<?= esc($userEmail) ?>" required>
                                     </div>
                                     <div class="col-md-6">
                                         <label for="profilePhone" class="form-label"><strong>Phone Number</strong></label>
-                                        <input type="tel" class="form-control" id="profilePhone" value="+63 912 345 6789">
+                                        <input type="tel" class="form-control" id="profilePhone" value="<?= esc($session->get('Phone') ?? '') ?>">
                                     </div>
                                     <div class="col-md-6">
                                         <label for="profileBirthdate" class="form-label"><strong>Birthdate</strong></label>
-                                        <input type="date" class="form-control" id="profileBirthdate" value="1995-05-15">
+                                        <input type="date" class="form-control" id="profileBirthdate" value="<?= esc($session->get('Birthdate') ?? '') ?>">
                                     </div>
                                     <div class="col-12">
                                         <label for="profileAddress" class="form-label"><strong>Address</strong></label>
-                                        <textarea class="form-control" id="profileAddress" rows="2">Nasugbu, Batangas, Philippines</textarea>
+                                        <textarea class="form-control" id="profileAddress" rows="2"><?= esc($session->get('Address') ?? '') ?></textarea>
                                     </div>
                                     <div class="col-12">
                                         <label for="profileBio" class="form-label"><strong>Bio</strong></label>
-                                        <textarea class="form-control" id="profileBio" rows="3" placeholder="Tell us about yourself...">Adventure seeker and travel enthusiast exploring Nasugbu!</textarea>
+                                        <textarea class="form-control" id="profileBio" rows="3" placeholder="Tell us about yourself..."><?= esc($session->get('Bio') ?? '') ?></textarea>
                                     </div>
                                 </div>
 
@@ -499,61 +503,67 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="<?= base_url('assets/js/tourist-ui.js') ?>"></script>
     
     <script>
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('show');
         }
 
-        function toggleUserDropdown() {
-            const dropdown = document.getElementById('userDropdown');
-            if (dropdown) {
-                dropdown.classList.toggle('show');
+        if (typeof toggleUserDropdown === 'undefined') {
+            function toggleUserDropdown() {
+                const dropdown = document.getElementById('userDropdown');
+                if (dropdown) dropdown.classList.toggle('show');
             }
         }
 
-        function handleLogout(event) {
-            event.preventDefault();
-            if (confirm('Are you sure you want to logout?')) {
-                window.location.href = '/logout';
-            }
-        }
-
-        // Close dropdowns when clicking outside
-        document.addEventListener('click', function(event) {
-            const sidebar = document.getElementById('sidebar');
-            const menuBtn = document.querySelector('.mobile-menu-btn');
-            const userDropdown = document.getElementById('userDropdown');
-            const userAvatar = document.querySelector('.user-avatar');
-            
-            // Close sidebar on mobile
-            if (window.innerWidth <= 992) {
-                if (sidebar && menuBtn && !sidebar.contains(event.target) && !menuBtn.contains(event.target)) {
-                    sidebar.classList.remove('show');
+        if (typeof handleLogout === 'undefined') {
+            function handleLogout(event) {
+                event.preventDefault();
+                if (confirm('Are you sure you want to logout?')) {
+                    showToast && showToast('Logged Out', 'You are being logged out...');
+                    setTimeout(() => { window.location.href = '/users/logout'; }, 600);
                 }
             }
+        }
 
-            // Close user dropdown
-            if (userDropdown && userAvatar && !userAvatar.contains(event.target) && !userDropdown.contains(event.target)) {
-                userDropdown.classList.remove('show');
+        if (!window._touristUiClickHandlerAttached) {
+            document.addEventListener('click', function(event) {
+                const sidebar = document.getElementById('sidebar');
+                const menuBtn = document.querySelector('.mobile-menu-btn');
+                const userDropdown = document.getElementById('userDropdown');
+                const userAvatar = document.querySelector('.user-avatar');
+
+                if (window.innerWidth <= 992) {
+                    if (sidebar && menuBtn && !sidebar.contains(event.target) && !menuBtn.contains(event.target)) {
+                        sidebar.classList.remove('show');
+                    }
+                }
+
+                if (userDropdown && userAvatar && !userAvatar.contains(event.target) && !userDropdown.contains(event.target)) {
+                    userDropdown.classList.remove('show');
+                }
+            });
+            window._touristUiClickHandlerAttached = true;
+        }
+
+        if (typeof showToast === 'undefined') {
+            function showToast(title, msg){
+                const container = document.getElementById('toastContainer');
+                if (!container) return;
+                const el = document.createElement('div');
+                el.className = 'toast text-bg-primary';
+                el.role = 'alert'; el.ariaLive = 'assertive'; el.ariaAtomic = 'true';
+                el.innerHTML = `
+                    <div class="d-flex align-items-center">
+                        <div class="toast-body"><strong>${title}:</strong> ${msg}</div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>`;
+                container.appendChild(el);
+                const t = new bootstrap.Toast(el, { delay: 3000 });
+                t.show();
+                el.addEventListener('hidden.bs.toast', () => el.remove());
             }
-        });
-
-        // Toast helper
-        function showToast(title, msg){
-            const container = document.getElementById('toastContainer');
-            const el = document.createElement('div');
-            el.className = 'toast text-bg-primary';
-            el.role = 'alert'; el.ariaLive = 'assertive'; el.ariaAtomic = 'true';
-            el.innerHTML = `
-                <div class="d-flex align-items-center">
-                    <div class="toast-body"><strong>${title}:</strong> ${msg}</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-                </div>`;
-            container.appendChild(el);
-            const t = new bootstrap.Toast(el, { delay: 3000 });
-            t.show();
-            el.addEventListener('hidden.bs.toast', () => el.remove());
         }
 
         // Enhance interactions + modal logic
@@ -589,14 +599,7 @@
 
             // Initialize Flatpickr for review dates
             if (window.flatpickr) {
-                flatpickr('#reviewDate', {
-                    dateFormat: 'Y-m-d',
-                    maxDate: 'today',
-                    altInput: true,
-                    altFormat: 'F j, Y',
-                    allowInput: true
-                });
-
+                // Only initialize flatpickr for the edit modal date (write modal date is auto-populated)
                 flatpickr('#editReviewDate', {
                     dateFormat: 'Y-m-d',
                     maxDate: 'today',
@@ -741,6 +744,114 @@
                 editModal.hide();
                 showToast('Review Updated', 'Your changes have been saved.');
             });
+
+            // Submit new review via AJAX to server endpoint
+            const reviewFormEl = document.getElementById('reviewForm');
+            reviewFormEl?.addEventListener('submit', async (ev) => {
+                ev.preventDefault();
+                const place = document.getElementById('reviewPlace').value.trim();
+                // read visit_date from hidden field (auto-populated from selected visited place)
+                const date = document.getElementById('reviewVisitDate') ? document.getElementById('reviewVisitDate').value : '';
+                const rating = parseInt(document.getElementById('reviewRating').value || '0', 10);
+                const text = document.getElementById('reviewText').value.trim();
+                if (!place || !date || !rating || !text) {
+                    alert('Please fill required fields: place, date, rating and review text.');
+                    return;
+                }
+
+                const fd = new FormData();
+                fd.append('place', place);
+                fd.append('visit_date', date);
+                fd.append('rating', rating);
+                fd.append('comment', text);
+
+                const photos = document.getElementById('reviewPhotos');
+                if (photos && photos.files && photos.files.length) {
+                    Array.from(photos.files).slice(0,6).forEach((f, idx) => fd.append('photos[]', f));
+                }
+
+                try {
+                    const res = await fetch('/tourist/saveReview', { method: 'POST', body: fd, credentials: 'same-origin' });
+                    const payload = await res.json();
+                    if (res.ok && payload.success) {
+                        bootstrap.Modal.getInstance(document.getElementById('reviewModal')).hide();
+                        showToast('Review Saved', payload.message || 'Your review was saved.');
+                        // reload to show saved reviews list (simple and reliable)
+                        setTimeout(() => window.location.reload(), 900);
+                    } else {
+                        const msg = payload.message || 'Failed to save review';
+                        alert(msg);
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert('An error occurred while saving review.');
+                }
+            });
+
+            // Load visited places into the Place select so users can only review places they've visited
+            async function loadVisitedPlacesForReviews() {
+                const sel = document.getElementById('reviewPlace');
+                if (!sel) return;
+                sel.innerHTML = '<option value="">Loading your visited places...</option>';
+                try {
+                    const res = await fetch('/tourist/visited/ajax', { method: 'GET', credentials: 'same-origin' });
+                    const payload = await res.json();
+                    if (!res.ok || !payload.success) {
+                        sel.innerHTML = '<option value="">No visited places found</option>';
+                        return;
+                    }
+                    const data = payload.data || [];
+                    if (!data.length) {
+                        sel.innerHTML = '<option value="">You have no visited places</option>';
+                        return;
+                    }
+                    sel.innerHTML = '<option value="">Select a place you visited</option>';
+                    data.forEach(item => {
+                        // item: booking_id, visit_date, spot_name, etc.
+                        const opt = document.createElement('option');
+                        opt.value = item.spot_name || item.name || '';
+                        opt.textContent = (item.spot_name || item.name || '') + (item.visit_date ? (' — ' + item.visit_date) : '');
+                        if (item.visit_date) opt.dataset.visitDate = item.visit_date;
+                        if (item.booking_id) opt.dataset.bookingId = item.booking_id;
+                        sel.appendChild(opt);
+                    });
+                } catch (err) {
+                    console.error('Failed to load visited places', err);
+                    sel.innerHTML = '<option value="">Failed to load visited places</option>';
+                }
+            }
+
+            // Prefill visit date when a place is selected (populate hidden input and display)
+            document.getElementById('reviewPlace')?.addEventListener('change', function(e){
+                const opt = e.target.selectedOptions && e.target.selectedOptions[0];
+                const display = document.getElementById('reviewDateDisplay');
+                const hidden = document.getElementById('reviewVisitDate');
+                if (!opt) {
+                    if (display) display.textContent = '—';
+                    if (hidden) hidden.value = '';
+                    return;
+                }
+                const visit = opt.dataset.visitDate;
+                if (visit) {
+                    // show a human-friendly date in the display
+                    try {
+                        const d = new Date(visit);
+                        const formatted = d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+                        if (display) display.textContent = formatted;
+                    } catch (err) {
+                        if (display) display.textContent = visit;
+                    }
+                    if (hidden) hidden.value = visit;
+                } else {
+                    if (display) display.textContent = '—';
+                    if (hidden) hidden.value = '';
+                }
+            });
+
+            // Ensure places are loaded when modal opens
+            document.getElementById('reviewModal').addEventListener('show.bs.modal', loadVisitedPlacesForReviews);
+            // Also load once on page load so select is ready fast
+            loadVisitedPlacesForReviews();
         });
 
         function writeReview() { reviewModal?.show(); }

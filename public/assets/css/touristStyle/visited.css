@@ -224,85 +224,21 @@ body {
     margin: 0 auto;
 }
 
-/* Stats Grid */
+/* Stats Grid
+   Use shared stat-card styles from main.css / dashboard.css for consistency.
+   Keep only layout-specific rules here so the visual styling is unified across pages.
+*/
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     gap: 1.5rem;
     margin-bottom: 2rem;
 }
 
-.stat-card {
-    background: #fff;
-    border-radius: 16px;
-    padding: 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 1.25rem;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.06);
-    border: 1px solid rgba(0,0,0,0.04);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    animation: fadeInUp 0.5s ease both;
-}
-.stat-card:nth-child(1) { animation-delay: 0.1s; }
-.stat-card:nth-child(2) { animation-delay: 0.2s; }
-.stat-card:nth-child(3) { animation-delay: 0.3s; }
-
-.stat-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 32px rgba(0,0,0,0.12);
-}
-
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* Added missing keyframes for review-style scale animation */
-@keyframes fadeInScale {
-    from { opacity: 0; transform: scale(0.9); }
-    to { opacity: 1; transform: scale(1); }
-}
-
-.stat-icon {
-    width: 60px;
-    height: 60px;
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.75rem;
-    color: #fff;
-    transition: transform 0.3s ease;
-}
-.stat-card:hover .stat-icon {
-    transform: scale(1.1) rotate(5deg);
-}
-.stat-icon.blue { background: linear-gradient(135deg, var(--stat-blue), #2980b9); }
-.stat-icon.green { background: linear-gradient(135deg, var(--stat-green), #27ae60); }
-.stat-icon.orange { background: linear-gradient(135deg, var(--stat-orange), #e67e22); }
-
-.stat-content h3 {
-    margin: 0 0 0.5rem;
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--light-text);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-.stat-content p {
-    margin: 0;
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--primary-color);
-    line-height: 1;
-}
+/* Small helpers so existing markup fits the shared stat-card styles */
+.stat-card { padding: 1.25rem; display:flex; align-items:center; gap:1rem; }
+.stat-content h3 { margin:0; font-size:0.875rem; color:var(--light-text); font-weight:600; }
+.stat-content p { margin:0; font-size:1.75rem; font-weight:700; color:var(--primary-color); }
 
 /* Timeline Section */
 .timeline-section {
