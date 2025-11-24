@@ -14,8 +14,18 @@
     <!-- Global CSS (Unified Sidebar) -->
     <link rel="stylesheet" href="<?= base_url('assets/css/globals.css')?>">
     <!-- Custom CSS (Inlined Below) -->
+    <link rel="stylesheet" href="<?= base_url('assets/css/touristStyle/dashboard.css')?>">
     <link rel="stylesheet" href="<?= base_url('assets/css/touristStyle/visited.css')?>">
 </head>
+<?php
+// Populate user session data for dynamic profile display
+$session = session();
+$userFirstName = $session->get('FirstName') ?? '';
+$userLastName = $session->get('LastName') ?? '';
+$userEmail = $session->get('Email') ?? '';
+$userInitials = strtoupper(substr($userFirstName, 0, 1) . substr($userLastName, 0, 1));
+$FullName = trim(($userFirstName . ' ' . $userLastName));
+?>
 <body>
     <div class="dashboard-wrapper">
         <aside class="tourist-sidebar" id="sidebar">
@@ -74,96 +84,94 @@
         </aside>
 
         <main class="main-content">
-            <div class="top-bar">
-                <div class="d-flex align-items-center gap-3">
-                    <button class="sidebar-toggle d-lg-none" onclick="toggleSidebar()">
-                        <i class="bi bi-list"></i>
-                    </button>
-                    <h1 class="page-title">Visited Places</h1>
-                </div>
-            </div>
-
-            <!-- Fixed User Actions (Top Right) -->
-            <div class="user-actions-fixed">
-                <!-- Notification -->
-                <div class="dropdown-wrap">
-                    <button class="notification-btn" onclick="toggleNotificationDropdown()">
-                        <i class="bi bi-bell-fill"></i>
-                        <span class="notification-badge" id="notifBadge">3</span>
-                    </button>
-                    <div class="notification-dropdown" id="notificationDropdown">
-                        <div class="notification-header">
-                            <h6>Notifications</h6>
-                            <button class="mark-all-read" onclick="markAllAsRead()">Mark all read</button>
+            <!-- Reuse dashboard page header for consistent styling -->
+            <div class="page-header">
+                <div class="page-header-actions">
+                    <div style="position: relative;">
+                        <button class="notification-btn" onclick="toggleNotificationDropdown()">
+                            <i class="bi bi-bell-fill"></i>
+                            <span class="notification-badge">3</span>
+                        </button>
+                        <div class="notification-dropdown" id="notificationDropdown">
+                            <div class="notification-header">
+                                <h6>Notifications</h6>
+                                <button class="mark-all-read" onclick="markAllAsRead()">Mark all as read</button>
+                            </div>
+                            <ul class="notification-list" id="notificationList">
+                                <li class="notification-item unread">
+                                    <div class="notification-content">
+                                        <div class="notification-icon success"><i class="bi bi-check-circle-fill"></i></div>
+                                        <div class="notification-text">
+                                            <h6>Check-in Logged</h6>
+                                            <p>Added Mount Batulao to your visited list</p>
+                                            <div class="notification-time">1 hour ago</div>
+                                        </div>
+                                    </div>
+                                </li>
+                            </ul>
+                            <div class="notification-footer">
+                                <a href="#" onclick="viewAllNotifications(event)">View all notifications</a>
+                            </div>
                         </div>
-                        <ul class="notification-list" id="notificationList">
-                            <li class="notification-item unread">
-                                <div class="notification-content">
-                                    <div class="notification-icon success"><i class="bi bi-check-circle-fill"></i></div>
-                                    <div class="notification-text">
-                                        <h6>Check-in Logged</h6>
-                                        <p>Added Mount Batulao to your visited list</p>
-                                        <div class="notification-time"><i class="bi bi-clock"></i><span>1 hour ago</span></div>
-                                    </div>
-                                </div>
-                            </li>
-                            <li class="notification-item unread">
-                                <div class="notification-content">
-                                    <div class="notification-icon info"><i class="bi bi-star-fill"></i></div>
-                                    <div class="notification-text">
-                                        <h6>Review Reminder</h6>
-                                        <p>Share thoughts on Caleruega Church</p>
-                                        <div class="notification-time"><i class="bi bi-clock"></i><span>3 hours ago</span></div>
-                                    </div>
-                                </div>
-                            </li>
-                            <li class="notification-item">
-                                <div class="notification-content">
-                                    <div class="notification-icon warning"><i class="bi bi-calendar-event"></i></div>
-                                    <div class="notification-text">
-                                        <h6>Upcoming Trip</h6>
-                                        <p>Fortune Island this weekend</p>
-                                        <div class="notification-time"><i class="bi bi-clock"></i><span>Yesterday</span></div>
-                                    </div>
-                                </div>
-                            </li>
-                        </ul>
-                        <div class="notification-footer">
-                            <a href="#" onclick="viewAllNotifications(event)">View all</a>
+                    </div>
+
+                    <div style="position: relative;">
+                        <div class="user-avatar" onclick="toggleUserDropdown()"><?= esc($userInitials ?: 'JD') ?></div>
+                        <div class="user-dropdown" id="userDropdown">
+                            <div class="dropdown-header">
+                                <h6><?= esc($FullName ?: 'Juan Dela Cruz') ?></h6>
+                                <p><?= esc($userEmail ?: 'juan.delacruz@email.com') ?></p>
+                            </div>
+                            <ul class="dropdown-menu-custom">
+                                <li>
+                                    <a href="#" class="dropdown-item-custom" onclick="openProfile(event); hideUserDropdown(event)">
+                                        <i class="bi bi-person-circle"></i>
+                                        <span>My Profile</span>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="/users/logout" class="dropdown-item-custom logout" onclick="handleLogout(event)">
+                                        <i class="bi bi-box-arrow-right"></i>
+                                        <span>Logout</span>
+                                    </a>
+                                </li>
+                            </ul>
                         </div>
                     </div>
                 </div>
-
-                <!-- Avatar -->
-                <div class="dropdown-wrap">
-                    <div class="user-avatar" onclick="toggleUserDropdown()">JD</div>
-                    <div class="user-dropdown" id="userDropdown">
-                        <div class="dropdown-header">
-                            <h6>Juan Dela Cruz</h6>
-                            <p>juan.delacruz@email.com</p>
-                        </div>
-                        <ul class="menu">
-                            <li><a href="#" onclick="openProfile(event); hideUserDropdown(event)"><i class="bi bi-person-circle"></i><span>My Profile</span></a></li>
-                            <li><a class="logout" href="#" onclick="handleLogout(event)"><i class="bi bi-box-arrow-right"></i><span>Logout</span></a></li>
-                        </ul>
-                    </div>
-                </div>
+                <h2><i class="bi bi-geo-alt-fill"></i> Visited Places</h2>
+                <p>Your travel history and checked-in places.</p>
             </div>
 
             <div class="visited-container">
                 <!-- Stats -->
                 <div class="stats-grid">
                     <div class="stat-card">
-                        <div class="stat-icon blue"><i class="bi bi-geo-alt-fill"></i></div>
-                        <div class="stat-content"><h3>Total Places Visited</h3><p>12</p></div>
+                        <div class="stat-header">
+                            <div>
+                                <div class="stat-value"><span class="count-up" data-target="12">12</span></div>
+                                <div class="stat-label">Total Places Visited</div>
+                            </div>
+                            <div class="stat-icon blue"><i class="bi bi-geo-alt-fill"></i></div>
+                        </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon green"><i class="bi bi-calendar-check"></i></div>
-                        <div class="stat-content"><h3>Trips Completed</h3><p>5</p></div>
+                        <div class="stat-header">
+                            <div>
+                                <div class="stat-value"><span class="count-up" data-target="5">5</span></div>
+                                <div class="stat-label">Trips Completed</div>
+                            </div>
+                            <div class="stat-icon green"><i class="bi bi-calendar-check"></i></div>
+                        </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon orange"><i class="bi bi-camera"></i></div>
-                        <div class="stat-content"><h3>Photos Shared</h3><p>48</p></div>
+                        <div class="stat-header">
+                            <div>
+                                <div class="stat-value"><span class="count-up" data-target="48">48</span></div>
+                                <div class="stat-label">Photos Shared</div>
+                            </div>
+                            <div class="stat-icon orange"><i class="bi bi-camera"></i></div>
+                        </div>
                     </div>
                 </div>
 
@@ -286,7 +294,7 @@
                     <div class="modal-body">
                         <div class="text-center mb-4">
                             <div class="profile-avatar-large" id="profileAvatar">
-                                JD
+                                <?= esc($userInitials ?: 'JD') ?>
                                 <label class="avatar-upload-btn">
                                     <i class="bi bi-camera-fill"></i>
                                     <input type="file" id="avatarUpload" accept="image/jpeg,image/png,image/gif,image/webp">
@@ -300,31 +308,31 @@
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label" for="profileFirstName">First Name</label>
-                                <input class="form-control" id="profileFirstName" value="Juan" required>
+                                <input class="form-control" id="profileFirstName" value="<?= esc($userFirstName) ?>" required>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label" for="profileLastName">Last Name</label>
-                                <input class="form-control" id="profileLastName" value="Dela Cruz" required>
+                                <input class="form-control" id="profileLastName" value="<?= esc($userLastName) ?>" required>
                             </div>
                             <div class="col-12">
                                 <label class="form-label" for="profileEmail">Email Address</label>
-                                <input type="email" class="form-control" id="profileEmail" value="juan.delacruz@email.com" required>
+                                <input type="email" class="form-control" id="profileEmail" value="<?= esc($userEmail) ?>" required>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label" for="profilePhone">Phone Number</label>
-                                <input type="tel" class="form-control" id="profilePhone" value="+63 912 345 6789">
+                                <input type="tel" class="form-control" id="profilePhone" value="<?= esc($session->get('Phone') ?? '') ?>">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label" for="profileBirthdate">Birthdate</label>
-                                <input type="date" class="form-control" id="profileBirthdate" value="1995-05-15">
+                                <input type="date" class="form-control" id="profileBirthdate" value="<?= esc($session->get('Birthdate') ?? '') ?>">
                             </div>
                             <div class="col-12">
                                 <label class="form-label" for="profileAddress">Address</label>
-                                <textarea class="form-control" id="profileAddress" rows="2">Nasugbu, Batangas, Philippines</textarea>
+                                <textarea class="form-control" id="profileAddress" rows="2"><?= esc($session->get('Address') ?? '') ?></textarea>
                             </div>
                             <div class="col-12">
                                 <label class="form-label" for="profileBio">Bio</label>
-                                <textarea class="form-control" id="profileBio" rows="3">Adventure seeker and travel enthusiast exploring Nasugbu!</textarea>
+                                <textarea class="form-control" id="profileBio" rows="3"><?= esc($session->get('Bio') ?? '') ?></textarea>
                             </div>
                         </div>
                         <hr class="my-4">
@@ -361,91 +369,57 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="<?= base_url('assets/js/tourist-ui.js') ?>"></script>
     
     <script>
-        function toggleSidebar() {
-          const sidebar = document.getElementById('sidebar');
-          sidebar.classList.toggle('show');
-        }
-
-        function switchView(view, clickedButton) {
-            // Update button active state
-            document.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
-            clickedButton.classList.add('active');
-
-            const timelineView = document.getElementById('timelineView');
-            const gridView = document.getElementById('gridView');
-
-            // Update view active state
-            timelineView.classList.remove('active');
-            gridView.classList.remove('active');
-
-            if (view === 'timeline') {
-                timelineView.classList.add('active');
-            } else {
-                gridView.classList.add('active');
-            }
-        }
-
-        // Close sidebar on mobile when clicking outside
-        document.addEventListener('click', function(event) {
-            const sidebar = document.getElementById('sidebar');
-            const toggleButton = event.target.closest('.sidebar-toggle');
-            
-            if (window.innerWidth < 992) {
-                if (sidebar.classList.contains('show') && !sidebar.contains(event.target) && !toggleButton) {
-                    sidebar.classList.remove('show');
+                function toggleSidebar() {
+                    const sidebar = document.getElementById('sidebar');
+                    if (!sidebar) return;
+                    sidebar.classList.toggle('hide');
                 }
-            }
-        });
 
-        function toggleNotificationDropdown() {
-            const dd = document.getElementById('notificationDropdown');
-            const ud = document.getElementById('userDropdown');
-            ud?.classList.remove('show');
-            dd.classList.toggle('show');
-        }
-        function toggleUserDropdown() {
-            const dd = document.getElementById('userDropdown');
-            const nd = document.getElementById('notificationDropdown');
-            nd?.classList.remove('show');
-            dd.classList.toggle('show');
-        }
-        function hideUserDropdown(e){ e?.preventDefault?.(); document.getElementById('userDropdown')?.classList.remove('show'); }
-        function markAllAsRead() {
-            document.querySelectorAll('.notification-item.unread').forEach(li => li.classList.remove('unread'));
-            const badge = document.getElementById('notifBadge');
-            if (badge) { badge.textContent = '0'; badge.style.display = 'none'; }
-            showToast('Notifications', 'All notifications marked as read.');
-        }
-        function viewAllNotifications(e){ e.preventDefault(); showToast('Notifications', 'Opening all notifications...'); }
-        document.addEventListener('click', (e) => {
-            const nd = document.getElementById('notificationDropdown');
-            const ud = document.getElementById('userDropdown');
-            const bell = document.querySelector('.notification-btn');
-            const avatar = document.querySelector('.user-avatar');
-            if (nd && !nd.contains(e.target) && !bell.contains(e.target)) nd.classList.remove('show');
-            if (ud && !ud.contains(e.target) && !avatar.contains(e.target)) ud.classList.remove('show');
-        });
-        function showToast(title, msg){
-            const container = document.getElementById('toastContainer');
-            const el = document.createElement('div');
-            el.className = 'toast text-bg-primary';
-            el.role = 'alert'; el.ariaLive = 'assertive'; el.ariaAtomic = 'true';
-            el.innerHTML = `<div class="d-flex align-items-center">
-                <div class="toast-body"><strong>${title}:</strong> ${msg}</div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-            </div>`;
-            container.appendChild(el);
-            const t = new bootstrap.Toast(el, { delay: 3000 });
-            t.show(); el.addEventListener('hidden.bs.toast', () => el.remove());
-        }
-        function handleLogout(e){ e?.preventDefault?.(); logout(); }
-        function openProfile(event) {
-            event?.preventDefault?.();
-            document.getElementById('userDropdown')?.classList.remove('show');
-            bootstrap.Modal.getOrCreateInstance(document.getElementById('profileModal')).show();
-        }
+                if (typeof handleLogout === 'undefined') {
+                    function handleLogout(e){ e?.preventDefault?.(); if (confirm('Are you sure you want to logout?')) { window.location.href = '/users/logout'; } }
+                }
+
+                if (typeof toggleUserDropdown === 'undefined') {
+                    function toggleUserDropdown(){
+                        const dd = document.getElementById('userDropdown'); if (!dd) return; dd.classList.toggle('show');
+                    }
+                }
+
+                if (typeof hideUserDropdown === 'undefined') {
+                    function hideUserDropdown(e){ e?.preventDefault?.(); const dd = document.getElementById('userDropdown'); if (dd) dd.classList.remove('show'); }
+                }
+
+                if (typeof toggleNotificationDropdown === 'undefined') {
+                    function toggleNotificationDropdown(){ const n = document.getElementById('notificationDropdown'); if (!n) return; n.classList.toggle('show'); }
+                }
+
+                if (typeof markAllAsRead === 'undefined') {
+                    function markAllAsRead(){ document.querySelectorAll('.notification-item.unread').forEach(i=>i.classList.remove('unread')); const b=document.getElementById('notifBadge'); if (b) { b.textContent='0'; b.style.display='none'; } }
+                }
+
+                if (typeof viewAllNotifications === 'undefined') {
+                    function viewAllNotifications(e){ e?.preventDefault?.(); document.getElementById('notificationDropdown')?.classList.add('show'); }
+                }
+
+                if (typeof switchView === 'undefined') {
+                    function switchView(view, btn){
+                        document.querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('active'));
+                        if (btn) btn.classList.add('active');
+                        document.getElementById('timelineView')?.classList.toggle('active', view==='timeline');
+                        document.getElementById('gridView')?.classList.toggle('active', view==='grid');
+                    }
+                }
+
+                if (typeof openProfile === 'undefined') {
+                    function openProfile(event) {
+                        event?.preventDefault?.();
+                        document.getElementById('userDropdown')?.classList.remove('show');
+                        bootstrap.Modal.getOrCreateInstance(document.getElementById('profileModal')).show();
+                    }
+                }
 
         // DOM Ready hooks
         document.addEventListener('DOMContentLoaded', () => {

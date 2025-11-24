@@ -506,6 +506,190 @@ public function touristDashboard()
         ]);
     }
 
+    /**
+     * Save a review submitted by the tourist (AJAX endpoint).
+     */
+    public function saveReview()
+    {
+        $session = session();
+        $userID = $session->get('UserID');
+        if (!$userID) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Not authenticated'])->setStatusCode(401);
+        }
+
+        $place = $this->request->getPost('place');
+        $visit_date = $this->request->getPost('visit_date');
+        $rating = (int) $this->request->getPost('rating');
+        $comment = $this->request->getPost('comment');
+
+        if (!$place || !$visit_date || !$rating || !$comment) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Missing required fields'])->setStatusCode(422);
+        }
+
+        $db = \Config\Database::connect();
+
+        // Resolve spot by exact name (required) and derive business_id
+        try {
+            $spotModel = new \App\Models\TouristSpotModel();
+            $s = $spotModel->where('spot_name', $place)->first();
+            if (!$s) {
+                return $this->response->setJSON(['success' => false, 'message' => 'Place not found'], 422);
+            }
+            $spot_id = $s['spot_id'];
+            $business_id = $s['business_id'] ?? null;
+            if (empty($business_id)) {
+                return $this->response->setJSON(['success' => false, 'message' => 'Place owner data missing; cannot accept review'], 422);
+            }
+        } catch (\Throwable $e) {
+            log_message('error', 'Error resolving spot: ' . $e->getMessage());
+            return $this->response->setJSON(['success' => false, 'message' => 'Server error resolving place'])->setStatusCode(500);
+        }
+
+        // Resolve customer_id from customers table if available
+        $customer_id = null;
+        try {
+            $customerModel = new \App\Models\CustomerModel();
+            $c = $customerModel->where('user_id', $userID)->first();
+            if ($c) $customer_id = $c['customer_id'];
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
+        // Verify the user has a booking/checkin for this spot on the visit_date
+        try {
+            $bookingModel = new \App\Models\BookingModel();
+            // Defensive: getFieldNames may fail on some DB drivers or when table missing
+            try {
+                $fields = $db->getFieldNames('bookings');
+                if (!is_array($fields)) $fields = [];
+            } catch (\Throwable $e) {
+                log_message('warning', 'saveReview: could not get bookings fields: ' . $e->getMessage());
+                $fields = [];
+            }
+
+            $visitYmd = date('Y-m-d', strtotime($visit_date));
+            $booking = null;
+
+            // allowed statuses: include Confirmed (many of your DB rows are Confirmed)
+            $allowedStatuses = ['Checked-in','Checked-In','Checked-out','Checked-Out','Completed','Confirmed'];
+
+            // Prefer matching by customer_id if bookings table has customer_id
+            if (!empty($customer_id) && in_array('customer_id', $fields, true)) {
+                try {
+                    $booking = $bookingModel->where('customer_id', $customer_id)
+                        ->where('spot_id', $spot_id)
+                        ->where('visit_date', $visitYmd)
+                        ->whereIn('booking_status', $allowedStatuses)
+                        ->orderBy('booking_id', 'DESC')
+                        ->first();
+                } catch (\Throwable $e) {
+                    log_message('error', 'saveReview: booking query (customer_id) failed: ' . $e->getMessage());
+                }
+            }
+
+            // Fallback: try matching by user_id column in bookings table if present
+            if (!$booking && in_array('user_id', $fields, true)) {
+                try {
+                    $booking = $bookingModel->where('user_id', $userID)
+                        ->where('spot_id', $spot_id)
+                        ->where('visit_date', $visitYmd)
+                        ->whereIn('booking_status', $allowedStatuses)
+                        ->orderBy('booking_id', 'DESC')
+                        ->first();
+                } catch (\Throwable $e) {
+                    log_message('error', 'saveReview: booking query (user_id) failed: ' . $e->getMessage());
+                }
+            }
+
+            // Also allow checkin records (visitor_checkins) for walk-ins or non-booking checkins
+            if (!$booking && $db->tableExists('visitor_checkins')) {
+                $checkinModel = new \App\Models\CreateVisitorCheckIn();
+                $existing = $checkinModel->where('spot_id', $spot_id)
+                    ->where('customer_id', $customer_id ?: $userID)
+                    ->where('checkin_time >=', $visitYmd . ' 00:00:00')
+                    ->where('checkin_time <=', $visitYmd . ' 23:59:59')
+                    ->orderBy('checkin_id', 'DESC')
+                    ->first();
+
+                if ($existing && !empty($existing['booking_id'])) {
+                    // load the referenced booking to ensure FK exists
+                    $booking = $bookingModel->find($existing['booking_id']);
+                }
+            }
+
+            if (!$booking || empty($booking)) {
+                return $this->response->setJSON(['success' => false, 'message' => 'You can only review places you have checked in to.'])->setStatusCode(403);
+            }
+
+            $booking_id = (int) ($booking['booking_id'] ?? 0);
+        } catch (\Throwable $e) {
+            $msg = $e->getMessage();
+            log_message('error', 'Error verifying booking/checkin for review: ' . $msg);
+            // In development include the exception message to aid debugging
+            $env = getenv('CI_ENVIRONMENT') ?: getenv('ENVIRONMENT') ?: 'production';
+            $userMessage = 'Server error verifying visit';
+            if (strtolower($env) === 'development') {
+                $userMessage .= ': ' . $msg;
+            }
+            return $this->response->setJSON(['success' => false, 'message' => $userMessage])->setStatusCode(500);
+        }
+
+        // Build feedback payload filling required fields for the schema
+        $feedbackModel = new \App\Models\FeedbackModel();
+        $data = [
+            'booking_id' => $booking_id,
+            'spot_id' => $spot_id,
+            'customer_id' => $customer_id ?: $userID,
+            'business_id' => $business_id ?: 0,
+            'rating' => $rating,
+            'title' => $place,
+            'comment' => $comment,
+            // set sub-ratings to the same overall rating if not provided separately
+            'cleanliness_rating' => $rating,
+            'staff_rating' => $rating,
+            'value_rating' => $rating,
+            'location_rating' => $rating,
+            'status' => 'Pending',
+            'is_verified_visit' => 1,
+        ];
+
+        try {
+            $insertId = $feedbackModel->insert($data);
+        } catch (\Throwable $e) {
+            log_message('error', 'Failed saving review: ' . $e->getMessage());
+            return $this->response->setJSON(['success' => false, 'message' => 'Failed to save review'])->setStatusCode(500);
+        }
+
+        // Optionally accept files (move to uploads/reviews) but do not currently link them in DB
+        try {
+            $files = $this->request->getFiles();
+            if (!empty($files)) {
+                $targetDir = WRITEPATH . 'uploads/reviews/';
+                if (!is_dir($targetDir)) @mkdir($targetDir, 0755, true);
+                foreach ($files as $field => $f) {
+                    if (is_array($f)) {
+                        foreach ($f as $one) {
+                            if ($one->isValid() && !$one->hasMoved()) {
+                                $name = $one->getRandomName();
+                                $one->move($targetDir, $name);
+                            }
+                        }
+                    } else {
+                        if ($f->isValid() && !$f->hasMoved()) {
+                            $name = $f->getRandomName();
+                            $f->move($targetDir, $name);
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // do not fail the request for file move issues
+            log_message('error', 'Error moving review files: ' . $e->getMessage());
+        }
+
+        return $this->response->setJSON(['success' => true, 'message' => 'Review saved', 'id' => $insertId]);
+    }
+
     public function touristVisits()
     {
         return view('Pages/tourist/visited', [
@@ -1370,8 +1554,21 @@ public function getVisitedPlacesAjax()
         }
 
         try {
+            // Some installations store bookings.customer_id (numeric) that differs from users.UserID.
+            // Try to resolve a customer_id for the current user and pass that to the model.
+            $customerSearchId = (int)$userId;
+            try {
+                $customerModel = new \App\Models\CustomerModel();
+                $cust = $customerModel->where('user_id', $userId)->first();
+                if ($cust && !empty($cust['customer_id'])) {
+                    $customerSearchId = (int)$cust['customer_id'];
+                }
+            } catch (\Throwable $e) {
+                // ignore and fallback to using UserID directly
+            }
+
             $bookingModel = new BookingModel();
-            $visited = $bookingModel->getVisitedPlacesByUser((int)$userId);
+            $visited = $bookingModel->getVisitedPlacesByUser((int)$customerSearchId);
 
             // Normalize output keys if necessary
             $data = array_map(function ($row) {

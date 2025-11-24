@@ -116,6 +116,10 @@ $routes->get('/tourist/getFavorites', 'TouristController::getFavorites');
 // Dashboard live stats (AJAX)
 $routes->get('/tourist/dashboardStats', 'TouristController::dashboardStats');
 
+// Save review (AJAX)
+$routes->post('/tourist/saveReview', 'TouristController::saveReview');
+
+
 //TEST API ROUTE
 $routes->get('/test-api/key', 'TestApi::testKey');
 
