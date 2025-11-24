@@ -244,10 +244,70 @@ body {
     box-shadow: var(--shadow-sm);
     position: sticky;
     top: 0;
-    z-index: 998;
+    z-index: 1102; /* raise above overlay to ensure topbar controls are clickable */
     display: flex;
     align-items: center;
     justify-content: space-between;
+}
+
+/* Hide hamburger (sidebar toggle) on desktop / wide screens. Only show on narrow/mobile. */
+@media (min-width: 992px) {
+    #sidebarToggle { display: none !important; }
+}
+
+/* Mobile behavior: collapse sidebar by default and show when `.active` is applied. */
+@media (max-width: 991.98px) {
+    /* Use transform to slide the sidebar over content (no layout shift) */
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        width: 256px;
+        transform: translateX(-100%);
+        transition: transform 0.28s ease;
+        z-index: 1205;
+        margin: 0;
+    }
+
+    .sidebar.active {
+        transform: translateX(0);
+    }
+
+    .main-content {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    /* overlay when sidebar is open */
+    .sidebar-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.45);
+        z-index: 1200;
+        display: none;
+    }
+    .sidebar-overlay.active { display: block; }
+}
+
+/* Desktop: keep topbar controls (notifications + user) anchored to the right
+   so they do NOT move with the sidebar on larger screens. */
+@media (min-width: 992px) {
+    .top-bar {
+        justify-content: space-between !important;
+        gap: 0.75rem;
+    }
+
+    /* The actions group (notification + user) should be pushed to the right */
+    .top-bar > .d-flex.align-items-center {
+        margin-left: auto !important;
+        position: relative;
+    }
+
+    /* Helper: allow other elements to be pushed to far right if needed */
+    .top-bar .push-right {
+        margin-left: auto;
+    }
 }
 
 .top-bar .search-box {
@@ -273,14 +333,59 @@ body {
 
 .top-bar .notification-dot {
     position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 8px;
-    height: 8px;
+    top: 6px;
+    right: 6px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 6px;
     background: var(--danger-red);
-    border-radius: 50%;
+    color: white;
+    font-size: 11px;
+    line-height: 18px;
+    text-align: center;
+    border-radius: 999px;
     border: 2px solid white;
+    display: none; /* hidden by default; shown when count > 0 */
 }
+
+.top-bar .notification-button {
+    cursor: pointer; /* make it obvious the bell is clickable */
+    position: relative; /* ensure z-index applies */
+    z-index: 1103; /* above the topbar and overlay */
+}
+
+.top-bar .notification-button { pointer-events: auto; }
+
+.top-bar .dropdown-menu {
+    z-index: 1110; /* ensure dropdown appears above overlays and charts */
+}
+
+/* Ensure top-bar dropdowns (notification bell) align under the button and don't get pushed off-screen */
+.top-bar .dropdown { position: relative; }
+.top-bar .dropdown .dropdown-menu {
+    position: absolute;
+    right: 0;       /* align to the right edge of the button */
+    left: auto;
+    top: calc(100% + 8px);
+    margin: 0;
+    min-width: 320px;
+    max-width: 420px;
+    max-height: 60vh;
+    overflow: auto;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+}
+
+/* Slight adjustment for very small screens */
+@media (max-width: 575px) {
+    .top-bar .dropdown .dropdown-menu { right: 8px; left: 8px; min-width: auto; width: calc(100% - 16px); }
+}
+
+/* Notification dropdown items */
+.notification-item { padding: 0; }
+.notification-item .dropdown-item { display: flex; align-items: center; gap: .5rem; padding: .5rem 0.75rem; }
+.notification-unread .dropdown-item { background: rgba(220,53,69,0.06); font-weight: 600; }
+.notification-item .small { display: block; margin-top: 0.25rem; }
+.dropdown-header .mark-all-read { font-size: .8rem; }
 
 /* Content Sections */
 .content-section {
@@ -2689,4 +2794,31 @@ a, button, input, select, textarea {
 
 .shadow-on-scroll.scrolled {
     box-shadow: var(--shadow-lg);
+}
+
+/* Final mobile sidebar override to enforce proper stacking and transform behavior
+   (placed at end to override earlier conflicting rules) */
+@media (max-width: 991.98px) {
+    .sidebar {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 256px !important;
+        margin-left: 0 !important;
+        transform: translateX(-100%) !important;
+        transition: transform 0.28s ease !important;
+        z-index: 1300 !important;
+        box-shadow: 8px 0 40px rgba(0,0,0,0.35) !important;
+    }
+
+    .sidebar.active {
+        transform: translateX(0) !important;
+    }
+
+    .sidebar-overlay {
+        z-index: 1250 !important;
+        display: none;
+    }
+
+    .sidebar-overlay.active { display: block !important; }
 }

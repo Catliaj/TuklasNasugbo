@@ -97,6 +97,9 @@
     // B. Registrations Page
     if (el('registrationsTable')) {
       loadRegistrations_API();
+        // Search input on registrations page (moved into page header)
+        const regSearch = el('searchRegistrations');
+        if (regSearch) regSearch.addEventListener('input', () => window.filterRegistrations_API(registrationsCurrentFilter || 'all'));
     }
 
     // C. Attractions Page
@@ -130,6 +133,8 @@
       });
     }
 
+    // Initialize notification dropdowns (if any)
+    try { initNotifications(); } catch (e) { /* ignore if not applicable */ }
     console.log('Admin Script initialized.');
   });
 
@@ -142,18 +147,262 @@
     const overlay = el('sidebarOverlay');
 
     if (sidebarToggle && sidebar) {
-      sidebarToggle.addEventListener('click', () => {
+      sidebarToggle.addEventListener('click', (ev) => {
+        try {
+          ev.preventDefault();
+        } catch (e) { /* ignore */ }
+        const willOpen = !sidebar.classList.contains('active');
         sidebar.classList.toggle('active');
-        if (overlay) overlay.classList.toggle('active');
+        if (overlay) {
+          overlay.classList.toggle('active', willOpen);
+        }
+        // Accessibility hint
+        try { sidebarToggle.setAttribute('aria-expanded', String(willOpen)); } catch (e) {}
+        // Prevent body scroll when sidebar is open on small screens
+        if (willOpen && window.innerWidth <= 991) {
+          document.body.style.overflow = 'hidden';
+        } else {
+          document.body.style.overflow = '';
+        }
       });
     }
+
+    // Auto-close sidebar when a nav item is clicked on narrow screens (mobile UX)
+    try {
+      const navLinks = sidebar.querySelectorAll('.sidebar-nav .nav-item');
+      navLinks.forEach(link => {
+        link.addEventListener('click', () => {
+          // Use Bootstrap's lg breakpoint (992px) as the threshold
+          if (window.innerWidth <= 991) {
+            sidebar.classList.remove('active');
+            if (overlay) overlay.classList.remove('active');
+          }
+        });
+      });
+    } catch (e) { /* ignore if sidebar not present */ }
+
     if (overlay) {
       overlay.addEventListener('click', () => {
         sidebar.classList.remove('active');
         overlay.classList.remove('active');
+        document.body.style.overflow = '';
       });
     }
+
+    // Also ensure clicking the overlay (anywhere outside) closes the sidebar
+    document.addEventListener('click', function (e) {
+      const isSmall = window.innerWidth <= 991;
+      if (!isSmall) return;
+      if (e.target.closest && e.target.closest('.sidebar')) return; // clicks inside sidebar
+      if (e.target.closest && e.target.closest('#sidebarToggle')) return; // clicks on toggle
+      const openSidebar = document.querySelector('.sidebar.active');
+      const openOverlay = document.getElementById('sidebarOverlay');
+      if (openSidebar && openOverlay && openOverlay.classList.contains('active')) {
+        openSidebar.classList.remove('active');
+        openOverlay.classList.remove('active');
+        document.body.style.overflow = '';
+      }
+    });
+
+    // If the window is resized to desktop width, ensure sidebar is visible and body scroll restored
+    window.addEventListener('resize', () => {
+      if (window.innerWidth > 991) {
+        if (sidebar && !sidebar.classList.contains('active')) {
+          // make sure desktop keeps visible state (no transform applied)
+          sidebar.classList.remove('active');
+        }
+        if (overlay) overlay.classList.remove('active');
+        document.body.style.overflow = '';
+      }
+    });
   }
+
+  // ------------------------------
+  // Notifications (Reusable)
+  // ------------------------------
+  function initNotifications() {
+    // Helper to toggle dropdown visibility when Bootstrap JS is not available
+    function toggleDropdownFallback(btn) {
+      try {
+        const dropdown = btn.closest('.dropdown');
+        if (!dropdown) return;
+        const menu = dropdown.querySelector('.dropdown-menu');
+        if (!menu) return;
+        const isShown = menu.classList.contains('show');
+        if (isShown) {
+          menu.classList.remove('show');
+          menu.style.display = 'none';
+          btn.setAttribute('aria-expanded', 'false');
+        } else {
+          menu.classList.add('show');
+          menu.style.display = 'block';
+          btn.setAttribute('aria-expanded', 'true');
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    // Helper: fetch notifications and render into dropdown menu for a given button
+    async function fetchAndRenderNotifications(btn) {
+      const dropdown = btn.closest('.dropdown');
+      const menu = dropdown ? dropdown.querySelector('.dropdown-menu') : null;
+      if (!menu) return;
+      menu.innerHTML = `
+        <li class="dropdown-header d-flex justify-content-between align-items-center">
+          <span class="small text-muted">Notifications</span>
+          <button class="btn btn-sm btn-link mark-all-read">Mark all read</button>
+        </li>
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-item text-center small text-muted">Loading...</li>`;
+
+      try {
+        const resp = await fetch(`${(typeof BASE_URL !== 'undefined' ? BASE_URL : '/') }admin/notifications/list`);
+        if (!resp.ok) {
+          menu.innerHTML = '<li class="dropdown-item text-muted small">No notifications</li>';
+          return;
+        }
+
+        const data = await resp.json();
+
+        if (!data || data.length === 0) {
+          menu.innerHTML = `
+            <li class="dropdown-header d-flex justify-content-between align-items-center">
+              <span class="small text-muted">Notifications</span>
+              <button class="btn btn-sm btn-link mark-all-read">Mark all read</button>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            <li class="dropdown-item text-muted small">No new notifications</li>`;
+        } else {
+          const itemsHtml = data.map(n => {
+            const isUnread = String(n.is_read || '0') === '0' || n.is_read === 0;
+            const time = n.created_at ? new Date(n.created_at).toLocaleString() : '';
+            const content = `
+                  <div class="me-2">
+                    <div class="fw-semibold">${safeText(n.message)}</div>
+                    <div class="small text-muted">${time}</div>
+                  </div>
+                  ${isUnread ? '<span class="badge bg-danger ms-2">new</span>' : ''}
+            `;
+
+            // Render all notifications as non-clickable informational items
+            return `
+              <li class="notification-item ${isUnread ? 'notification-unread' : ''}">
+                <div class="dropdown-item d-flex justify-content-between align-items-start">
+                  ${content}
+                </div>
+              </li>`;
+          }).join('');
+
+          menu.innerHTML = `
+            <li class="dropdown-header d-flex justify-content-between align-items-center">
+              <span class="small text-muted">Notifications</span>
+              <button class="btn btn-sm btn-link mark-all-read">Mark all read</button>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            ${itemsHtml}`;
+        }
+
+        // Auto-mark as read when dropdown is opened (persist server-side)
+        const dot = btn.querySelector('.notification-dot');
+        if (dot) {
+          try {
+            const fd = new FormData(); appendCsrf(fd);
+            await fetch(`${(typeof BASE_URL !== 'undefined' ? BASE_URL : '/') }admin/notifications/mark-read`, { method: 'POST', body: fd, headers: {'X-Requested-With':'XMLHttpRequest'} });
+          } catch (e) { /* non-fatal */ }
+          dot.textContent = '';
+          dot.style.display = 'none';
+        }
+
+        // Attach handler for "Mark all read" button
+        const markBtn = menu.querySelector('.mark-all-read');
+        if (markBtn) {
+          markBtn.addEventListener('click', async (ev) => {
+            ev.preventDefault();
+            try {
+              const r = await fetch(`${(typeof BASE_URL !== 'undefined' ? BASE_URL : '/') }admin/notifications/mark-read`, { method: 'POST', headers: {'X-Requested-With':'XMLHttpRequest'} });
+              if (r.ok) {
+                menu.querySelectorAll('.notification-unread').forEach(el => el.classList.remove('notification-unread'));
+                const dot2 = btn.querySelector('.notification-dot'); if (dot2) { dot2.textContent = ''; dot2.style.display = 'none'; }
+              }
+            } catch (e) { console.error('Mark read failed', e); }
+          });
+        }
+
+      } catch (err) {
+        menu.innerHTML = '<li class="dropdown-item text-danger small">Error loading notifications</li>';
+      }
+    }
+
+    // Attach click handlers to any notification-button in the page (for backward compatibility)
+    document.querySelectorAll('.notification-button').forEach(btn => {
+      if (btn._notifAttached) return; btn._notifAttached = true;
+      btn.addEventListener('click', async function (e) {
+        try {
+          e.preventDefault();
+          // Ensure Bootstrap toggles the dropdown (some pages may not initialize automatically)
+          // Try Bootstrap toggle first; if bootstrap is not available use fallback
+          try {
+            if (window.bootstrap && bootstrap.Dropdown) {
+              new bootstrap.Dropdown(btn).toggle();
+            } else {
+              toggleDropdownFallback(btn);
+            }
+          } catch (ex) { toggleDropdownFallback(btn); }
+          await fetchAndRenderNotifications(btn);
+        } catch (err) { console.error('Notification click error', err); }
+      });
+    });
+
+    // Fallback: delegated capturing listener to ensure clicks are handled even
+    // if some layer interferes with normal event propagation.
+    document.addEventListener('click', function (e) {
+      const btn = e.target.closest && e.target.closest('.notification-button');
+      if (!btn) return;
+      // If already handled by direct listener, skip
+      if (btn._notifAttachedHandled) return;
+      btn._notifAttachedHandled = true;
+      (async () => {
+        try {
+          e.preventDefault();
+          try { new bootstrap.Dropdown(btn).toggle(); } catch (ex) { /* ignore */ }
+          await fetchAndRenderNotifications(btn);
+        } catch (err) { console.error('Delegated notification click error', err); }
+        // allow re-handling in future clicks
+        setTimeout(() => { btn._notifAttachedHandled = false; }, 250);
+      })();
+    }, true);
+
+    // Also listen to Bootstrap dropdown events to populate menus reliably (fixes reports page)
+    document.addEventListener('show.bs.dropdown', function (e) {
+      try {
+        const dropdown = e.target;
+        const btn = dropdown.querySelector('.notification-button');
+        if (btn) fetchAndRenderNotifications(btn);
+      } catch (ex) { /* ignore */ }
+    });
+
+  }
+
+  // Poll unread count periodically (realtime-ish)
+  (function startNotificationPolling() {
+    const POLL_MS = 15000; // 15 seconds
+    async function updateAllDots() {
+      try {
+        const resp = await fetch(`${(typeof BASE_URL !== 'undefined' ? BASE_URL : '/') }admin/notifications/unread-count`);
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const unread = parseInt(data.unread || 0, 10);
+        document.querySelectorAll('.notification-button').forEach(btn => {
+          const dot = btn.querySelector('.notification-dot');
+          if (!dot) return;
+          dot.textContent = unread > 0 ? String(unread) : '';
+          dot.style.display = unread > 0 ? 'inline-block' : 'none';
+        });
+      } catch (e) { /* ignore */ }
+    }
+    // Run immediately and then poll
+    updateAllDots();
+    setInterval(updateAllDots, POLL_MS);
+  })();
 
   // ------------------------------
   // 4. DASHBOARD LOGIC
@@ -232,6 +481,7 @@
   // ------------------------------
   let registrationsCache = [];
   let currentRegistrationId = null;
+  let registrationsCurrentFilter = 'all';
 
   async function loadRegistrations_API() {
     const tableBody = el('registrationsTable');
@@ -242,6 +492,8 @@
       if (!resp.ok) throw new Error('API Error');
       registrationsCache = await resp.json();
       renderRegistrations_API(registrationsCache);
+      // Ensure header buttons and search are applied after data load
+      try { window.filterRegistrations_API(registrationsCurrentFilter || 'all'); } catch(e) {}
     } catch (e) {
       console.error(e);
       tableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger p-4">Could not load data.</td></tr>`;
@@ -283,6 +535,66 @@
         </tr>`;
     }).join('');
   }
+
+  /**
+   * Filter registrations by status and update the table.
+   * Called from the buttons in `registrations.php` via `onclick="filterRegistrations_API('pending')"`.
+   */
+  window.filterRegistrations_API = function(status) {
+    const s = String(status || '').trim().toLowerCase();
+    registrationsCurrentFilter = s || 'all';
+    let list = (registrationsCache || []).slice();
+
+    // Apply status filter
+    if (s && s !== 'all') {
+      list = list.filter(r => String(r.status || '').trim().toLowerCase() === s);
+    }
+
+    // Apply search term if present
+    const term = el('searchRegistrations') ? String(el('searchRegistrations').value || '').trim().toLowerCase() : '';
+    if (term) {
+      list = list.filter(r => {
+        const name = `${r.FirstName || ''} ${r.LastName || ''}`.toLowerCase();
+        return (String(r.business_name || '').toLowerCase().includes(term) ||
+                name.includes(term) ||
+                String(r.contact_email || '').toLowerCase().includes(term) ||
+                String(r.contact_phone || '').toLowerCase().includes(term) ||
+                String(r.business_address || '').toLowerCase().includes(term));
+      });
+    }
+    renderRegistrations_API(list);
+
+    // Update button styles in the page header to reflect active filter.
+    // Find all buttons that call filterRegistrations_API(...) and update classes.
+    const btns = document.querySelectorAll('[onclick*="filterRegistrations_API"]');
+    btns.forEach(btn => {
+      // Remove any existing 'active' or primary classes and outline classes
+      btn.classList.remove('active');
+      btn.classList.remove('btn-primary');
+      // Remove any btn-outline-* classes
+      Array.from(btn.classList).forEach(cls => {
+        if (cls.startsWith('btn-outline-')) btn.classList.remove(cls);
+      });
+
+      // Determine the filter value embedded in the onclick attribute
+      const attr = btn.getAttribute('onclick') || '';
+      const m = attr.match(/filterRegistrations_API\(\s*['\"]?(\w+)['\"]?\s*\)/i);
+      const val = m ? String(m[1]).toLowerCase() : '';
+
+      if ((s === 'all' && val === 'all') || (s && val === s)) {
+        // Active: use filled primary style for visibility
+        btn.classList.add('active');
+        btn.classList.add('btn-primary');
+      } else {
+        // Restore appropriate outline style based on the button intent
+        let outline = 'btn-outline-primary';
+        if (val === 'pending') outline = 'btn-outline-warning';
+        else if (val === 'approved') outline = 'btn-outline-success';
+        else if (val === 'rejected') outline = 'btn-outline-danger';
+        btn.classList.add(outline);
+      }
+    });
+  };
 
   function getStatusBadgeClass(status, label) {
     const s = String(status || '').toLowerCase();
@@ -400,8 +712,15 @@
     const filtered = allAttractions.filter(a => {
       const name = (a.spot_name || '').toLowerCase();
       const matchName = name.includes(term);
-      const matchCat = !cat || a.category === cat;
-      const matchStat = !stat || a.status === stat;
+
+      // Normalize category/status for robust matching (trim + case-insensitive)
+      const aCat = String(a.category || '').trim().toLowerCase();
+      const aStat = String(a.status || '').trim().toLowerCase();
+      const selCat = String(cat || '').trim().toLowerCase();
+      const selStat = String(stat || '').trim().toLowerCase();
+
+      const matchCat = !selCat || aCat === selCat;
+      const matchStat = !selStat || aStat === selStat;
       return matchName && matchCat && matchStat;
     });
     renderAttractions_API(filtered);
@@ -410,17 +729,132 @@
   window.viewAttraction_API = async function(id) {
     const content = el('viewAttractionContent');
     content.innerHTML = 'Loading...';
+    // If pending modal is open, hide it temporarily so the view modal appears on top
+    const pendingModalEl = el('pendingRequestsModal');
+    let pendingWasOpen = false;
+    if (pendingModalEl && pendingModalEl.classList.contains('show')) {
+      pendingWasOpen = true;
+      const pm = bootstrap.Modal.getInstance(pendingModalEl) || new bootstrap.Modal(pendingModalEl);
+      pm.hide();
+    }
     new bootstrap.Modal(el('viewAttractionModal')).show();
     try {
       const resp = await fetch(`${BASE_URL}admin/attractions/view/${id}`);
       const data = await resp.json();
+      // Build a richer detail view including gallery and owner info
+      const galleryHtml = (data.images && data.images.length) ? data.images.map(img => `<img src="${(BASE_URL||'')+'uploads/spots/gallery/'+img.image}" style="height:100px;object-fit:cover;margin-right:8px;border-radius:6px">`).join('') : '';
       content.innerHTML = `
-        <h4>${safeText(data.spot_name)}</h4>
-        <p>Category: ${safeText(data.category)}</p>
-        <p>Status: ${safeText(data.status)}</p>
-        <p>Price: ₱${safeText(data.price_per_person)}</p>
+        <div class="row">
+          <div class="col-md-6">
+            <h4 class="mb-2">${safeText(data.spot_name)}</h4>
+            <p class="small text-muted mb-1">${safeText(data.location)}</p>
+            <p>${safeText(data.description)}</p>
+            <div class="mb-2"><strong>Category:</strong> ${safeText(data.category)}</div>
+            <div class="mb-2"><strong>Capacity:</strong> ${safeText(data.capacity || 'N/A')}</div>
+            <div class="mb-2"><strong>Operating Hours:</strong> ${safeText(data.opening_time || 'N/A')} - ${safeText(data.closing_time || 'N/A')}</div>
+            <div class="mb-2"><strong>Price:</strong> ₱${safeText(data.price_per_person || '0.00')}</div>
+            <div class="mb-2"><strong>Status:</strong> ${safeText(data.status)}</div>
+            <hr>
+            <h6>Owner / Business</h6>
+            <p class="mb-0"><strong>${safeText(data.business_name)}</strong></p>
+            <p class="small text-muted">${safeText(data.FirstName || '')} ${safeText(data.LastName || '')}</p>
+          </div>
+          <div class="col-md-6">
+            <div class="mb-3" style="display:flex;flex-wrap:wrap">${galleryHtml}</div>
+            <div class="small text-muted">Primary Image</div>
+            <img src="${(BASE_URL||'')+'uploads/spots/'+(data.primary_image||'Spot-No-Image.png')}" style="width:100%;height:180px;object-fit:cover;border-radius:6px;margin-top:8px" onerror="this.onerror=null;this.src='${(BASE_URL||'')+'uploads/spots/Spot-No-Image.png'}'">
+          </div>
+        </div>
       `;
     } catch(e) { content.innerHTML = 'Error loading.'; }
+
+    // When the view modal hides, if the pending modal was open before, re-open it
+    const viewModalEl = el('viewAttractionModal');
+    if (viewModalEl) {
+      viewModalEl.addEventListener('hidden.bs.modal', function handler() {
+        if (pendingWasOpen && pendingModalEl) {
+          new bootstrap.Modal(pendingModalEl).show();
+        }
+        viewModalEl.removeEventListener('hidden.bs.modal', handler);
+      });
+    }
+  };
+
+  // Load pending attractions for admin review
+  window.loadPendingAttractions_API = async function() {
+    const table = el('pendingRequestsTable');
+    if (!table) return;
+    table.innerHTML = '<tr><td colspan="6" class="text-center p-3">Loading...</td></tr>';
+    try {
+      const resp = await fetch(`${BASE_URL}admin/attractions/pending`);
+      if (!resp.ok) throw new Error('Failed to fetch');
+      const data = await resp.json();
+      if (!data || data.length === 0) {
+        table.innerHTML = '<tr><td colspan="6" class="text-center p-3 text-muted">No pending requests.</td></tr>';
+      } else {
+        table.innerHTML = data.map((r, idx) => `
+          <tr>
+            <td>${idx+1}</td>
+            <td><strong>${safeText(r.spot_name)}</strong></td>
+            <td>${safeText(r.business_name)}</td>
+            <td>${safeText(r.category)}</td>
+            <td>${safeText(new Date(r.created_at).toLocaleDateString())}</td>
+            <td class="text-center">
+              <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-primary" onclick="viewAttraction_API(${r.spot_id})"><i class="bi bi-eye"></i></button>
+                <button class="btn btn-outline-success" onclick="openApproveAttractionModal_API(${r.spot_id})" title="Approve"><i class="bi bi-check-circle"></i></button>
+                <button class="btn btn-outline-warning" onclick="openRejectAttractionModal_API(${r.spot_id})" title="Reject"><i class="bi bi-x-circle"></i></button>
+                <button class="btn btn-outline-danger" onclick="openDeleteModal_API(${r.spot_id})"><i class="bi bi-trash"></i></button>
+              </div>
+            </td>
+          </tr>`).join('');
+      }
+      new bootstrap.Modal(el('pendingRequestsModal')).show();
+    } catch (e) {
+      table.innerHTML = '<tr><td colspan="6" class="text-center p-3 text-danger">Error loading pending requests.</td></tr>';
+    }
+  };
+
+  // Modal-based approve/reject flows for pending attractions
+  let currentPendingAttractionId = null;
+  window.openApproveAttractionModal_API = function(id) {
+    currentPendingAttractionId = id;
+    if (el('approveAttractionModal')) new bootstrap.Modal(el('approveAttractionModal')).show();
+  };
+
+  window.confirmApproveAttraction_API = async function() {
+    if (!currentPendingAttractionId) return alert('Missing ID');
+    try {
+      const formData = new FormData(); appendCsrf(formData);
+      const resp = await fetch(`${BASE_URL}admin/attractions/approve/${currentPendingAttractionId}`, { method: 'POST', body: formData, headers: {'X-Requested-With': 'XMLHttpRequest'} });
+      const res = await resp.json();
+      if (!resp.ok) throw new Error(res.error || 'Approve failed');
+      bootstrap.Modal.getInstance(el('approveAttractionModal')).hide();
+      showToast(res.success || 'Approved', 'success');
+      loadPendingAttractions_API(); loadAttractions_API();
+    } catch (e) { alert(e.message || 'Error approving attraction'); }
+  };
+
+  window.openRejectAttractionModal_API = function(id) {
+    currentPendingAttractionId = id;
+    if (el('rejectAttractionModal')) {
+      el('pendingRejectReason').value = '';
+      new bootstrap.Modal(el('rejectAttractionModal')).show();
+    }
+  };
+
+  window.confirmRejectAttraction_API = async function() {
+    const reason = el('pendingRejectReason') ? el('pendingRejectReason').value.trim() : '';
+    if (!reason) return alert('Reason is required');
+    try {
+      const formData = new FormData(); formData.append('reason', reason); appendCsrf(formData);
+      const resp = await fetch(`${BASE_URL}admin/attractions/reject/${currentPendingAttractionId}`, { method: 'POST', body: formData, headers: {'X-Requested-With': 'XMLHttpRequest'} });
+      const res = await resp.json();
+      if (!resp.ok) throw new Error(res.error || 'Reject failed');
+      bootstrap.Modal.getInstance(el('rejectAttractionModal')).hide();
+      showToast(res.success || 'Rejected', 'warning');
+      loadPendingAttractions_API(); loadAttractions_API();
+    } catch (e) { alert(e.message || 'Error rejecting attraction'); }
   };
 
   window.openSuspendModal_API = function(id) { currentAttractionId = id; el('suspendReason').value = ''; new bootstrap.Modal(el('suspendModal')).show(); };
@@ -549,9 +983,6 @@
     });
   }
 
-  // ------------------------------
-  // 8. UTILS
-  // ------------------------------
   function appendCsrf(formData) {
     const name = document.querySelector('meta[name="csrf-token-name"]');
     const val = document.querySelector('meta[name="csrf-token-value"]');

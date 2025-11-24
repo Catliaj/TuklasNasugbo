@@ -31,8 +31,8 @@
         <div class="sidebar-header"><i class="bi bi-compass"></i><span>Tourism Admin</span></div>
         <nav class="sidebar-nav">
             <a href="/admin/dashboard" class="nav-item"><i class="bi bi-grid"></i><span>Dashboard</span></a>
-            <a href="/admin/registrations" class="nav-item"><i class="bi bi-person-plus"></i><span>Registrations</span></a>
-            <a href="/admin/attractions" class="nav-item"><i class="bi bi-geo-alt"></i><span>Attractions</span></a>
+            <a href="/admin/registrations" class="nav-item"><i class="bi bi-person-plus"></i><span>Registrations</span><span class="badge-pending-registrations badge bg-danger text-white ms-2" style="display:none;font-size:0.7rem;padding:2px 6px;border-radius:12px"></span></a>
+            <a href="/admin/attractions" class="nav-item"><i class="bi bi-geo-alt"></i><span>Attractions</span><span class="badge-pending-attractions badge bg-danger text-white ms-2" style="display:none;font-size:0.7rem;padding:2px 6px;border-radius:12px"></span></a>
             <a href="/admin/reports" class="nav-item active"><i class="bi bi-file-bar-graph"></i><span>Reports & Analytics</span></a>
         </nav>
         <div class="sidebar-footer"><a href="/users/logout" class="nav-item text-danger"><i class="bi bi-box-arrow-left"></i><span>Logout</span></a></div>
@@ -42,13 +42,26 @@
     <div class="main-content">
         <div class="top-bar">
             <button class="btn btn-link text-dark" id="sidebarToggle"><i class="bi bi-list fs-4"></i></button>
-            <div class="dropdown">
-                <button class="btn btn-link text-dark dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                    <i class="bi bi-person-circle fs-5 me-2"></i><span class="d-none d-md-inline">Admin User</span>
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end">
-                    <li><a class="dropdown-item text-danger" href="/users/logout"><i class="bi bi-box-arrow-left me-2"></i>Logout</a></li>
-                </ul>
+
+            <div class="d-flex align-items-center gap-3">
+                <div class="dropdown">
+                    <button class="btn btn-link text-dark position-relative notification-button" id="notificationButtonReports" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-bell fs-5"></i>
+                        <span class="notification-dot"></span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end p-2" id="notificationMenuReports" style="min-width:320px">
+                        <li class="dropdown-item text-muted small">No new notifications</li>
+                    </ul>
+                </div>
+
+                <div class="dropdown">
+                    <button class="btn btn-link text-dark dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-person-circle fs-5 me-2"></i><span class="d-none d-md-inline">Admin User</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item text-danger" href="/users/logout"><i class="bi bi-box-arrow-left me-2"></i>Logout</a></li>
+                    </ul>
+                </div>
             </div>
         </div>
 
@@ -155,7 +168,9 @@
             const renderPerformanceRadar = (canvasId, performanceData) => {
                 const canvas = document.getElementById(canvasId);
                 if (!canvas || !performanceData || performanceData.length === 0) return;
-                if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+                // Ensure any existing Chart.js instance attached to this canvas is destroyed
+                const existing = Chart.getChart(canvas);
+                if (existing) existing.destroy();
                 const labels = ['Bookings', 'Revenue', 'Visitors', 'Avg Rating'];
                 const maxBookings = Math.max(1, ...performanceData.map(d => d.total_bookings));
                 const maxRevenue = Math.max(1, ...performanceData.map(d => d.total_revenue));
@@ -185,7 +200,9 @@
             const renderChart = (canvasId, type, data, extraOptions = {}, isCurrency = false) => {
                 const canvas = document.getElementById(canvasId);
                 if (!canvas) return;
-                if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+                // Destroy any existing Chart.js instance on this canvas (covers charts created by other scripts too)
+                const existing = Chart.getChart(canvas);
+                if (existing) existing.destroy();
                 chartInstances[canvasId] = new Chart(canvas.getContext('2d'), { type, data, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: type.startsWith('d') || type === 'pie', position: 'bottom' }, tooltip: { callbacks: { label: c => `${c.dataset.label||c.label}: ${isCurrency?new Intl.NumberFormat('en-PH',{style:'currency',currency:'PHP'}).format(c.raw):c.raw}` } } }, scales: { x: { grid: { display: false } }, y: { grid: { drawOnChartArea: true, borderDash: [2, 3] } } }, ...extraOptions } });
             };
             
@@ -205,8 +222,27 @@
             fromDate.setDate(toDate.getDate() - 29);
             document.getElementById('reportToDate').valueAsDate = toDate;
             document.getElementById('reportFromDate').valueAsDate = fromDate;
-            document.getElementById('applyFilterBtn').addEventListener('click', applyFilter);
-            applyFilter();
+
+            // Trigger analytics using the central function if available (admin-script.js),
+            // otherwise fall back to the local loader `loadAnalyticsData`.
+            const triggerAnalytics = () => {
+                const startDate = document.getElementById('reportFromDate').value;
+                const endDate = document.getElementById('reportToDate').value;
+                if (typeof window.fetchAnalytics === 'function') {
+                    // Use shared analytics loader from admin-script.js
+                    window.fetchAnalytics(startDate, endDate);
+                } else if (typeof loadAnalyticsData === 'function') {
+                    // Local fallback defined in this file
+                    loadAnalyticsData(startDate, endDate);
+                } else {
+                    console.warn('No analytics loader available to fetch data');
+                }
+            };
+
+            const applyBtn = document.getElementById('applyFilterBtn');
+            if (applyBtn) applyBtn.addEventListener('click', triggerAnalytics);
+            // Initial load
+            triggerAnalytics();
         })();
     </script>
 </body>

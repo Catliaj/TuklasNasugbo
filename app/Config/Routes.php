@@ -24,6 +24,7 @@ $routes->group('admin', ['namespace' => 'App\Controllers', 'filter' => 'auth'], 
     // REGISTRATIONS PAGE ROUTES
     $routes->get('registrations', 'AdminController::registrations');
     $routes->get('registrations/list', 'AdminController::getRegistrationList');
+    $routes->get('registrations/pending-count', 'AdminController::getRegistrationsPendingCount');
     $routes->get('registrations/view/(:num)', 'AdminController::viewRegistration/$1');
     $routes->post('registrations/approve/(:num)', 'AdminController::approveRegistration/$1');
     $routes->post('registrations/reject/(:num)', 'AdminController::rejectRegistration/$1');
@@ -32,6 +33,10 @@ $routes->group('admin', ['namespace' => 'App\Controllers', 'filter' => 'auth'], 
     // ATTRACTIONS ROUTES
     $routes->get('attractions', 'AdminController::attractions');
     $routes->get('attractions/list', 'AdminController::getAttractionList');
+    $routes->get('attractions/pending-count', 'AdminController::getAttractionsPendingCount');
+    $routes->get('attractions/pending', 'AdminController::getPendingAttractionList');
+    $routes->post('attractions/approve/(:num)', 'AdminController::approveAttraction/$1');
+    $routes->post('attractions/reject/(:num)', 'AdminController::rejectAttraction/$1');
     $routes->get('attractions/view/(:num)', 'AdminController::viewAttraction/$1');
     $routes->post('attractions/suspend/(:num)', 'AdminController::suspendAttraction/$1');
     $routes->post('attractions/delete/(:num)', 'AdminController::deleteAttraction/$1');
@@ -40,6 +45,10 @@ $routes->group('admin', ['namespace' => 'App\Controllers', 'filter' => 'auth'], 
     //  ADD THIS LINE TO FIX THE 404 NOT FOUND ERROR
     // ==========================================================
     $routes->post('reports/analytics', 'AdminController::getAnalytics');
+    // Notifications API for admin
+    $routes->get('notifications/list', 'AdminController::getNotificationsList');
+    $routes->get('notifications/unread-count', 'AdminController::getUnreadNotificationsCount');
+    $routes->post('notifications/mark-read', 'AdminController::markNotificationsRead');
    
 });
 
@@ -88,6 +97,7 @@ $routes->get('/tourist/favorites', 'TouristController::touristFavorites');
 // Ajax endpoints for tourist actions
 $routes->post('/tourist/createBooking', 'TouristController::createBooking');
 $routes->post('/tourist/toggleFavorite', 'TouristController::toggleFavorite');
+$routes->get('tourist/visited/ajax', 'TouristController::getVisitedPlacesAjax');
 
 //TEST API ROUTE
 $routes->get('/test-api/key', 'TestApi::testKey');
@@ -116,3 +126,5 @@ $routes->get('spotowner/getBookings', 'SpotOwnerController::getBookings');
 $routes->get('spotowner/getBooking/(:num)', 'SpotOwnerController::getBooking/$1');
 $routes->post('spotowner/recordCheckin', 'SpotOwnerController::recordCheckin');
 $routes->post('spotowner/confirmBooking/(:num)', 'SpotOwnerController::confirmBooking/$1');
+$routes->get('api/attractions/top/(:num)?', 'AttractionsController::topSpotsAjax/$1');
+$routes->post('api/attractions/view', 'AttractionsController::logViewAjax');

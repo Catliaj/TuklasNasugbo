@@ -6,6 +6,7 @@ use App\Controllers\BaseController;
 use CodeIgniter\HTTP\ResponseInterface;
 use App\Models\UsersModel;
 use App\Models\TouristSpotModel;
+use App\Models\BookingModel;
 
 class TouristController extends BaseController
 {
@@ -874,6 +875,43 @@ public function verifyCheckinToken()
         'existing_checkin' => $existing ? ['checkin_id' => $existing['checkin_id'], 'checkin_time' => $existing['checkin_time']] : null
     ]);
 }
+public function getVisitedPlacesAjax()
+    {
+        // Ensure JSON response and CORS/headers if needed
+        $response = service('response');
+
+        $session = session();
+        $userId = $session->get('UserID');
+        if (!$userId) {
+            return $response->setStatusCode(401)->setJSON(['success' => false, 'message' => 'Unauthorized']);
+        }
+
+        try {
+            $bookingModel = new BookingModel();
+            $visited = $bookingModel->getVisitedPlacesByUser((int)$userId);
+
+            // Normalize output keys if necessary
+            $data = array_map(function ($row) {
+                return [
+                    'booking_id'   => $row['booking_id'] ?? null,
+                    'booking_date' => $row['booking_date'] ?? null,
+                    'visit_date'   => $row['visit_date'] ?? null,
+                    'visit_time'   => $row['visit_time'] ?? null,
+                    'total_guests' => $row['total_guests'] ?? 0,
+                    'total_price'  => $row['total_price'] ?? 0,
+                    'spot_name'    => $row['spot_name'] ?? '',
+                    'location'     => $row['location'] ?? '',
+                    'primary_image'=> $row['primary_image'] ?? null,
+                    'booking_status'=> $row['booking_status'] ?? null, // may be null if query didn't select it
+                ];
+            }, $visited);
+
+            return $response->setJSON(['success' => true, 'data' => $data]);
+        } catch (\Throwable $e) {
+            log_message('error', 'getVisitedPlacesAjax error: ' . $e->getMessage());
+            return $response->setStatusCode(500)->setJSON(['success' => false, 'message' => 'Server error']);
+        }
+    }
 
    
 }

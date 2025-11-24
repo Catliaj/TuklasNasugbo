@@ -87,12 +87,17 @@ class BusinessModel extends Model
      */
     public function getTopViewedBusinesses($limit = 5)
     {
-        // This query uses RAND() as a placeholder for a real view count.
-        // A real implementation would require a 'view_count' column that is incremented
-        // every time a business profile is viewed.
-        return $this->select('business_name, (RAND() * 500) as view_count')
-                    ->orderBy('view_count', 'DESC')
-                    ->limit($limit)
-                    ->get()->getResultArray();
+         // Use bookings count as a proxy for 'views' / popularity if no view_count exists.
+        // Join tourist_spots -> bookings to count confirmed bookings per business.
+        $builder = $this->builder();
+        // Alias the count as 'view_count' so views are compatible with existing dashboard templates
+        $builder->select('businesses.business_id, businesses.business_name, COUNT(b.booking_id) as view_count')
+            ->join('tourist_spots ts', 'ts.business_id = businesses.business_id', 'left')
+            ->join('bookings b', 'b.spot_id = ts.spot_id AND b.booking_status = "Confirmed"', 'left')
+            ->groupBy('businesses.business_id')
+                ->orderBy('view_count', 'DESC')
+            ->limit($limit);
+
+        return $builder->get()->getResultArray();
     }
 }
