@@ -7,9 +7,9 @@ use CodeIgniter\Router\RouteCollection;
  * @var RouteCollection $routes
  */
 
-//Auth Routes
 $routes->get('/under-development', 'Home::index'); 
 $routes->get('/', 'AuthController::login'); 
+$routes->get('/users/login', 'AuthController::login');
 $routes->get('/signup', 'AuthController::signup'); 
 $routes->post('/users/login', 'AuthController::Handlelogin');
 $routes->post('signup/submit', 'AuthController::handleSignup');
@@ -21,6 +21,7 @@ $routes->group('admin', ['namespace' => 'App\Controllers', 'filter' => 'auth'], 
     $routes->get('reports', 'AdminController::reports');
     $routes->get('settings', 'AdminController::settings');
     
+
     // REGISTRATIONS PAGE ROUTES
     $routes->get('registrations', 'AdminController::registrations');
     $routes->get('registrations/list', 'AdminController::getRegistrationList');
@@ -60,11 +61,21 @@ $routes->get('/spotowner/mySpots', 'SpotOwnerController::mySpots');
 $routes->get('/spotowner/bookings', 'SpotOwnerController::bookings');
 $routes->get('/spotowner/earnings', 'SpotOwnerController::earnings');
 $routes->get('/spotowner/settings', 'SpotOwnerController::settings');
+$routes->get('spotowner/my-spots/data', 'SpotOwnerController::getMySpots');
+$routes->get('spotowner/my-spots/get-spot/(:num)', 'SpotOwnerController::getSpot/$1');
+
+// Spot Owner Notification Routes
+$routes->get('spotowner/notifications/unread-count', 'SpotOwnerController::getUnreadNotificationCount');
+$routes->get('spotowner/notifications/list', 'SpotOwnerController::getNotifications');
+$routes->post('spotowner/notifications/mark-read/(:num)', 'SpotOwnerController::markNotificationAsRead/$1');
+$routes->post('spotowner/notifications/mark-all-read', 'SpotOwnerController::markAllNotificationsAsRead');
 
 //spot owner earnings API routes - ADD THESE THREE LINES
 $routes->get('spotowner/api/monthly-revenue', 'SpotOwnerController::getMonthlyRevenueData');
 $routes->get('spotowner/api/weekly-revenue', 'SpotOwnerController::getWeeklyRevenueData');
 $routes->get('spotowner/api/booking-trends', 'SpotOwnerController::getBookingTrendsData');
+$routes->get('spotowner/api/dashboard-analytics', 'SpotOwnerController::getDashboardAnalytics');
+$routes->get('spotowner/api/spot-analytics/(:num)', 'SpotOwnerController::getSpotAnalytics/$1');
 
 
 
@@ -76,8 +87,8 @@ $routes->get('/spotowner/getBooking/(:num)', 'SpotOwnerController::getBooking/$1
 $routes->post('/spotowner/confirmBooking/(:num)', 'SpotOwnerController::confirmBooking/$1');
 $routes->post('/spotowner/rejectBooking/(:num)', 'SpotOwnerController::rejectBooking/$1');
 $routes->post('/spotowner/my-spots/store', 'SpotOwnerController::storeMySpots');
-$routes->get('/spotowner/my-spots/data', 'SpotOwnerController::getMySpots');
-$routes->get('spotowner/my-spots/get-spot/(:num)', 'SpotOwnerController::getSpot/$1');
+$routes->post('spotowner/my-spots/update/(:num)', 'SpotOwnerController::updateSpot/$1');
+
 
 $routes->get('/spotowner/spots/edit/(:num)', 'SpotOwnerController::editSpot/$1');
 $routes->post('/spotowner/spots/update/(:num)', 'SpotOwnerController::updateSpot/$1');
@@ -89,6 +100,8 @@ $routes->get('/tourist/exploreSpots', 'TouristController::exploreSpots');
 $routes->get('/tourist/myBookings', 'TouristController::myBookings');
 $routes->get('/tourist/profile', 'TouristController::touristProfile');
 $routes->get('/tourist/itinerary', 'TouristController::touristIternary');
+// Recommended spots for Add Activity modal
+$routes->get('/tourist/recommendedSpots', 'TouristController::recommendedSpots');
 $routes->get('/tourist/reviews', 'TouristController::touristReviews');
 $routes->get('/tourist/visits', 'TouristController::touristVisits');
 $routes->get('/tourist/budget', 'TouristController::touristBudget');
@@ -98,6 +111,10 @@ $routes->get('/tourist/favorites', 'TouristController::touristFavorites');
 $routes->post('/tourist/createBooking', 'TouristController::createBooking');
 $routes->post('/tourist/toggleFavorite', 'TouristController::toggleFavorite');
 $routes->get('tourist/visited/ajax', 'TouristController::getVisitedPlacesAjax');
+// Favorites API for dashboard AJAX
+$routes->get('/tourist/getFavorites', 'TouristController::getFavorites');
+// Dashboard live stats (AJAX)
+$routes->get('/tourist/dashboardStats', 'TouristController::dashboardStats');
 
 //TEST API ROUTE
 $routes->get('/test-api/key', 'TestApi::testKey');
@@ -106,6 +123,10 @@ $routes->get('/test-api/key', 'TestApi::testKey');
 
 $routes->get('itinerary/list', 'TouristController::listUserTrips');
 $routes->get('itinerary/get', 'TouristController::getTrip');
+// Create itinerary (from UI modal)
+$routes->post('itinerary/create', 'TouristController::createItinerary');
+// API aliases for frontend
+$routes->get('api/tourist-spots', 'TouristController::recommendedSpots');
 
 // Route for tourist spot details page (view)
 $routes->get('/tourist/spot/(:num)', 'TouristController::viewSpotDetails/$1');
@@ -128,3 +149,8 @@ $routes->post('spotowner/recordCheckin', 'SpotOwnerController::recordCheckin');
 $routes->post('spotowner/confirmBooking/(:num)', 'SpotOwnerController::confirmBooking/$1');
 $routes->get('api/attractions/top/(:num)?', 'AttractionsController::topSpotsAjax/$1');
 $routes->post('api/attractions/view', 'AttractionsController::logViewAjax');
+
+// SpotOwner API endpoints for charts
+$routes->get('spotowner/api/monthly-revenue', 'SpotOwner\Api::monthlyRevenue');
+$routes->get('spotowner/api/weekly-revenue',  'SpotOwner\Api::weeklyRevenue');
+$routes->get('spotowner/api/booking-trends',  'SpotOwner\Api::bookingTrends');

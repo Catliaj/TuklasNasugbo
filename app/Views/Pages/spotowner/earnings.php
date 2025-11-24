@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Tourist Spot Owner Dashboard</title>
 
     <!-- Bootstrap 5 CSS -->
@@ -14,6 +14,7 @@
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="<?= base_url("assets/css/main.css")?>">
+    <link rel="stylesheet" href="<?= base_url('assets/css/earnings-mobile.css')?>">
 </head>
 
 <body>
@@ -73,27 +74,59 @@
         <div class="flex-fill d-flex flex-column">
             <!-- Mobile Header -->
             <div class="mobile-header d-lg-none">
-                <button class="btn btn-link" id="sidebarToggle">
-                    <i class="bi bi-list fs-4"></i>
-                </button>
-                <div class="d-flex align-items-center gap-2">
-                    <div class="mobile-logo">
-                        <i class="bi bi-geo-alt-fill"></i>
-                    </div>
-                    <div>
-                        <h3 class="mobile-title mb-0">Tourist Spot</h3>
-                        <p class="mobile-subtitle mb-0">Owner Dashboard</p>
-                    </div>
-                </div>
+    <button class="btn btn-link" id="sidebarToggle">
+        <i class="bi bi-list fs-4"></i>
+    </button>
+    <div class="d-flex align-items-center gap-2">
+        <div class="mobile-logo">
+            <i class="bi bi-geo-alt-fill"></i>
+        </div>
+        <div>
+            <h3 class="mobile-title mb-0">Tourist Spot</h3>
+            <p class="mobile-subtitle mb-0">Earnings & Reports</p>
+        </div>
+    </div>
+    
+    
+    
+<!-- Notification Bell -->
+<div class="dropdown">
+<button class="btn btn-link position-relative p-2" id="notificationDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="color: white; margin-right: 5px;">
+    <i class="bi bi-bell-fill" style="font-size: 1.25rem;"></i>
+    <span class="position-absolute badge rounded-pill bg-danger" 
+          id="notificationBadge" 
+          style="display: none; font-size: 0.6rem; top: 2px; right: 0px; padding: 0.25rem 0.4rem; min-width: 18px;">
+        0
+    </span>
+</button>
+    <div class="dropdown-menu dropdown-menu-end shadow-lg" style="width: 380px; max-height: 500px;">
+        <div class="dropdown-header d-flex justify-content-between align-items-center bg-primary text-white py-3">
+            <h6 class="mb-0 fw-bold">Notifications</h6>
+            <button class="btn btn-sm btn-link text-white text-decoration-none" id="markAllReadBtn">
+                Mark all read
+            </button>
+        </div>
+        <div class="dropdown-divider m-0"></div>
+        <div id="notificationList" style="max-height: 400px; overflow-y: auto;">
+            <div class="text-center py-4 text-muted">
+                <i class="bi bi-bell-slash fs-1"></i>
+                <p class="mb-0 mt-2">No notifications</p>
             </div>
+        </div>
+    </div>
+</div>
+</div>
+<!-- ^^^ THIS CLOSING DIV WAS MISSING - IT CLOSES THE mobile-header -->
+
+            <!-- Page Content - This will be populated by JavaScript -->
 
             <!-- Page Content -->
             <main class="flex-fill p-3 p-lg-4" id="mainContent">
                 <!-- Content will be loaded here dynamically -->
                 <div class="container-fluid">
                     <div class="mb-4">
-                        <h2>Earnings & Reports</h2>
-                        <p class="text-muted-custom">Track your revenue and financial performance</p>
+                        <h3>Earnings & Reports</h3>
+                        <p class="text-muted-custom">           </p>
                     </div>
 
                     <!-- Stats -->
@@ -215,72 +248,75 @@
                         </div>
                     </div>
 
-                    <!-- Recent Transactions -->
-<div class="col-lg-6">
-    <div class="custom-card">
-        <div class="custom-card-header">
-            <h3 class="custom-card-title">Recent Transactions</h3>
-            <p class="custom-card-description">Latest payment activities</p>
-        </div>
-        <div class="custom-card-body">
-            <?php if (!empty($recentTransactions)): ?>
-                <div class="list-group list-group-flush">
-                    <?php foreach ($recentTransactions as $transaction): ?>
-                        <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
-                            <div>
-                                <div class="fw-medium"><?= esc($transaction['customer_name']) ?></div>
-                                <small class="text-muted-custom">
-                                    <?= date('M d, Y', strtotime($transaction['booking_date'])) ?>
-                                    <?php if ($transaction['booking_status'] == 'Pending'): ?>
-                                        (Pending)
+                   <!-- Recent Transactions & Top Performing Days Row -->
+                   <div class="row g-4 mb-4">
+                        <!-- Recent Transactions -->
+                        <div class="col-lg-6">
+                            <div class="custom-card h-100">
+                                <div class="custom-card-header">
+                                    <h3 class="custom-card-title">Recent Transactions</h3>
+                                    <p class="custom-card-description">Latest payment activities</p>
+                                </div>
+                                <div class="custom-card-body">
+                                    <?php if (!empty($recentTransactions)): ?>
+                                        <div class="list-group list-group-flush">
+                                            <?php foreach ($recentTransactions as $transaction): ?>
+                                                <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <div class="fw-medium"><?= esc($transaction['customer_name']) ?></div>
+                                                        <small class="text-muted-custom">
+                                                            <?= date('M d, Y', strtotime($transaction['booking_date'])) ?>
+                                                            <?php if ($transaction['booking_status'] == 'Pending'): ?>
+                                                                (Pending)
+                                                            <?php endif; ?>
+                                                        </small>
+                                                    </div>
+                                                    <span class="fw-medium <?= $transaction['booking_status'] == 'Confirmed' ? 'text-success' : 'text-warning' ?>">
+                                                        <?= $transaction['booking_status'] == 'Confirmed' ? '+' : '' ?>₱<?= number_format($transaction['total_price'], 2) ?>
+                                                    </span>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <div class="text-center py-4 text-muted-custom">
+                                            <i class="bi bi-inbox fs-1"></i>
+                                            <p class="mb-0 mt-2">No recent transactions</p>
+                                        </div>
                                     <?php endif; ?>
-                                </small>
+                                </div>
                             </div>
-                            <span class="fw-medium <?= $transaction['booking_status'] == 'Confirmed' ? 'text-success' : 'text-warning' ?>">
-                                <?= $transaction['booking_status'] == 'Confirmed' ? '+' : '' ?>₱<?= number_format($transaction['total_price'], 2) ?>
-                            </span>
                         </div>
-                    <?php endforeach; ?>
-                </div>
-            <?php else: ?>
-                <div class="text-center py-4 text-muted-custom">
-                    <i class="bi bi-inbox fs-1"></i>
-                    <p class="mb-0 mt-2">No recent transactions</p>
-                </div>
-            <?php endif; ?>
-        </div>
-    </div>
-</div>
 
-                       <!-- Top Performing Days -->
-<div class="col-lg-6">
-    <div class="custom-card">
-        <div class="custom-card-header">
-            <h3 class="custom-card-title">Top Performing Days</h3>
-            <p class="custom-card-description">Highest revenue days this month</p>
-        </div>
-        <div class="custom-card-body">
-            <?php if (!empty($topDays)): ?>
-                <div class="list-group list-group-flush">
-                    <?php foreach ($topDays as $day): ?>
-                        <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
-                            <div>
-                                <div class="fw-medium"><?= esc($day['day_name']) ?>, <?= esc($day['formatted_date']) ?></div>
-                                <small class="text-muted-custom"><?= $day['bookings'] ?> booking<?= $day['bookings'] != 1 ? 's' : '' ?></small>
+                        <!-- Top Performing Days -->
+                        <div class="col-lg-6">
+                            <div class="custom-card h-100">
+                                <div class="custom-card-header">
+                                    <h3 class="custom-card-title">Top Performing Days</h3>
+                                    <p class="custom-card-description">Highest revenue days this month</p>
+                                </div>
+                                <div class="custom-card-body">
+                                    <?php if (!empty($topDays)): ?>
+                                        <div class="list-group list-group-flush">
+                                            <?php foreach ($topDays as $day): ?>
+                                                <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <div class="fw-medium"><?= esc($day['day_name']) ?>, <?= esc($day['formatted_date']) ?></div>
+                                                        <small class="text-muted-custom"><?= $day['bookings'] ?> booking<?= $day['bookings'] != 1 ? 's' : '' ?></small>
+                                                    </div>
+                                                    <span class="fw-medium text-ocean-medium">₱<?= number_format($day['revenue'], 2) ?></span>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <div class="text-center py-4 text-muted-custom">
+                                            <i class="bi bi-calendar-x fs-1"></i>
+                                            <p class="mb-0 mt-2">No bookings this month yet</p>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
                             </div>
-                            <span class="fw-medium text-ocean-medium">₱<?= number_format($day['revenue'], 2) ?></span>
                         </div>
-                    <?php endforeach; ?>
-                </div>
-            <?php else: ?>
-                <div class="text-center py-4 text-muted-custom">
-                    <i class="bi bi-calendar-x fs-1"></i>
-                    <p class="mb-0 mt-2">No bookings this month yet</p>
-                </div>
-            <?php endif; ?>
-        </div>
-    </div>
-</div>
+                    </div>
 
                     <!-- Export Options -->
                     <div class="custom-card">
@@ -307,16 +343,23 @@
         </div>
     </div>
 
-    <!-- Bootstrap 5 JS Bundle -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- 1. Chart.js (MUST BE FIRST) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
-<!-- Chart.js Library -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- 2. Bootstrap -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-<!-- Custom JavaScript -->
-<script src="<?= base_url("assets/js/spotownerJS/shared-data.js")?>"></script>
-<script src="<?= base_url("assets/js/spotownerJS/earnings.js")?>"></script>
+    <!-- 3. SweetAlert2 (if needed) -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- 4. Sidebar Toggle (IMPORTANT!) -->
+    <script src="<?= base_url('assets/js/sidebar.js')?>"></script>
+
+    <!-- 5. Page-specific scripts -->
+    <script src="<?= base_url('assets/js/spotownerJS/earnings.js')?>"></script>
     
+    <!-- Notification System -->
+    <script src="<?= base_url('assets/js/spotownerJS/notifications.js') ?>"></script>
 </body>
 
 </html>

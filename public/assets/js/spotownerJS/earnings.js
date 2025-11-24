@@ -171,29 +171,30 @@ function loadBookingTrendsChart() {
                 });
 
                 // Assign colors based on status
+                // Assign colors based on status - Beige, White, Ocean Blue theme
                 let color;
                 switch (status) {
                     case 'Confirmed':
-                        color = chartColors.success;
+                        color = '#0666cc'; // Ocean blue
                         break;
                     case 'Pending':
-                        color = chartColors.warning;
+                        color = '#f5f5dc'; // Beige
                         break;
                     case 'Cancelled':
-                        color = chartColors.danger;
+                        color = '#ffffff'; // White
                         break;
                     case 'Completed':
-                        color = chartColors.info;
+                        color = '#0080ff'; // Light ocean blue
                         break;
                     default:
-                        color = chartColors.primary;
+                        color = '#0066cc'; // Ocean blue
                 }
 
                 return {
                     label: status,
                     data: statusData,
                     backgroundColor: color,
-                    borderColor: color,
+                    borderColor: status === 'Cancelled' ? '#cccccc' : color, // Gray border for white bars
                     borderWidth: 2
                 };
             });

@@ -45,6 +45,210 @@ class BookingModel extends Model
     protected $beforeDelete   = [];
     protected $afterDelete    = [];
 
+
+    /**
+ * Get total revenue all time for a business
+ */
+public function getTotalRevenueAllTime($businessID)
+{
+    $db = \Config\Database::connect();
+    
+    $query = $db->query("
+        SELECT COALESCE(SUM(b.total_price), 0) as total_revenue
+        FROM bookings b
+        INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
+        WHERE ts.business_id = ?
+            AND b.booking_status IN ('Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out')
+            AND b.payment_status = 'Paid'
+    ", [$businessID]);
+    
+    $result = $query->getRow();
+    return $result ? (float)$result->total_revenue : 0;
+}
+
+/**
+ * Get monthly revenue for current month
+ */
+public function getMonthlyRevenue($businessID)
+{
+    $db = \Config\Database::connect();
+    $currentMonth = date('Y-m');
+    
+    $query = $db->query("
+        SELECT COALESCE(SUM(b.total_price), 0) as monthly_revenue
+        FROM bookings b
+        INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
+        WHERE ts.business_id = ?
+            AND DATE_FORMAT(b.booking_date, '%Y-%m') = ?
+            AND b.booking_status IN ('Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out')
+            AND b.payment_status = 'Paid'
+    ", [$businessID, $currentMonth]);
+    
+    $result = $query->getRow();
+    return $result ? (float)$result->monthly_revenue : 0;
+}
+
+/**
+ * Get average revenue per booking
+ */
+public function getAverageRevenuePerBooking($businessID)
+{
+    $db = \Config\Database::connect();
+    $query = $db->query(
+        "SELECT 
+            COUNT(b.booking_id) as total_bookings,
+            COALESCE(AVG(b.total_price), 0) as average_revenue
+        FROM bookings b
+        INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
+        WHERE ts.business_id = ?
+            AND b.booking_status IN ('Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out')
+            AND b.payment_status = 'Paid'",
+        [$businessID]
+    );
+    
+    $result = $query->getRow();
+    if ($result) {
+        return [
+            'average' => (float)$result->average_revenue,
+            'total_bookings' => (int)$result->total_bookings
+        ];
+    }
+
+    return ['average' => 0.0, 'total_bookings' => 0];
+}
+
+/**
+ * Get pending revenue (unpaid bookings)
+ */
+public function getPendingRevenue($businessID)
+{
+    $db = \Config\Database::connect();
+    
+    $query = $db->query("
+        SELECT COALESCE(SUM(b.total_price), 0) as pending_revenue
+        FROM bookings b
+        INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
+        WHERE ts.business_id = ?
+            AND b.booking_status IN ('Pending', 'Confirmed')
+            AND b.payment_status = 'Unpaid'
+    ", [$businessID]);
+    
+    $result = $query->getRow();
+    return $result ? (float)$result->pending_revenue : 0;
+}
+
+/**
+ * Get month-over-month comparison
+ */
+public function getMonthOverMonthComparison($businessID)
+{
+    $db = \Config\Database::connect();
+    
+    $currentMonth = date('Y-m');
+    $lastMonth = date('Y-m', strtotime('-1 month'));
+    
+    // Current month revenue
+    $currentQuery = $db->query("
+        SELECT COALESCE(SUM(b.total_price), 0) as revenue
+        FROM bookings b
+        INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
+        WHERE ts.business_id = ?
+            AND DATE_FORMAT(b.booking_date, '%Y-%m') = ?
+            AND b.booking_status IN ('Confirmed', 'Completed', 'Checked-in', 'Checked-out')
+            AND b.payment_status = 'Paid'
+    ", [$businessID, $currentMonth]);
+    
+    $currentResult = $currentQuery->getRow();
+    $currentRevenue = $currentResult ? (float)$currentResult->revenue : 0;
+    
+    // Last month revenue
+    $lastQuery = $db->query("
+        SELECT COALESCE(SUM(b.total_price), 0) as revenue
+        FROM bookings b
+        INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
+        WHERE ts.business_id = ?
+            AND DATE_FORMAT(b.booking_date, '%Y-%m') = ?
+            AND b.booking_status IN ('Confirmed', 'Completed', 'Checked-in', 'Checked-out')
+            AND b.payment_status = 'Paid'
+    ", [$businessID, $lastMonth]);
+    
+    $lastResult = $lastQuery->getRow();
+    $lastRevenue = $lastResult ? (float)$lastResult->revenue : 0;
+    
+    // Calculate percentage change
+    $change = 0;
+    $direction = 'same';
+    
+    if ($lastRevenue > 0) {
+        $change = (($currentRevenue - $lastRevenue) / $lastRevenue) * 100;
+        $direction = $change > 0 ? 'up' : ($change < 0 ? 'down' : 'same');
+    } elseif ($currentRevenue > 0) {
+        $change = 100;
+        $direction = 'up';
+    }
+    
+    return [
+        'current' => $currentRevenue,
+        'previous' => $lastRevenue,
+        'change' => round($change, 1),
+        'direction' => $direction
+    ];
+}
+
+/**
+ * Get recent transactions
+ */
+public function getRecentTransactionsByBusiness($businessID, $limit = 5)
+{
+    $db = \Config\Database::connect();
+    
+    $query = $db->query("
+        SELECT 
+    b.booking_id,
+    b.booking_date,
+    b.total_price,
+    b.booking_status,
+    CONCAT(u.FirstName, ' ', u.LastName) AS customer_name
+    FROM bookings b
+    INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
+    INNER JOIN users u ON b.customer_id = u.UserID
+    WHERE ts.business_id = ?
+    ORDER BY b.booking_date DESC
+    LIMIT ?
+
+    ", [$businessID, $limit]);
+    
+    return $query->getResultArray();
+}
+
+/**
+ * Get top performing days
+ */
+public function getTopPerformingDays($businessID, $limit = 5)
+{
+    $db = \Config\Database::connect();
+    $currentMonth = date('Y-m');
+    
+    $query = $db->query("
+        SELECT 
+            DATE(b.booking_date) as booking_date,
+            DAYNAME(b.booking_date) as day_name,
+            DATE_FORMAT(b.booking_date, '%b %d') as formatted_date,
+            COUNT(b.booking_id) as bookings,
+            SUM(b.total_price) as revenue
+        FROM bookings b
+        INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
+        WHERE ts.business_id = ?
+            AND DATE_FORMAT(b.booking_date, '%Y-%m') = ?
+            AND b.booking_status IN ('Confirmed', 'Completed', 'Checked-in', 'Checked-out')
+            AND b.payment_status = 'Paid'
+        GROUP BY DATE(b.booking_date)
+        ORDER BY revenue DESC
+        LIMIT ?
+    ", [$businessID, $currentMonth, $limit]);
+    
+    return $query->getResultArray();
+}
     //Total Bookings this months
     public function getTotalBookingsThisMonth()
     {
@@ -247,96 +451,30 @@ public function getBookingTrendsByBusiness($businessID, $months = 6)
 /**
  * Get all-time total revenue for a business
  */
-public function getTotalRevenueAllTime($businessID)
-{
-    $builder = $this->db->table('bookings b');
-    $builder->select('SUM(b.total_price) AS total_revenue');
-    $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
-    $builder->where('ts.business_id', $businessID);
-    $builder->where('b.booking_status', 'Confirmed');
-    
-    $result = $builder->get()->getRowArray();
-    return $result['total_revenue'] ?? 0;
-}
 
 /**
  * Get revenue for current month
  */
-public function getMonthlyRevenue($businessID)
-{
-    $builder = $this->db->table('bookings b');
-    $builder->select('SUM(b.total_price) AS monthly_revenue');
-    $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
-    $builder->where('ts.business_id', $businessID);
-    $builder->where('b.booking_status', 'Confirmed');
-    $builder->where('MONTH(b.booking_date)', date('m'));
-    $builder->where('YEAR(b.booking_date)', date('Y'));
-    
-    $result = $builder->get()->getRowArray();
-    return $result['monthly_revenue'] ?? 0;
-}
+
 
 /**
  * Get average revenue per booking
  */
-public function getAverageRevenuePerBooking($businessID)
-{
-    $builder = $this->db->table('bookings b');
-    $builder->select('AVG(b.total_price) AS avg_revenue, COUNT(b.booking_id) as total_bookings');
-    $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
-    $builder->where('ts.business_id', $businessID);
-    $builder->where('b.booking_status', 'Confirmed');
-    
-    $result = $builder->get()->getRowArray();
-    return [
-        'average' => $result['avg_revenue'] ?? 0,
-        'total_bookings' => $result['total_bookings'] ?? 0
-    ];
-}
+
 
 /**
  * Get pending revenue (from pending bookings)
  */
-public function getPendingRevenue($businessID)
-{
-    $builder = $this->db->table('bookings b');
-    $builder->select('SUM(b.total_price) AS pending_revenue');
-    $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
-    $builder->where('ts.business_id', $businessID);
-    $builder->where('b.booking_status', 'Pending');
-    
-    $result = $builder->get()->getRowArray();
-    return $result['pending_revenue'] ?? 0;
-}
+
 
 /**
  * Get recent transactions with customer details
  */
-public function getRecentTransactionsByBusiness($businessID, $limit = 10)
-{
-    $builder = $this->db->table('bookings b');
-    $builder->select('
-        b.booking_id,
-        b.total_price,
-        b.booking_date,
-        b.booking_status,
-        b.payment_status,
-        CONCAT(u.FirstName, " ", u.LastName) as customer_name
-    ');
-    $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
-    $builder->join('customers c', 'b.customer_id = c.customer_id');
-    $builder->join('users u', 'c.user_id = u.UserID');
-    $builder->where('ts.business_id', $businessID);
-    $builder->orderBy('b.booking_date', 'DESC');
-    $builder->limit($limit);
-    
-    return $builder->get()->getResultArray();
-}
 
 /**
  * Get top performing days of the current month
  */
-public function getTopPerformingDays($businessID, $limit = 5)
+public function getTopPerformingDayss($businessID, $limit = 5)
 {
     $builder = $this->db->table('bookings b');
     $builder->select('
@@ -368,47 +506,7 @@ public function getTopPerformingDays($businessID, $limit = 5)
 /**
  * Get comparison with previous month
  */
-public function getMonthOverMonthComparison($businessID)
-{
-    // Current month
-    $currentBuilder = $this->db->table('bookings b');
-    $currentBuilder->select('SUM(b.total_price) AS revenue');
-    $currentBuilder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
-    $currentBuilder->where('ts.business_id', $businessID);
-    $currentBuilder->where('b.booking_status', 'Confirmed');
-    $currentBuilder->where('MONTH(b.booking_date)', date('m'));
-    $currentBuilder->where('YEAR(b.booking_date)', date('Y'));
-    $current = $currentBuilder->get()->getRowArray();
-    
-    // Previous month
-    $prevMonth = date('m', strtotime('-1 month'));
-    $prevYear = date('Y', strtotime('-1 month'));
-    
-    $prevBuilder = $this->db->table('bookings b');
-    $prevBuilder->select('SUM(b.total_price) AS revenue');
-    $prevBuilder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
-    $prevBuilder->where('ts.business_id', $businessID);
-    $prevBuilder->where('b.booking_status', 'Confirmed');
-    $prevBuilder->where('MONTH(b.booking_date)', $prevMonth);
-    $prevBuilder->where('YEAR(b.booking_date)', $prevYear);
-    $previous = $prevBuilder->get()->getRowArray();
-    
-    $currentRevenue = $current['revenue'] ?? 0;
-    $previousRevenue = $previous['revenue'] ?? 0;
-    
-    $percentChange = 0;
-    if ($previousRevenue > 0) {
-        $percentChange = (($currentRevenue - $previousRevenue) / $previousRevenue) * 100;
-    }
-    
-    return [
-        'current' => $currentRevenue,
-        'previous' => $previousRevenue,
-        'change' => $percentChange,
-        'direction' => $percentChange >= 0 ? 'up' : 'down'
-    ];
-}
-    
+
 
         
     
@@ -567,4 +665,25 @@ public function getTopSpotsPerformanceMetrics($startDate, $endDate, $limit = 3)
 
         return $builder->get()->getResultArray();
     }
+    
+    public function insert($data = null, $returnID = true)
+    {
+        $result = parent::insert($data, $returnID);
+        
+        if ($result) {
+            // Create notification for admins
+            $notificationModel = new \App\Models\NotificationModel();
+            $notificationModel->notifyAdmins(
+                'booking',
+                'New Booking Received',
+                'A new booking has been created. Booking ID: ' . $result,
+                '/admin/bookings'
+            );
+        }
+        
+        return $result;
+    }
 }
+
+
+
