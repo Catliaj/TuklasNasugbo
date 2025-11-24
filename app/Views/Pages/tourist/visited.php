@@ -560,7 +560,7 @@
   // Ensure BASE_URL is defined on the page. If not, default to '/'.
   const BASE = (typeof BASE_URL !== 'undefined' ? BASE_URL.replace(/\/+$/, '') + '/' : '/');
 
-  const FALLBACK_IMAGE = BASE + 'uploads/spots/Spot-No-Image.png';
+    const FALLBACK_IMAGE = BASE + 'uploads/spots/Spot-No-Image.png';
 
   function escHtml(s) {
     if (s === null || s === undefined) return '';
