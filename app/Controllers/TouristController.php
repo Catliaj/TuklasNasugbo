@@ -669,14 +669,57 @@ public function listUserTrips()
             ];
 
             $insertId = $bookingModel->insert($data);
-            if ($insertId === false) {
-                return $this->response->setJSON(['error' => 'Failed to create booking'], 500);
-            }
+if ($insertId === false) {
+    return $this->response->setJSON(['error' => 'Failed to create booking'], 500);
+}
 
-            return $this->response->setJSON(['success' => true, 'booking_id' => $insertId]);
+// Create notification for spot owner about new booking
+// Create notification for spot owner about new booking
+try {
+    $notificationModel = new \App\Models\NotificationModel();
+    $spotModel = new \App\Models\TouristSpotModel();
+    $businessModel = new \App\Models\BusinessModel();
+    
+    $spot = $spotModel->find($spotId);
+    $spotName = $spot['spot_name'] ?? 'Unknown Spot';
+    $businessId = $spot['business_id'] ?? null;
+    
+    if ($businessId) {
+        // Get the spot owner's user_id from the business
+        $business = $businessModel->find($businessId);
+        $spotOwnerId = $business['user_id'] ?? null;
+        
+        if ($spotOwnerId) {
+            // Insert notification for spot owner
+            $notificationModel->insert([
+                'user_id' => $spotOwnerId,
+                'message' => "New booking #$insertId for $spotName on $visitDate",
+                'url' => '/spotowner/bookings',
+                'is_read' => 0,
+                'created_at' => date('Y-m-d H:i:s')
+            ]);
+        }
+    }
+    
+    // Also notify admins (user_id = NULL for all admins)
+    $notificationModel->insert([
+        'user_id' => null,
+        'message' => "New booking #$insertId for $spotName on $visitDate",
+        'url' => '/admin/bookings',
+        'is_read' => 0,
+        'created_at' => date('Y-m-d H:i:s')
+    ]);
+    
+} catch (\Exception $e) {
+    log_message('error', 'Failed to create booking notification: ' . $e->getMessage());
+}
+
+return $this->response->setJSON(['success' => true, 'booking_id' => $insertId]);
         } catch (\Exception $e) {
             return $this->response->setJSON(['error' => 'Database error: ' . $e->getMessage()], 500);
         }
+
+        
     }
 
     public function viewSpotDetails($spot_id)

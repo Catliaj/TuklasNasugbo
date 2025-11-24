@@ -1,8 +1,7 @@
 // Shared Data for Tourist Spots
 // This file should be loaded BEFORE home.js and manage-spot.js in index.html
 
-const sharedTouristSpots = [
-    {
+const sharedTouristSpots = [{
         id: 1,
         name: 'Sunset Beach Paradise',
         location: 'Coastal Highway, Bay City',

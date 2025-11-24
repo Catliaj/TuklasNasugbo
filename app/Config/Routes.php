@@ -21,6 +21,7 @@ $routes->group('admin', ['namespace' => 'App\Controllers', 'filter' => 'auth'], 
     $routes->get('reports', 'AdminController::reports');
     $routes->get('settings', 'AdminController::settings');
     
+
     // REGISTRATIONS PAGE ROUTES
     $routes->get('registrations', 'AdminController::registrations');
     $routes->get('registrations/list', 'AdminController::getRegistrationList');
@@ -60,11 +61,21 @@ $routes->get('/spotowner/mySpots', 'SpotOwnerController::mySpots');
 $routes->get('/spotowner/bookings', 'SpotOwnerController::bookings');
 $routes->get('/spotowner/earnings', 'SpotOwnerController::earnings');
 $routes->get('/spotowner/settings', 'SpotOwnerController::settings');
+$routes->get('spotowner/my-spots/data', 'SpotOwnerController::getMySpots');
+$routes->get('spotowner/my-spots/get-spot/(:num)', 'SpotOwnerController::getSpot/$1');
+
+// Spot Owner Notification Routes
+$routes->get('spotowner/notifications/unread-count', 'SpotOwnerController::getUnreadNotificationCount');
+$routes->get('spotowner/notifications/list', 'SpotOwnerController::getNotifications');
+$routes->post('spotowner/notifications/mark-read/(:num)', 'SpotOwnerController::markNotificationAsRead/$1');
+$routes->post('spotowner/notifications/mark-all-read', 'SpotOwnerController::markAllNotificationsAsRead');
 
 //spot owner earnings API routes - ADD THESE THREE LINES
 $routes->get('spotowner/api/monthly-revenue', 'SpotOwnerController::getMonthlyRevenueData');
 $routes->get('spotowner/api/weekly-revenue', 'SpotOwnerController::getWeeklyRevenueData');
 $routes->get('spotowner/api/booking-trends', 'SpotOwnerController::getBookingTrendsData');
+$routes->get('spotowner/api/dashboard-analytics', 'SpotOwnerController::getDashboardAnalytics');
+$routes->get('spotowner/api/spot-analytics/(:num)', 'SpotOwnerController::getSpotAnalytics/$1');
 
 
 
@@ -76,8 +87,8 @@ $routes->get('/spotowner/getBooking/(:num)', 'SpotOwnerController::getBooking/$1
 $routes->post('/spotowner/confirmBooking/(:num)', 'SpotOwnerController::confirmBooking/$1');
 $routes->post('/spotowner/rejectBooking/(:num)', 'SpotOwnerController::rejectBooking/$1');
 $routes->post('/spotowner/my-spots/store', 'SpotOwnerController::storeMySpots');
-$routes->get('/spotowner/my-spots/data', 'SpotOwnerController::getMySpots');
-$routes->get('spotowner/my-spots/get-spot/(:num)', 'SpotOwnerController::getSpot/$1');
+$routes->post('spotowner/my-spots/update/(:num)', 'SpotOwnerController::updateSpot/$1');
+
 
 $routes->get('/spotowner/spots/edit/(:num)', 'SpotOwnerController::editSpot/$1');
 $routes->post('/spotowner/spots/update/(:num)', 'SpotOwnerController::updateSpot/$1');

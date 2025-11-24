@@ -1,11 +1,11 @@
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', async() => {
     await loadBookings();
 });
 
 async function loadBookings() {
     try {
         // Fetch bookings from backend
-        const response = await fetch('/spotowner/getBookings'); // <-- Your CodeIgniter route
+        const response = await fetch('/spotowner/getBookings');
         const data = await response.json();
 
         const tbody = document.getElementById('bookingsTableBody');
@@ -17,48 +17,64 @@ async function loadBookings() {
         }
 
         data.forEach(b => {
-            const badgeClass =
-        b.booking_status === 'Confirmed'
-            ? 'badge-confirmed'
-            : b.booking_status === 'Pending'
-            ? 'badge-pending'
-            : b.booking_status === 'Cancelled'
-            ? 'badge-cancelled'
-            : b.booking_status === 'Rejected'
-            ? 'badge-rejected'
-            : b.booking_status === 'Checked-in'
-            ? 'badge-checkedin'
-            : b.booking_status === 'Checked-out'
-            ? 'badge-checkedout'
-            : '';
+                    // Normalize status to handle case variations
+                    const status = (b.booking_status || '').trim();
 
-                   
-            tbody.innerHTML += `
+                    // Map status to badge class
+                    let badgeClass = 'badge bg-secondary'; // default
+
+                    if (status === 'Confirmed') {
+                        badgeClass = 'badge badge-confirmed';
+                    } else if (status === 'Pending') {
+                        badgeClass = 'badge badge-pending';
+                    } else if (status === 'Cancelled') {
+                        badgeClass = 'badge badge-cancelled';
+                    } else if (status === 'Rejected') {
+                        badgeClass = 'badge badge-rejected';
+                    } else if (status === 'Checked-in') {
+                        badgeClass = 'badge badge-checkedin';
+                    } else if (status === 'Checked-out') {
+                        badgeClass = 'badge badge-checkedout';
+                    }
+
+                    // Format the date properly
+                    const formattedDate = new Date(b.visit_date).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                    });
+
+                    tbody.innerHTML += `
                 <tr>
                     <td>${b.booking_id}</td>
-                    <td>${b.customer_name}</td>
-                    <td>${new Date(b.visit_date).toLocaleDateString()}</td>
-                    <td>${b.total_guests}</td>
-                    <td>₱${b.total_price}</td>
-                    <td><span class="badge ${badgeClass}">${b.booking_status.toLowerCase()}</span></td>
-                    <td class="d-flex gap-2">
-                        <button class="btn btn-sm btn-outline-primary" onclick="viewBooking('${b.booking_id}')">View</button>
-                        ${
-                            b.booking_status === 'Pending'
-                                ? `
-                                    <button class="btn btn-sm btn-success" onclick="confirmBooking('${b.booking_id}')">Confirm</button>
-                                    <button class="btn btn-sm btn-danger" onclick="rejectBooking('${b.booking_id}')">Reject</button>
-                                  `
-                                : ''
-                        }
+                    <td>${b.customer_name || 'N/A'}</td>
+                    <td>${formattedDate}</td>
+                    <td class="d-none d-md-table-cell">${b.total_guests}</td>
+                    <td class="d-none d-lg-table-cell">₱${parseFloat(b.total_price).toFixed(2)}</td>
+                    <td><span class="${badgeClass}">${status}</span></td>
+                    <td>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button class="btn btn-sm btn-outline-primary" onclick="viewBooking('${b.booking_id}')">View</button>
+                            ${
+                                status === 'Pending'
+                                    ? `
+                                        <button class="btn btn-sm btn-success" onclick="confirmBooking('${b.booking_id}')">Confirm</button>
+                                        <button class="btn btn-sm btn-danger" onclick="rejectBooking('${b.booking_id}')">Reject</button>
+                                      `
+                                    : ''
+                            }
+                        </div>
                     </td>
                 </tr>
             `;
         });
     } catch (error) {
         console.error('Error loading bookings:', error);
+        const tbody = document.getElementById('bookingsTableBody');
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error loading bookings. Please refresh.</td></tr>`;
     }
 }
+
 
 async function viewBooking(bookingId) {
     try {
@@ -114,29 +130,95 @@ async function viewBooking(bookingId) {
 }
 
 async function confirmBooking(bookingId) {
-    if (!confirm('Confirm this booking?')) return;
+    if (!confirm('Are you sure you want to confirm this booking?')) return;
+    
     try {
-        const res = await fetch(`/spotowner/confirmBooking/${bookingId}`, { method: 'POST' });
+        const res = await fetch(`/spotowner/confirmBooking/${bookingId}`, { 
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
         const result = await res.json();
+        
         if (result.success) {
-            alert('Booking confirmed successfully.');
+            // Use SweetAlert if available, otherwise use alert
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Confirmed!',
+                    text: 'Booking confirmed successfully.',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            } else {
+                alert('Booking confirmed successfully.');
+            }
+            
+            // Reload bookings to show updated status
             await loadBookings();
+        } else {
+            throw new Error(result.error || 'Failed to confirm booking');
         }
     } catch (error) {
-        console.error(error);
+        console.error('Error confirming booking:', error);
+        
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Failed to confirm booking: ' + error.message
+            });
+        } else {
+            alert('Failed to confirm booking: ' + error.message);
+        }
     }
 }
 
 async function rejectBooking(bookingId) {
-    if (!confirm('Reject this booking?')) return;
+    if (!confirm('Are you sure you want to reject this booking?')) return;
+    
     try {
-        const res = await fetch(`/spotowner/rejectBooking/${bookingId}`, { method: 'POST' });
+        const res = await fetch(`/spotowner/rejectBooking/${bookingId}`, { 
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
         const result = await res.json();
+        
         if (result.success) {
-            alert('Booking rejected.');
+            // Use SweetAlert if available, otherwise use alert
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Rejected!',
+                    text: 'Booking rejected successfully.',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            } else {
+                alert('Booking rejected successfully.');
+            }
+            
+            // Reload bookings to show updated status
             await loadBookings();
+        } else {
+            throw new Error(result.error || 'Failed to reject booking');
         }
     } catch (error) {
-        console.error(error);
+        console.error('Error rejecting booking:', error);
+        
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Failed to reject booking: ' + error.message
+            });
+        } else {
+            alert('Failed to reject booking: ' + error.message);
+        }
     }
 }
