@@ -1242,7 +1242,7 @@
         generateBtn.disabled = true;
 
       // Use local Django recommend API only when running Django locally; otherwise use relative API
-      const recommendBase = isLocalhostGlobal ? 'http://127.0.0.1:8000/api/recommend/' : '/api/recommend/';
+      const recommendBase = isLocalhostGlobal ? 'http://127.0.0.1:8000/api/recommend/' : 'https://tuklasnasugbu.com/dj/api/recommend/';
       const url = `${recommendBase}?days=${formData.day}&budget=${formData.budget}&adults=${formData.adults}&children=${formData.children}&seniors=${formData.seniors}&preference=${userPreference}&start_date=${formData.start_date}&end_date=${formData.end_date}`;
 
 
@@ -1408,7 +1408,7 @@
 
           
 
-        const saveBase = isLocalhostGlobal ? 'http://127.0.0.1:8000/api/recommend/' : '/api/recommend/';
+        const saveBase = isLocalhostGlobal ? 'http://127.0.0.1:8000/api/recommend/' : 'https://tuklasnasugbu.com/dj/api/recommend/';
         const saveUrl = `${saveBase}?${params.toString()}`;
 
           try {

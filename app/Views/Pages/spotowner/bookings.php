@@ -2,17 +2,81 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tourist Spot Owner Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Booking Management - Tourist Spot Owner</title>
 
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-
     <!-- Custom CSS -->
     <link rel="stylesheet" href="<?= base_url("assets/css/main.css")?>">
+    
+    <style>
+        /* Additional mobile-specific styles for bookings page */
+        @media (max-width: 767.98px) {
+            .stat-card {
+                margin-bottom: 1rem;
+            }
+            
+            .custom-card-header {
+                flex-direction: column;
+                align-items: flex-start !important;
+            }
+            
+            .custom-card-header .d-flex {
+                width: 100%;
+                margin-top: 0.75rem;
+            }
+            
+            #openScannerBtn {
+                width: 100%;
+                margin-top: 0.5rem;
+            }
+            
+            /* Mobile-friendly table */
+            .table-responsive {
+                border: none;
+            }
+            
+            .table-custom {
+                font-size: 0.75rem;
+            }
+            
+            .table-custom th,
+            .table-custom td {
+                padding: 0.5rem 0.25rem;
+                white-space: nowrap;
+            }
+            
+            /* QR Scanner modal adjustments */
+            #qr-reader {
+                width: 100% !important;
+                min-height: 250px;
+            }
+            
+            .modal-lg {
+                margin: 0.5rem;
+            }
+        }
+        
+        @media (max-width: 575.98px) {
+            /* Stack stat cards */
+            .row.g-3 {
+                gap: 0.75rem !important;
+            }
+            
+            .stat-value {
+                font-size: 1.25rem;
+            }
+            
+            /* Make action buttons smaller */
+            .btn-sm {
+                font-size: 0.75rem;
+                padding: 0.25rem 0.5rem;
+            }
+        }
+    </style>
 </head>
 
 <body>
@@ -34,7 +98,7 @@
             <div class="sidebar-content">
                 <ul class="sidebar-menu">
                     <li class="sidebar-menu-item">
-                        <a href="/spotowner/dashboard" class="sidebar-link " data-page="home">
+                        <a href="/spotowner/dashboard" class="sidebar-link" data-page="home">
                             <i class="bi bi-house-door"></i>
                             <span>Home</span>
                         </a>
@@ -72,31 +136,59 @@
         <div class="flex-fill d-flex flex-column">
             <!-- Mobile Header -->
             <div class="mobile-header d-lg-none">
-                <button class="btn btn-link" id="sidebarToggle">
-                    <i class="bi bi-list fs-4"></i>
-                </button>
-                <div class="d-flex align-items-center gap-2">
-                    <div class="mobile-logo">
-                        <i class="bi bi-geo-alt-fill"></i>
-                    </div>
-                    <div>
-                        <h3 class="mobile-title mb-0">Tourist Spot</h3>
-                        <p class="mobile-subtitle mb-0">Owner Dashboard</p>
-                    </div>
-                </div>
+    <button class="btn btn-link" id="sidebarToggle">
+        <i class="bi bi-list fs-4"></i>
+    </button>
+    <div class="d-flex align-items-center gap-2">
+        <div class="mobile-logo">
+            <i class="bi bi-geo-alt-fill"></i>
+        </div>
+        <div>
+            <h3 class="mobile-title mb-0">Tourist Spot</h3>
+            <p class="mobile-subtitle mb-0">Booking Management</p>
+        </div>
+    </div>
+    
+    <!-- Notification Bell -->
+    <!-- Notification Bell -->
+<div class="dropdown">
+<button class="btn btn-link position-relative p-2" id="notificationDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="color: white; margin-right: 5px;">
+    <i class="bi bi-bell-fill" style="font-size: 1.25rem;"></i>
+    <span class="position-absolute badge rounded-pill bg-danger" 
+          id="notificationBadge" 
+          style="display: none; font-size: 0.6rem; top: 2px; right: 0px; padding: 0.25rem 0.4rem; min-width: 18px;">
+        0
+    </span>
+</button>
+    <div class="dropdown-menu dropdown-menu-end shadow-lg" style="width: 380px; max-height: 500px;">
+        <div class="dropdown-header d-flex justify-content-between align-items-center bg-primary text-white py-3">
+            <h6 class="mb-0 fw-bold">Notifications</h6>
+            <button class="btn btn-sm btn-link text-white text-decoration-none" id="markAllReadBtn">
+                Mark all read
+            </button>
+        </div>
+        <div class="dropdown-divider m-0"></div>
+        <div id="notificationList" style="max-height: 400px; overflow-y: auto;">
+            <div class="text-center py-4 text-muted">
+                <i class="bi bi-bell-slash fs-1"></i>
+                <p class="mb-0 mt-2">No notifications</p>
             </div>
+        </div>
+    </div>
+</div>
+</div>
 
             <!-- Page Content -->
             <main class="flex-fill p-3 p-lg-4" id="mainContent">
                 <div class="container-fluid">
-                    <div class="mb-4">
-                        <h2>Booking Management</h2>
-                        <p class="text-muted-custom">Manage and track all bookings for your tourist spot</p>
+                    <div class="mb-3 mb-lg-4">
+                        <h2 class="h4 h-lg-2">Booking Management</h2>
+                        <p class="text-muted-custom small"></p>
                     </div>
 
                     <!-- Stats -->
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-4">
+                    <div class="row g-3 mb-3 mb-lg-4">
+                        <div class="col-12 col-sm-6 col-md-4">
                             <div class="stat-card">
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div>
@@ -111,7 +203,7 @@
                             </div>
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-12 col-sm-6 col-md-4">
                             <div class="stat-card">
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div>
@@ -126,7 +218,7 @@
                             </div>
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-12 col-sm-6 col-md-4">
                             <div class="stat-card">
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div>
@@ -144,35 +236,34 @@
 
                     <!-- Bookings Table -->
                     <div class="custom-card">
-                        <div class="custom-card-header d-flex justify-content-between align-items-start">
+                        <div class="custom-card-header d-flex justify-content-between align-items-start flex-wrap">
                             <div>
                                 <h3 class="custom-card-title">Recent Bookings</h3>
-                                <p class="custom-card-description">List of all bookings for your tourist spot</p>
+                                <p class="custom-card-description d-none d-md-block">List of all bookings for your tourist spot</p>
                             </div>
-                            <div class="d-flex gap-2 align-items-center">
-                                <!-- Button to open the QR scanner modal -->
-                                <button class="btn btn-outline-primary" id="openScannerBtn" onclick="openQrScannerModal()">
-                                    <i class="bi bi-qr-code-scan"></i> Open QR Scanner
+                            <div class="d-flex gap-2 align-items-center w-100 w-md-auto">
+                                <button class="btn btn-outline-primary w-100 w-md-auto" id="openScannerBtn" onclick="openQrScannerModal()">
+                                    <i class="bi bi-qr-code-scan"></i> <span class="d-none d-sm-inline">Open</span> QR Scanner
                                 </button>
                             </div>
                         </div>
 
-                        <div class="custom-card-body">
+                        <div class="custom-card-body p-0 p-md-3">
                             <div class="table-responsive">
-                                <table class="table table-custom">
+                                <table class="table table-custom mb-0">
                                     <thead>
                                         <tr>
-                                            <th>Booking ID</th>
-                                            <th>Customer Name</th>
+                                            <th>ID</th>
+                                            <th>Customer</th>
                                             <th>Date</th>
-                                            <th>Visitors</th>
-                                            <th>Amount</th>
+                                            <th class="d-none d-md-table-cell">Visitors</th>
+                                            <th class="d-none d-lg-table-cell">Amount</th>
                                             <th>Status</th>
                                             <th>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody id="bookingsTableBody">
-                                        <!-- bookings.js will populate this via API call to /spotowner/getBookings -->
+                                        <!-- Populated by JS -->
                                     </tbody>
                                 </table>
                             </div>
@@ -180,70 +271,87 @@
                     </div>
                 </div>
 
-                <!-- View Booking Modal -->
-                <div class="modal fade" id="viewBookingModal" tabindex="-1">
-                    <div class="modal-dialog modal-lg">
+                <!-- QR Scanner Modal -->
+                <div class="modal fade" id="qrScannerModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title">Booking Details</h5>
+                                <h5 class="modal-title"><i class="bi bi-qr-code-scan"></i> Scan Check-in QR</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="stopScanner()"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div id="scannerContainer" style="min-height:250px;">
+                                    <div id="qr-reader" style="width:100%"></div>
+                                </div>
+
+                                <div id="qrScanResult" class="mt-3" style="display:none;">
+                                    <h6>Scan result</h6>
+                                    <div id="qrPayloadInfo" class="mb-2 small"></div>
+                                    <div class="d-flex gap-2 flex-column flex-sm-row">
+                                        <button class="btn btn-success flex-fill" id="confirmCheckinBtn" onclick="confirmScannedCheckin()">Confirm</button>
+                                        <button class="btn btn-secondary flex-fill" onclick="resumeScanner()">Scan again</button>
+                                    </div>
+                                </div>
+
+                                <div id="qrScanError" class="mt-3 text-danger small" style="display:none;"></div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary w-100 w-sm-auto" data-bs-dismiss="modal" onclick="stopScanner()">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- View Booking Modal -->
+                <div class="modal fade" id="viewBookingModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title"><i class="bi bi-info-circle"></i> Booking Details</h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body" id="bookingModalBody">
-                                <!-- Content loaded dynamically -->
+                                <!-- Content will be loaded dynamically -->
+                                <div class="text-center py-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- QR Scanner Modal -->
-        <div class="modal fade" id="qrScannerModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-lg modal-dialog-centered">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title"><i class="bi bi-qr-code-scan"></i> Scan Check-in QR</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="stopScanner()"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div id="scannerContainer" style="min-height:320px;">
-                            <div id="qr-reader" style="width:100%"></div>
-                        </div>
-
-                        <div id="qrScanResult" class="mt-3" style="display:none;">
-                            <h6>Scan result</h6>
-                            <div id="qrPayloadInfo" class="mb-2"></div>
-                            <div class="d-flex gap-2">
-                                <button class="btn btn-success" id="confirmCheckinBtn" onclick="confirmScannedCheckin()">Confirm Check-in</button>
-                                <button class="btn btn-secondary" onclick="resumeScanner()">Scan again</button>
-                            </div>
-                        </div>
-
-                        <div id="qrScanError" class="mt-3 text-danger" style="display:none;"></div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="stopScanner()">Close</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
             </main>
         </div>
     </div>
 
+<!-- Bootstrap 5 JS Bundle -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<!-- QR Code Scanner -->
+<script src="<?= base_url('assets/vendor/html5-qrcode/html5-qrcode.min.js') ?>"></script>
+
+<!-- Sidebar Toggle (IMPORTANT!) -->
+<script src="<?= base_url('assets/js/sidebar.js')?>"></script>
+
+<!-- Page-specific scripts -->
+<script src="<?= base_url('assets/js/spotownerJS/shared-data.js')?>"></script>
+<script src="<?= base_url('assets/js/spotownerJS/bookings.js')?>"></script>
 
  
-    <!-- Bootstrap 5 JS Bundle -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    </script>
 
-    <!-- SweetAlert2 for friendly alerts -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.js"></script>
 
-   <!-- local html5-qrcode (preferred for reliability) -->  
-    <script src="<?= base_url('assets/vendor/html5-qrcode/html5-qrcode.min.js') ?>"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <!-- Custom JavaScript (shared utilities if you have them) -->
-    <script src="<?= base_url("assets/js/spotownerJS/shared-data.js")?>"></script>
-    <script src="<?= base_url("assets/js/spotownerJS/bookings.js")?>"></script>
+ 
+   
     <!-- Expose endpoints to JS (use correct site_url values) -->
     <script>
       window.verifyTokenUrl = '<?= site_url("tourist/verifyCheckinToken") ?>';
@@ -468,12 +576,6 @@ async function onQrScanned(decodedText) {
   const infoEl = document.getElementById('qrPayloadInfo');
   if (infoEl) {
     infoEl.innerHTML = `
-      <div><strong>Booking ID:</strong> ${escHtml(result.booking_id)}</div>
-      <div><strong>Customer ID:</strong> ${escHtml(result.customer_id)}</div>
-      <div><strong>Visit Date:</strong> ${escHtml(bookingDateDisplay)}</div>
-      <div><strong>Spot ID:</strong> ${escHtml(result.spot_id)}</div>
-      <div><strong>Issued:</strong> ${escHtml(issued)}</div>
-      <div><strong>Expires:</strong> ${escHtml(expires)}</div>
     `;
   }
   const resEl = document.getElementById('qrScanResult'); if (resEl) resEl.style.display = 'block';
@@ -622,7 +724,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const modalEl = document.getElementById('qrScannerModal');
   if (modalEl) modalEl.addEventListener('hidden.bs.modal', () => { stopScanner(); });
 });
+
+
+
     </script>
+
+<script src="<?= base_url('assets/js/spotownerJS/notifications.js') ?>"></script>
 </body>
 
 </html>

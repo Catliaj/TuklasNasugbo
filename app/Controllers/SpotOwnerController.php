@@ -333,26 +333,62 @@ public function recordCheckin()
 
             // --- Handle primary image ---
             $primaryImage = $this->request->getFile('primary_image');
-            if ($primaryImage && $primaryImage->isValid() && !$primaryImage->hasMoved()) {
-                $newName = $primaryImage->getRandomName();
-                $uploadPath = FCPATH . 'uploads/spots/';
+            if ($primaryImage) {
+                if ($primaryImage->isValid() && !$primaryImage->hasMoved()) {
+                    $newName = $primaryImage->getRandomName();
+                    $uploadPath = FCPATH . 'uploads/spots/';
 
-                if (!is_dir($uploadPath)) {
-                    mkdir($uploadPath, 0777, true);
+                    if (!is_dir($uploadPath)) {
+                        if (!mkdir($uploadPath, 0777, true) && !is_dir($uploadPath)) {
+                            log_message('error', '[storeMySpots] Failed to create upload directory: ' . $uploadPath);
+                        }
+                    }
+
+                    try {
+                        $primaryImage->move($uploadPath, $newName);
+                        // verify file exists after move
+                        if (is_file($uploadPath . $newName)) {
+                            $data['primary_image'] = $newName; // store filename in tourist_spots table
+                        } else {
+                            log_message('error', '[storeMySpots] primaryImage moved but file not found at destination: ' . $uploadPath . $newName);
+                            session()->setFlashdata('spot_image_error', 'Primary image upload failed (file missing after move).');
+                        }
+                    } catch (\Throwable $t) {
+                        log_message('error', '[storeMySpots] Exception while moving primary image: ' . $t->getMessage());
+                        session()->setFlashdata('spot_image_error', 'Primary image upload failed: ' . $t->getMessage());
+                    }
+                } else {
+                    // Log the specific upload error code to help debug (production vs local differences)
+                    $errCode = method_exists($primaryImage, 'getError') ? $primaryImage->getError() : 'unknown';
+                    log_message('warning', "[storeMySpots] primary_image not uploaded or invalid. isValid=" . var_export($primaryImage->isValid(), true) . ", hasMoved=" . var_export($primaryImage->hasMoved(), true) . ", error={$errCode}");
+                    session()->setFlashdata('spot_image_error', 'Primary image not uploaded or invalid (code: ' . $errCode . ').');
                 }
-
-                $primaryImage->move($uploadPath, $newName);
-                $data['primary_image'] = $newName; // store filename in tourist_spots table
             }
 
             // --- Insert tourist spot ---
             $spotId = $touristSpotModel->insert($data);
 
-            if (!$spotId) {
-                $error = $touristSpotModel->errors();
-                log_message('error', '[storeMySpots] Tourist spot insert failed: ' . print_r($error, true));
-                return redirect()->back()->with('error', 'Failed to add tourist spot.');
-            }
+if (!$spotId) {
+    $error = $touristSpotModel->errors();
+    log_message('error', '[storeMySpots] Tourist spot insert failed: ' . print_r($error, true));
+    return redirect()->back()->with('error', 'Failed to add tourist spot.');
+}
+
+// Create notification for admins about new spot submission
+try {
+    $notificationModel = new \App\Models\NotificationModel();
+    $spotName = $data['spot_name'];
+    $businessName = $businessData['business_name'] ?? 'Unknown Business';
+    
+    $notificationModel->notifyAdmins(
+        "New tourist spot '$spotName' submitted by $businessName",
+        base_url('/admin/attractions')
+    );
+} catch (\Exception $e) {
+    log_message('error', 'Failed to create spot notification: ' . $e->getMessage());
+}
+
+// --- Handle gallery images (multiple) ---
 
             // Notify admin about new pending tourist spot
             try {
@@ -371,30 +407,43 @@ public function recordCheckin()
 
             // --- Handle gallery images (multiple) ---
             $galleryImages = $this->request->getFiles();
-            if (isset($galleryImages['gallery_images'])) {
+            if (isset($galleryImages['gallery_images']) && is_array($galleryImages['gallery_images'])) {
+                $galleryPath = FCPATH . 'uploads/spots/gallery/';
+                if (!is_dir($galleryPath)) {
+                    if (!mkdir($galleryPath, 0777, true) && !is_dir($galleryPath)) {
+                        log_message('error', '[storeMySpots] Failed to create gallery directory: ' . $galleryPath);
+                    }
+                }
+
                 foreach ($galleryImages['gallery_images'] as $image) {
+                    if (!$image) continue;
                     if ($image->isValid() && !$image->hasMoved()) {
                         $newName = $image->getRandomName();
-                        $galleryPath = FCPATH . 'uploads/spots/gallery/';
-
-                        if (!is_dir($galleryPath)) {
-                            mkdir($galleryPath, 0777, true);
+                        try {
+                            $image->move($galleryPath, $newName);
+                            if (is_file($galleryPath . $newName)) {
+                                // insert to SpotGallery model
+                                $spotGalleryModel->insert([
+                                    'spot_id' => $spotId,
+                                    'image' => $newName
+                                ]);
+                            } else {
+                                log_message('error', '[storeMySpots] Gallery image moved but not found: ' . $galleryPath . $newName);
+                            }
+                        } catch (\Throwable $t) {
+                            log_message('error', '[storeMySpots] Exception while moving gallery image: ' . $t->getMessage());
                         }
-
-                        $image->move($galleryPath, $newName);
-
-                        // insert to SpotGallery model
-                        $spotGalleryModel->insert([
-                            'spot_id' => $spotId,
-                            'image' => $newName
-                        ]);
+                    } else {
+                        $err = method_exists($image, 'getError') ? $image->getError() : 'unknown';
+                        log_message('warning', "[storeMySpots] gallery image invalid or already moved. error={$err}");
                     }
                 }
             }
 
             // --- Success ---
-            return redirect()->to('/spotowner/mySpots')
-                            ->with('success', 'Tourist spot added successfully!');
+session()->setFlashdata('spot_added', true);
+return redirect()->to('/spotowner/mySpots')
+                ->with('success', 'Tourist spot added successfully!');
 
         } catch (\Exception $e) {
             log_message('error', '[storeMySpots] Exception: ' . $e->getMessage());
@@ -421,7 +470,7 @@ public function recordCheckin()
         }
 
         // 2️⃣ Get tourist spots for that business
-        // ⚠️ use correct column name in your DB, usually `business_id`
+        // ⚠️ use correct column name in your DB, usually business_id
         $spots = $spotModel->where('business_id', $business['business_id'])->findAll();
 
         // 3️⃣ For each spot, attach gallery images and normalize field names
@@ -432,7 +481,7 @@ public function recordCheckin()
             // Map field names to match your JS expectations
             $spot['id'] = $spot['spot_id'];
             $spot['name'] = $spot['spot_name'];
-            $spot['image'] = base_url('uploads/spots/' . $spot['primary_image']);
+            $spot['image'] = !empty($spot['primary_image']) ? base_url('uploads/spots/' . $spot['primary_image']) : base_url('uploads/spots/Spot-No-Image.png');
             $spot['status'] = $spot['status'] ?? 'inactive';
             $spot['price'] = $spot['price_per_person'];
             $spot['maxVisitors'] = $spot['capacity'];
@@ -451,21 +500,92 @@ public function recordCheckin()
     }
 
     public function getSpot($id)
-    {
+{
+    try {
         $spotModel = new \App\Models\TouristSpotModel();
         $spot = $spotModel->find($id);
 
         if (!$spot) {
-            return $this->response->setJSON(['error' => 'Spot not found']);
+            return $this->response->setJSON(['error' => 'Spot not found'])->setStatusCode(404);
         }
 
         // Optionally include gallery images
         $galleryModel = new \App\Models\SpotGalleryModel();
-        $spot['images'] = array_map(fn($g) => base_url('uploads/spots/gallery/' . $g['image']),
-                                    $galleryModel->where('spot_id', $id)->findAll());
+        $galleryImages = $galleryModel->where('spot_id', $id)->findAll();
+        
+        $spot['images'] = array_map(
+            fn($g) => base_url('uploads/spots/gallery/' . $g['image']),
+            $galleryImages
+        );
+
+        // Add primary image to response if it exists
+        if (!empty($spot['primary_image'])) {
+            $spot['image'] = !empty($spot['primary_image']) ? base_url('uploads/spots/' . $spot['primary_image']) : base_url('uploads/spots/Spot-No-Image.png');
+        }
 
         return $this->response->setJSON($spot);
+    } catch (\Exception $e) {
+        log_message('error', '[getSpot] Error: ' . $e->getMessage());
+        return $this->response->setJSON(['error' => 'Failed to load spot'])->setStatusCode(500);
     }
+}
+
+public function updateSpot($id)
+{
+    $session = session();
+    $userID = $session->get('UserID');
+    
+    if (!$userID || !$session->get('isLoggedIn') || $session->get('Role') !== 'Spot Owner') {
+        return $this->response->setJSON(['error' => 'Unauthorized'])->setStatusCode(401);
+    }
+
+    try {
+        $spotModel = new \App\Models\TouristSpotModel();
+        $businessModel = new \App\Models\BusinessModel();
+        
+        // Verify ownership
+        $spot = $spotModel->find($id);
+        if (!$spot) {
+            return $this->response->setJSON(['error' => 'Spot not found'])->setStatusCode(404);
+        }
+        
+        $business = $businessModel->where('user_id', $userID)->first();
+        if (!$business || $spot['business_id'] != $business['business_id']) {
+            return $this->response->setJSON(['error' => 'Forbidden: You do not own this spot'])->setStatusCode(403);
+        }
+        
+        // Get JSON input
+        $input = $this->request->getJSON(true);
+        
+        // Prepare update data
+        $updateData = [
+            'spot_name' => $input['spot_name'] ?? $spot['spot_name'],
+            'description' => $input['description'] ?? $spot['description'],
+            'location' => $input['location'] ?? $spot['location'],
+            'price_per_person' => $input['price_per_person'] ?? $spot['price_per_person'],
+            'capacity' => $input['capacity'] ?? $spot['capacity'],
+            'opening_time' => $input['opening_time'] ?? $spot['opening_time'],
+            'closing_time' => $input['closing_time'] ?? $spot['closing_time'],
+            'status' => $input['status'] ?? $spot['status'],
+            'updated_at' => date('Y-m-d H:i:s')
+        ];
+        
+        // Update the spot
+        $updated = $spotModel->update($id, $updateData);
+        
+        if ($updated === false) {
+            $errors = $spotModel->errors() ?: [];
+            log_message('error', '[updateSpot] Update failed: ' . print_r($errors, true));
+            return $this->response->setJSON(['error' => 'Failed to update spot', 'details' => $errors])->setStatusCode(500);
+        }
+        
+        return $this->response->setJSON(['success' => true, 'message' => 'Spot updated successfully']);
+        
+    } catch (\Exception $e) {
+        log_message('error', '[updateSpot] Exception: ' . $e->getMessage());
+        return $this->response->setJSON(['error' => 'Server error while updating spot'])->setStatusCode(500);
+    }
+}
 
     public function getBookings()
     {
@@ -516,21 +636,58 @@ public function recordCheckin()
 /**
  * API: Get monthly revenue data for chart
  */
+/**
+ * API: Get monthly revenue data for chart
+ */
 public function getMonthlyRevenueData()
 {
     $userID = session()->get('UserID');
-    $businessModel = new BusinessModel();
-    $bookingModel = new BookingModel();
-
-    $businessData = $businessModel->where('user_id', $userID)->first();
-    if (!$businessData) {
-        return $this->response->setJSON(['error' => 'Business not found']);
+    
+    if (!$userID) {
+        return $this->response->setJSON(['error' => 'Unauthorized'])->setStatusCode(401);
     }
 
-    $businessID = $businessData['business_id'];
-    $data = $bookingModel->getMonthlyRevenueByBusiness($businessID, 6);
-
-    return $this->response->setJSON($data);
+    try {
+        $db = \Config\Database::connect();
+        
+        // Get business_id
+        $business = $db->table('businesses')
+            ->where('user_id', $userID)
+            ->get()
+            ->getRow();
+        
+        if (!$business) {
+            return $this->response->setJSON([]);
+        }
+        
+        $businessID = $business->business_id;
+        
+        // Get last 6 months revenue with proper month names
+        $query = $db->query("
+            SELECT 
+                DATE_FORMAT(b.booking_date, '%Y-%m') as month,
+                DATE_FORMAT(b.booking_date, '%b %Y') as month_name,
+                SUM(b.total_price) as revenue,
+                COUNT(b.booking_id) as bookings
+            FROM bookings b
+            INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
+            WHERE ts.business_id = ?
+                AND b.booking_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+                AND b.booking_status IN ('Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out')
+                AND b.payment_status = 'Paid'
+            GROUP BY DATE_FORMAT(b.booking_date, '%Y-%m')
+            ORDER BY month ASC
+        ", [$businessID]);
+        
+        $results = $query->getResultArray();
+        
+        return $this->response->setJSON($results);
+        
+    } catch (\Exception $e) {
+        log_message('error', 'Monthly revenue error: ' . $e->getMessage());
+        return $this->response->setJSON(['error' => 'Failed to fetch revenue data'])
+            ->setStatusCode(500);
+    }
 }
 
 /**
@@ -539,18 +696,53 @@ public function getMonthlyRevenueData()
 public function getWeeklyRevenueData()
 {
     $userID = session()->get('UserID');
-    $businessModel = new BusinessModel();
-    $bookingModel = new BookingModel();
-
-    $businessData = $businessModel->where('user_id', $userID)->first();
-    if (!$businessData) {
-        return $this->response->setJSON(['error' => 'Business not found']);
+    
+    if (!$userID) {
+        return $this->response->setJSON(['error' => 'Unauthorized'])->setStatusCode(401);
     }
 
-    $businessID = $businessData['business_id'];
-    $data = $bookingModel->getWeeklyRevenueByBusiness($businessID, 8);
-
-    return $this->response->setJSON($data);
+    try {
+        $db = \Config\Database::connect();
+        
+        // Get business_id
+        $business = $db->table('businesses')
+            ->where('user_id', $userID)
+            ->get()
+            ->getRow();
+        
+        if (!$business) {
+            return $this->response->setJSON([]);
+        }
+        
+        $businessID = $business->business_id;
+        
+        // Get last 8 weeks revenue
+        $query = $db->query("
+            SELECT 
+                DATE_FORMAT(b.booking_date, '%Y-%u') as week,
+                DATE_FORMAT(DATE_SUB(b.booking_date, INTERVAL WEEKDAY(b.booking_date) DAY), '%b %d') as week_start,
+                DATE_FORMAT(DATE_ADD(DATE_SUB(b.booking_date, INTERVAL WEEKDAY(b.booking_date) DAY), INTERVAL 6 DAY), '%b %d') as week_end,
+                SUM(b.total_price) as revenue,
+                COUNT(b.booking_id) as bookings
+            FROM bookings b
+            INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
+            WHERE ts.business_id = ?
+                AND b.booking_date >= DATE_SUB(CURDATE(), INTERVAL 8 WEEK)
+                AND b.booking_status IN ('Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out')
+                AND b.payment_status = 'Paid'
+            GROUP BY DATE_FORMAT(b.booking_date, '%Y-%u')
+            ORDER BY week ASC
+        ", [$businessID]);
+        
+        $results = $query->getResultArray();
+        
+        return $this->response->setJSON($results);
+        
+    } catch (\Exception $e) {
+        log_message('error', 'Weekly revenue error: ' . $e->getMessage());
+        return $this->response->setJSON(['error' => 'Failed to fetch weekly data'])
+            ->setStatusCode(500);
+    }
 }
 
 /**
@@ -559,19 +751,277 @@ public function getWeeklyRevenueData()
 public function getBookingTrendsData()
 {
     $userID = session()->get('UserID');
-    $businessModel = new BusinessModel();
-    $bookingModel = new BookingModel();
-
-    $businessData = $businessModel->where('user_id', $userID)->first();
-    if (!$businessData) {
-        return $this->response->setJSON(['error' => 'Business not found']);
+    
+    if (!$userID) {
+        return $this->response->setJSON(['error' => 'Unauthorized'])->setStatusCode(401);
     }
 
-    $businessID = $businessData['business_id'];
-    $data = $bookingModel->getBookingTrendsByBusiness($businessID, 6);
-
-    return $this->response->setJSON($data);
+    try {
+        $db = \Config\Database::connect();
+        
+        // Get business_id
+        $business = $db->table('businesses')
+            ->where('user_id', $userID)
+            ->get()
+            ->getRow();
+        
+        if (!$business) {
+            return $this->response->setJSON([]);
+        }
+        
+        $businessID = $business->business_id;
+        
+        // Get last 6 months booking trends
+        $query = $db->query("
+            SELECT 
+                DATE_FORMAT(b.booking_date, '%Y-%m') as month,
+                DATE_FORMAT(b.booking_date, '%b %Y') as month_name,
+                COUNT(b.booking_id) as bookings
+            FROM bookings b
+            INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
+            WHERE ts.business_id = ?
+                AND b.booking_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+            GROUP BY DATE_FORMAT(b.booking_date, '%Y-%m')
+            ORDER BY month ASC
+        ", [$businessID]);
+        
+        $results = $query->getResultArray();
+        
+        return $this->response->setJSON($results);
+        
+    } catch (\Exception $e) {
+        log_message('error', 'Booking trends error: ' . $e->getMessage());
+        return $this->response->setJSON(['error' => 'Failed to fetch booking trends'])
+            ->setStatusCode(500);
+    }
 }
 
+/**
+ * Get dashboard analytics overview
+ */
+public function getDashboardAnalytics()
+{
+    $userId = session()->get('UserID');
+    
+    if (!$userId) {
+        return $this->response->setJSON(['error' => 'Unauthorized'])->setStatusCode(401);
+    }
+
+    try {
+        $db = \Config\Database::connect();
+        
+        // Get business_id for the logged-in user
+        $business = $db->table('businesses')
+            ->where('user_id', $userId)
+            ->get()
+            ->getRow();
+        
+        if (!$business) {
+            return $this->response->setJSON([
+                'totalSpots' => 0,
+                'totalBookings' => 0,
+                'totalRevenue' => 0,
+                'averageRating' => 0
+            ]);
+        }
+        
+        $businessId = $business->business_id;
+        
+        // Get total spots
+        $totalSpots = $db->table('tourist_spots')
+            ->where('business_id', $businessId)
+            ->where('status', 'approved')
+            ->countAllResults();
+        
+        // Get total bookings (this month)
+        $currentMonth = date('Y-m');
+        $totalBookings = $db->table('bookings b')
+            ->join('tourist_spots ts', 'b.spot_id = ts.spot_id')
+            ->where('ts.business_id', $businessId)
+            ->where('DATE_FORMAT(b.booking_date, "%Y-%m")', $currentMonth)
+            ->whereIn('b.booking_status', ['Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out'])
+            ->countAllResults();
+        
+        // Get total revenue (this month)
+        $revenueQuery = $db->table('bookings b')
+            ->select('SUM(b.total_price) as total_revenue')
+            ->join('tourist_spots ts', 'b.spot_id = ts.spot_id')
+            ->where('ts.business_id', $businessId)
+            ->where('DATE_FORMAT(b.booking_date, "%Y-%m")', $currentMonth)
+            ->whereIn('b.booking_status', ['Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out'])
+            ->where('b.payment_status', 'Paid')
+            ->get()
+            ->getRow();
+        
+        $totalRevenue = $revenueQuery ? (float)$revenueQuery->total_revenue : 0;
+        
+        // Get average rating across all spots
+        $ratingQuery = $db->table('review_feedback rf')
+            ->select('AVG(rf.rating) as avg_rating')
+            ->join('tourist_spots ts', 'rf.spot_id = ts.spot_id')
+            ->where('ts.business_id', $businessId)
+            ->where('rf.status', 'Approved')
+            ->get()
+            ->getRow();
+        
+        $averageRating = $ratingQuery && $ratingQuery->avg_rating ? 
+            round((float)$ratingQuery->avg_rating, 1) : 0;
+        
+        return $this->response->setJSON([
+            'totalSpots' => $totalSpots,
+            'totalBookings' => $totalBookings,
+            'totalRevenue' => $totalRevenue,
+            'averageRating' => $averageRating
+        ]);
+        
+    } catch (\Exception $e) {
+        log_message('error', 'Dashboard analytics error: ' . $e->getMessage());
+        return $this->response->setJSON(['error' => 'Failed to fetch analytics'])
+            ->setStatusCode(500);
+    }
+}
+
+/**
+ * Get spot-specific analytics for each tourist spot
+ */
+public function getSpotAnalytics($spotId)
+{
+    $userId = session()->get('UserID');
+    
+    if (!$userId) {
+        return $this->response->setJSON(['error' => 'Unauthorized'])->setStatusCode(401);
+    }
+
+    try {
+        $db = \Config\Database::connect();
+        
+        // Verify ownership
+        $spot = $db->table('tourist_spots ts')
+            ->join('businesses b', 'ts.business_id = b.business_id')
+            ->where('ts.spot_id', $spotId)
+            ->where('b.user_id', $userId)
+            ->get()
+            ->getRow();
+        
+        if (!$spot) {
+            return $this->response->setJSON(['error' => 'Unauthorized access'])
+                ->setStatusCode(403);
+        }
+        
+        // Get bookings count
+        $bookings = $db->table('bookings')
+            ->where('spot_id', $spotId)
+            ->whereIn('booking_status', ['Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out'])
+            ->countAllResults();
+        
+        // Get revenue
+        $revenueQuery = $db->table('bookings')
+            ->select('SUM(total_price) as revenue')
+            ->where('spot_id', $spotId)
+            ->whereIn('booking_status', ['Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out'])
+            ->where('payment_status', 'Paid')
+            ->get()
+            ->getRow();
+        
+        $revenue = $revenueQuery ? (float)$revenueQuery->revenue : 0;
+        
+        // Get visitors count
+        $visitorsQuery = $db->table('bookings')
+            ->select('SUM(total_guests) as visitors')
+            ->where('spot_id', $spotId)
+            ->whereIn('booking_status', ['Completed', 'Checked-out', 'Checked-Out'])
+            ->get()
+            ->getRow();
+        
+        $visitors = $visitorsQuery ? (int)$visitorsQuery->visitors : 0;
+        
+        // Get rating
+        $ratingQuery = $db->table('review_feedback')
+            ->select('AVG(rating) as avg_rating, COUNT(review_id) as review_count')
+            ->where('spot_id', $spotId)
+            ->where('status', 'Approved')
+            ->get()
+            ->getRow();
+        
+        $rating = $ratingQuery && $ratingQuery->avg_rating ? 
+            round((float)$ratingQuery->avg_rating, 1) : 0;
+        $reviews = $ratingQuery ? (int)$ratingQuery->review_count : 0;
+        
+        return $this->response->setJSON([
+            'bookings' => $bookings,
+            'revenue' => $revenue,
+            'visitors' => $visitors,
+            'rating' => $rating,
+            'reviews' => $reviews
+        ]);
+        
+    } catch (\Exception $e) {
+        log_message('error', 'Spot analytics error: ' . $e->getMessage());
+        return $this->response->setJSON(['error' => 'Failed to fetch spot analytics'])
+            ->setStatusCode(500);
+    }
+}
+
+
+// ============================================
+// NOTIFICATION METHODS
+// ============================================
+
+public function getUnreadNotificationCount()
+{
+    $notificationModel = new \App\Models\NotificationModel();
+    
+    // Get the logged-in spot owner's user_id from session
+    $userId = session()->get('UserID');
+    
+    if (!$userId) {
+        return $this->response->setJSON(['count' => 0]);
+    }
+    
+    $count = $notificationModel->getUnreadCount($userId);
+    
+    return $this->response->setJSON(['count' => $count]);
+}
+
+public function getNotifications()
+{
+    $notificationModel = new \App\Models\NotificationModel();
+    
+    // Get the logged-in spot owner's user_id from session
+    $userId = session()->get('UserID');
+    
+    if (!$userId) {
+        return $this->response->setJSON([]);
+    }
+    
+    $notifications = $notificationModel->getUserNotifications($userId, 20);
+    
+    return $this->response->setJSON($notifications);
+}
+
+public function markNotificationAsRead($notificationId)
+{
+    $notificationModel = new \App\Models\NotificationModel();
+    
+    $result = $notificationModel->markAsRead($notificationId);
+    
+    return $this->response->setJSON(['success' => $result]);
+}
+
+public function markAllNotificationsAsRead()
+{
+    $notificationModel = new \App\Models\NotificationModel();
+    
+    // Get the logged-in spot owner's user_id from session
+    $userId = session()->get('UserID');
+    
+    if (!$userId) {
+        return $this->response->setJSON(['success' => false]);
+    }
+    
+    $result = $notificationModel->markAllAsRead($userId);
+    
+    return $this->response->setJSON(['success' => $result]);
+}
 
 }

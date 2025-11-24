@@ -420,4 +420,47 @@ class AdminController extends BaseController
             return $this->response->setStatusCode(500)->setJSON(['error' => 'Server Error', 'message' => $e->getMessage()]);
         }
     }
+
+    public function getUnreadNotificationCount()
+    {
+        $notificationModel = new \App\Models\NotificationModel();
+        
+        // Get all unread notifications where user_id is NULL (for all admins)
+        $count = $notificationModel->getUnreadCount(null);
+        
+        return $this->response->setJSON(['count' => $count]);
+    }
+    
+    public function getNotifications()
+    {
+        $notificationModel = new \App\Models\NotificationModel();
+        
+        // Get all notifications where user_id is NULL (for all admins)
+        $notifications = $notificationModel->getUserNotifications(null, 20);
+        
+        return $this->response->setJSON($notifications);
+    }
+    
+    public function markNotificationAsRead($notificationId)
+    {
+        $notificationModel = new \App\Models\NotificationModel();
+        
+        $result = $notificationModel->markAsRead($notificationId);
+        
+        return $this->response->setJSON(['success' => $result]);
+    }
+    
+    public function markAllNotificationsAsRead()
+    {
+        $notificationModel = new \App\Models\NotificationModel();
+        
+        // Mark all unread as read where user_id is NULL (for all admins)
+        $result = $notificationModel->markAllAsRead(null);
+        
+        return $this->response->setJSON(['success' => $result]);
+    }
+public function notifications()
+{
+    return view('Pages/admin/notifications');
+}
 }

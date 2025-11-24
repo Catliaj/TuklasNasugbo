@@ -161,6 +161,54 @@ public function touristDashboard()
         $favoriteCount = 0;
     }
 
+    // --- Favorite spots data (for dashboard) ---
+    $favoriteSpots = [];
+    try {
+        // Prefer dedicated favorite table
+        if ($db->tableExists('spot_fav_by_customer')) {
+            $rows = $db->table('spot_fav_by_customer')
+                ->select('spot_id')
+                ->where('user_id', $userID)
+                ->orderBy('favorited_at', 'DESC')
+                ->limit(4)
+                ->get()
+                ->getResultArray();
+            $ids = array_column($rows, 'spot_id');
+            if (!empty($ids)) {
+                $spotModel = new \App\Models\TouristSpotModel();
+                $favoriteSpots = $spotModel->whereIn('spot_id', $ids)->findAll();
+            }
+        } elseif ($db->tableExists('user_favorites')) {
+            $rows = $db->table('user_favorites')
+                ->select('spot_id')
+                ->where('user_id', $userID)
+                ->orderBy('created_at', 'DESC')
+                ->limit(4)
+                ->get()
+                ->getResultArray();
+            $ids = array_column($rows, 'spot_id');
+            if (!empty($ids)) {
+                $spotModel = new \App\Models\TouristSpotModel();
+                $favoriteSpots = $spotModel->whereIn('spot_id', $ids)->findAll();
+            }
+        } elseif ($db->tableExists('favorites')) {
+            $rows = $db->table('favorites')
+                ->select('spot_id')
+                ->where('user_id', $userID)
+                ->orderBy('created_at', 'DESC')
+                ->limit(4)
+                ->get()
+                ->getResultArray();
+            $ids = array_column($rows, 'spot_id');
+            if (!empty($ids)) {
+                $spotModel = new \App\Models\TouristSpotModel();
+                $favoriteSpots = $spotModel->whereIn('spot_id', $ids)->findAll();
+            }
+        }
+    } catch (\Exception $e) {
+        $favoriteSpots = [];
+    }
+
     // --- 4) Upcoming bookings ---
     $upcomingBookings = 0;
     try {
@@ -251,6 +299,12 @@ public function touristDashboard()
         }
     }
 
+    // Normalize popularSpots: ensure each has a numeric 'views' key for the view
+    foreach ($popularSpots as &$ps) {
+        $ps['views'] = isset($ps['views']) ? (int)$ps['views'] : 0;
+    }
+    unset($ps);
+
     // --- Finally render view with data ---
     return view('Pages/tourist/dashboard', [
         'userID'            => $userID,
@@ -260,10 +314,99 @@ public function touristDashboard()
         'TotalSaveItineray' => $TotalSaveItineray,
         'placesVisited'     => $placesVisited,
         'favoriteCount'     => $favoriteCount,
+            'favoriteSpots'     => $favoriteSpots,
         'upcomingBookings'  => $upcomingBookings,
         'popularSpots'      => $popularSpots,
     ]);
 }
+
+    /**
+     * Return live dashboard stats as JSON for the current user.
+     * Used by dashboard AJAX polling to keep counts up-to-date.
+     */
+    public function dashboardStats()
+    {
+        $session = session();
+        $userID = $session->get('UserID');
+        if (!$userID) {
+            return $this->response->setJSON(['error' => 'Not logged in'], 401);
+        }
+
+        $db = \Config\Database::connect();
+
+        // Saved itineraries
+        $TotalSaveItineray = 0;
+        try {
+            $preferencesModel = new \App\Models\UserPreferenceModel();
+            $itineraryModel = new \App\Models\ItineraryModel();
+            $preference = $preferencesModel->where('user_id', $userID)->first();
+            $preferenceID = $preference['preference_id'] ?? null;
+            if ($preferenceID) {
+                $TotalSaveItineray = (int) $itineraryModel->countDistinctDates($preferenceID);
+            }
+        } catch (\Throwable $e) {
+            $TotalSaveItineray = 0;
+        }
+
+        // Places visited
+        $placesVisited = 0;
+        try {
+            if ($db->tableExists('createuservisits')) {
+                $placesVisited = (int) $db->table('createuservisits')->where('user_id', $userID)->countAllResults();
+            }
+        } catch (\Throwable $e) {
+            $placesVisited = 0;
+        }
+
+        // Favorite count
+        $favoriteCount = 0;
+        try {
+            if ($db->tableExists('spot_fav_by_customer')) {
+                $favoriteCount = (int) $db->table('spot_fav_by_customer')->where('user_id', $userID)->countAllResults();
+            } elseif ($db->tableExists('user_favorites')) {
+                $favoriteCount = (int) $db->table('user_favorites')->where('user_id', $userID)->countAllResults();
+            } elseif ($db->tableExists('favorites')) {
+                $favoriteCount = (int) $db->table('favorites')->where('user_id', $userID)->countAllResults();
+            }
+        } catch (\Throwable $e) {
+            $favoriteCount = 0;
+        }
+
+        // Upcoming bookings
+        $upcomingBookings = 0;
+        try {
+            $today = date('Y-m-d');
+            $bookingModel = new \App\Models\BookingModel();
+            $fields = [];
+            if ($db->tableExists('bookings')) {
+                $fields = $db->getFieldNames('bookings');
+            }
+            if (!empty($fields) && in_array('user_id', $fields, true)) {
+                $upcomingBookings = (int) $bookingModel->where('user_id', $userID)->where('visit_date >=', $today)->where('booking_status !=', 'cancelled')->countAllResults();
+            } elseif (!empty($fields) && in_array('customer_id', $fields, true)) {
+                // try resolve customer id
+                try {
+                    $customerModel = new \App\Models\CustomerModel();
+                    $customerRow = $customerModel->where('user_id', $userID)->first();
+                    $customerID = $customerRow['customer_id'] ?? null;
+                    if ($customerID) {
+                        $upcomingBookings = (int) $bookingModel->where('customer_id', $customerID)->where('visit_date >=', $today)->where('booking_status !=', 'cancelled')->countAllResults();
+                    }
+                } catch (\Throwable $e) {
+                    $upcomingBookings = 0;
+                }
+            }
+        } catch (\Throwable $e) {
+            $upcomingBookings = 0;
+        }
+
+        return $this->response->setJSON([
+            'savedItineraries' => $TotalSaveItineray,
+            'placesVisited' => $placesVisited,
+            'favoriteCount' => $favoriteCount,
+            'upcomingBookings' => $upcomingBookings,
+        ]);
+    }
 
 
     public function exploreSpots()
@@ -582,8 +725,49 @@ public function touristDashboard()
         $limit = (int) ($this->request->getGet('limit') ?? 8);
         $spotModel = new \App\Models\TouristSpotModel();
         try {
-            $spots = $spotModel->getApprovedTouristSpots();
-            if (!is_array($spots)) $spots = [];
+            $spots = [];
+
+            // Try to prefer user's categories if available
+            $session = session();
+            $userID = $session->get('UserID');
+            if ($userID) {
+                try {
+                    $userModel = new \App\Models\UsersModel();
+                    $catStr = $userModel->getUserCategoryString($userID) ?: '';
+                    $cats = array_filter(array_map('trim', explode(',', $catStr)));
+                    if (!empty($cats)) {
+                        // fetch spots that match any of the user's categories
+                        // Use model whereIn if available; fallback to getApprovedTouristSpots and filter
+                        try {
+                            $candidates = $spotModel->whereIn('category', $cats)->findAll();
+                        } catch (\Throwable $inner) {
+                            // fallback to filtering approved spots in PHP
+                            $approved = $spotModel->getApprovedTouristSpots();
+                            $candidates = array_values(array_filter($approved, function($s) use ($cats) {
+                                return in_array(trim((string)($s['category'] ?? '')), $cats, true);
+                            }));
+                        }
+
+                        if (!empty($candidates)) {
+                            // randomize order
+                            shuffle($candidates);
+                            $spots = $candidates;
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    // If user model or preferences fail, ignore and fallback
+                    log_message('warning', 'recommendedSpots: failed to get user prefs: ' . $e->getMessage());
+                }
+            }
+
+            // Fallback: use approved spots randomized
+            if (empty($spots)) {
+                $approved = $spotModel->getApprovedTouristSpots();
+                if (!is_array($approved)) $approved = [];
+                shuffle($approved);
+                $spots = $approved;
+            }
+
             if ($limit > 0) $spots = array_slice($spots, 0, $limit);
 
             // Normalize output and include accessible image URL and lat/lng keys
@@ -921,6 +1105,71 @@ public function listUserTrips()
         return $this->response->setJSON(['error' => 'Favorites not supported on this installation'], 400);
     }
 
+    /**
+     * Return JSON list of favorite spots for the current user.
+     * Used by dashboard JS: GET /tourist/getFavorites
+     */
+    public function getFavorites()
+    {
+        $session = session();
+        $userID = $session->get('UserID');
+        if (!$userID) {
+            return $this->response->setJSON([], 200);
+        }
+
+        $db = \Config\Database::connect();
+        $out = [];
+        try {
+            $spotModel = new \App\Models\TouristSpotModel();
+            $ids = [];
+
+            if ($db->tableExists('spot_fav_by_customer')) {
+                $rows = $db->table('spot_fav_by_customer')
+                    ->select('spot_id')
+                    ->where('user_id', $userID)
+                    ->orderBy('favorited_at', 'DESC')
+                    ->get()
+                    ->getResultArray();
+                $ids = array_column($rows, 'spot_id');
+            } elseif ($db->tableExists('user_favorites')) {
+                $rows = $db->table('user_favorites')
+                    ->select('spot_id')
+                    ->where('user_id', $userID)
+                    ->orderBy('created_at', 'DESC')
+                    ->get()
+                    ->getResultArray();
+                $ids = array_column($rows, 'spot_id');
+            } elseif ($db->tableExists('favorites')) {
+                $rows = $db->table('favorites')
+                    ->select('spot_id')
+                    ->where('user_id', $userID)
+                    ->orderBy('created_at', 'DESC')
+                    ->get()
+                    ->getResultArray();
+                $ids = array_column($rows, 'spot_id');
+            }
+
+            if (!empty($ids)) {
+                // keep original order: fetch records and map by id
+                $spots = $spotModel->whereIn('spot_id', $ids)->findAll();
+                foreach ($spots as $s) {
+                    $out[] = [
+                        'id' => $s['spot_id'] ?? null,
+                        'spot_name' => $s['spot_name'] ?? ($s['name'] ?? ''),
+                        'primary_image' => $s['primary_image'] ?? '', // filename only; client concatenates base_url
+                        'category' => $s['category'] ?? '',
+                        'rating' => $s['rating'] ?? null,
+                    ];
+                }
+            }
+
+            return $this->response->setJSON($out);
+        } catch (\Throwable $e) {
+            log_message('error', 'getFavorites error: ' . $e->getMessage());
+            return $this->response->setJSON([], 200);
+        }
+    }
+
 
     // Create a booking (called from tourist booking modal)
     public function createBooking()
@@ -1053,14 +1302,57 @@ public function listUserTrips()
             ];
 
             $insertId = $bookingModel->insert($data);
-            if ($insertId === false) {
-                return $this->response->setJSON(['error' => 'Failed to create booking'], 500);
-            }
+if ($insertId === false) {
+    return $this->response->setJSON(['error' => 'Failed to create booking'], 500);
+}
 
-            return $this->response->setJSON(['success' => true, 'booking_id' => $insertId]);
+// Create notification for spot owner about new booking
+// Create notification for spot owner about new booking
+try {
+    $notificationModel = new \App\Models\NotificationModel();
+    $spotModel = new \App\Models\TouristSpotModel();
+    $businessModel = new \App\Models\BusinessModel();
+    
+    $spot = $spotModel->find($spotId);
+    $spotName = $spot['spot_name'] ?? 'Unknown Spot';
+    $businessId = $spot['business_id'] ?? null;
+    
+    if ($businessId) {
+        // Get the spot owner's user_id from the business
+        $business = $businessModel->find($businessId);
+        $spotOwnerId = $business['user_id'] ?? null;
+        
+        if ($spotOwnerId) {
+            // Insert notification for spot owner
+            $notificationModel->insert([
+                'user_id' => $spotOwnerId,
+                'message' => "New booking #$insertId for $spotName on $visitDate",
+                'url' => '/spotowner/bookings',
+                'is_read' => 0,
+                'created_at' => date('Y-m-d H:i:s')
+            ]);
+        }
+    }
+    
+    // Also notify admins (user_id = NULL for all admins)
+    $notificationModel->insert([
+        'user_id' => null,
+        'message' => "New booking #$insertId for $spotName on $visitDate",
+        'url' => '/admin/bookings',
+        'is_read' => 0,
+        'created_at' => date('Y-m-d H:i:s')
+    ]);
+    
+} catch (\Exception $e) {
+    log_message('error', 'Failed to create booking notification: ' . $e->getMessage());
+}
+
+return $this->response->setJSON(['success' => true, 'booking_id' => $insertId]);
         } catch (\Exception $e) {
             return $this->response->setJSON(['error' => 'Database error: ' . $e->getMessage()], 500);
         }
+
+        
     }
 
     public function viewSpotDetails($spot_id)
