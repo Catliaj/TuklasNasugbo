@@ -7,6 +7,7 @@ $baseDir = dirname($vendorDir);
 
 return array(
     'App\\Controllers\\AdminController' => $baseDir . '/app/Controllers/AdminController.php',
+    'App\\Controllers\\AttractionsController' => $baseDir . '/app/Controllers/AttractionsController.php',
     'App\\Controllers\\AuthController' => $baseDir . '/app/Controllers/AuthController.php',
     'App\\Controllers\\BaseController' => $baseDir . '/app/Controllers/BaseController.php',
     'App\\Controllers\\Home' => $baseDir . '/app/Controllers/Home.php',
@@ -28,6 +29,7 @@ return array(
     'App\\Models\\CustomerModel' => $baseDir . '/app/Models/CustomerModel.php',
     'App\\Models\\FeedbackModel' => $baseDir . '/app/Models/FeedbackModel.php',
     'App\\Models\\ItineraryModel' => $baseDir . '/app/Models/ItineraryModel.php',
+    'App\\Models\\NotificationModel' => $baseDir . '/app/Models/NotificationModel.php',
     'App\\Models\\RecommendationModel' => $baseDir . '/app/Models/RecommendationModel.php',
     'App\\Models\\SpotFavByCustomerModel' => $baseDir . '/app/Models/SpotFavByCustomerModel.php',
     'App\\Models\\SpotGalleryModel' => $baseDir . '/app/Models/SpotGalleryModel.php',
