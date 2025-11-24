@@ -3,8 +3,11 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Tourist Spot Owner Dashboard</title>
+
+ 
+
 
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -16,15 +19,7 @@
     <link rel="stylesheet" href="<?= base_url("assets/css/main.css")?>">
     <!-- Leaflet Core -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<!-- Geoapify Autocomplete -->
-<link rel="stylesheet" href="https://unpkg.com/@geoapify/geocoder-autocomplete@1.8.1/styles/minimal.css" />
-<script src="https://unpkg.com/@geoapify/geocoder-autocomplete@1.8.1/dist/index.min.js"></script>
-
-<!-- Geoapify Map Control -->
-<link rel="stylesheet" href="https://unpkg.com/@geoapify/leaflet-address-search-plugin@1.2.1/dist/L.Control.GeoapifyAddressSearch.min.css" />
-<script src="https://unpkg.com/@geoapify/leaflet-address-search-plugin@1.2.1/dist/L.Control.GeoapifyAddressSearch.min.js"></script>
 
 
 
@@ -89,36 +84,72 @@
         <div class="flex-fill d-flex flex-column">
             <!-- Mobile Header -->
             <div class="mobile-header d-lg-none">
-                <button class="btn btn-link" id="sidebarToggle">
-                    <i class="bi bi-list fs-4"></i>
-                </button>
-                <div class="d-flex align-items-center gap-2">
-                    <div class="mobile-logo">
-                        <i class="bi bi-geo-alt-fill"></i>
-                    </div>
-                    <div>
-                        <h3 class="mobile-title mb-0">Tourist Spot</h3>
-                        <p class="mobile-subtitle mb-0">Owner Dashboard</p>
-                    </div>
-                </div>
+    <button class="btn btn-link" id="sidebarToggle">
+        <i class="bi bi-list fs-4"></i>
+    </button>
+    <div class="d-flex align-items-center gap-2">
+        <div class="mobile-logo">
+            <i class="bi bi-geo-alt-fill"></i>
+        </div>
+        <div>
+            <h3 class="mobile-title mb-0">Tourist Spot</h3>
+            <p class="mobile-subtitle mb-0">Manage Spots</p>
+        </div>
+    </div>
+    
+  
+    <!-- Notification Bell -->
+<div class="dropdown">
+    <button class="btn btn-link position-relative p-2" id="notificationDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="color: white; margin-right: 5px;">
+    <i class="bi bi-bell-fill" style="font-size: 1.25rem;"></i>
+    <span class="position-absolute badge rounded-pill bg-danger" 
+          id="notificationBadge" 
+          style="display: none; font-size: 0.6rem; top: 2px; right: 0px; padding: 0.25rem 0.4rem; min-width: 18px;">
+        0
+    </span>
+</button>
+    <div class="dropdown-menu dropdown-menu-end shadow-lg" style="width: 380px; max-height: 500px;">
+        <div class="dropdown-header d-flex justify-content-between align-items-center bg-primary text-white py-3">
+            <h6 class="mb-0 fw-bold">Notifications</h6>
+            <button class="btn btn-sm btn-link text-white text-decoration-none" id="markAllReadBtn">
+                Mark all read
+            </button>
+        </div>
+        <div class="dropdown-divider m-0"></div>
+        <div id="notificationList" style="max-height: 400px; overflow-y: auto;">
+            <div class="text-center py-4 text-muted">
+                <i class="bi bi-bell-slash fs-1"></i>
+                <p class="mb-0 mt-2">No notifications</p>
             </div>
+        </div>
+    </div>
+</div>
+</div>
+<!-- ^^^ THIS CLOSING DIV WAS MISSING - IT CLOSES THE mobile-header -->
+
+            <!-- Page Content - This will be populated by JavaScript -->
 
             <!-- Page Content -->
             <main class="flex-fill p-3 p-lg-4" id="mainContent">
-                <!-- Content will be loaded here dynamically -->
+             <!-- Content will be loaded here dynamically -->
+<div class="container-fluid px-0">
+    <div class="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div>
+            <h2></h2>
+            <p class="text-muted-custom"></p>
+        </div>
+    </div>
 
-                <div class="container-fluid px-0">
-                    <div class="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
-                        <div>
-                            <h2>Manage Tourist Spots</h2>
-                            <p class="text-muted-custom">Update information and settings for your tourist spots</p>
-                        </div>
-                        <button class="btn btn-primary" id="addNewSpotManageBtn">
-                            <i class="bi bi-plus-circle me-2"></i>Add New Spot
-                        </button>
-                    </div>
+    <div class="mt-3 mb-4"> <!-- added mb-4 for more spacing -->
+    <button class="btn btn-primary mt-2" id="addNewSpotManageBtn">
+        <i class="bi bi-plus-circle me-2"></i>Add New Spot
+    </button>
+</div>
+
+</div>
 
                     <!-- Filter and Search -->
+                     
                     <div class="custom-card mb-4">
                         <div class="custom-card-body">
                             <div class="row g-3">
@@ -138,6 +169,7 @@
                             </div>
                         </div>
                     </div>
+                    
 
                     <!-- Tourist Spots Grid -->
                     <div class="row g-4" id="manageSpotsGrid">
@@ -452,267 +484,30 @@
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body" id="editSpotModalBody" style="max-height: 70vh; overflow-y: auto;">
-                                <!-- Edit form will be loaded here dynamically -->
-                                  <div class="row g-4">
-                                    <div class="col-lg-8">
-                                        <!-- Basic Information -->
-                                        <div class="custom-card mb-4">
-                                            <div class="custom-card-header">
-                                                <h3 class="custom-card-title">Basic Information</h3>
-                                                <p class="custom-card-description">Essential details about your tourist spot</p>
-                                            </div>
-                                            <div class="custom-card-body">
-                                                <div class="mb-3">
-                                                    <label for="spotName" class="form-label">Spot Name</label>
-                                                    <input type="text" class="form-control" id="spotName" value="${spot.name}">
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label for="spotDescription" class="form-label">Description</label>
-                                                    <textarea class="form-control" id="spotDescription" rows="4">${spot.description}</textarea>
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label for="spotLocation" class="form-label">Location</label>
-                                                    <div class="input-group">
-                                                        <span class="input-group-text"><i class="bi bi-geo-alt"></i></span>
-                                                        <input type="text" class="form-control" id="spotLocation" value="${spot.location}">
-                                                    </div>
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label for="spotAmenities" class="form-label">Amenities</label>
-                                                    <input type="text" class="form-control" id="spotAmenities" value="${spot.amenities}" placeholder="Comma-separated list of amenities">
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Pricing & Capacity -->
-                                        <div class="custom-card mb-4">
-                                            <div class="custom-card-header">
-                                                <h3 class="custom-card-title">Pricing & Capacity</h3>
-                                                <p class="custom-card-description">Set your pricing and visitor limits</p>
-                                            </div>
-                                            <div class="custom-card-body">
-                                                <div class="row g-3">
-                                                    <div class="col-md-6">
-                                                        <label for="spotPrice" class="form-label">Price per Person (₱)</label>
-                                                        <div class="input-group">
-                                                            <span class="input-group-text"><i class="bi bi-currency-dollar"></i></span>
-                                                            <input type="number" class="form-control" id="spotPrice" value="${spot.price}">
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label for="spotMaxVisitors" class="form-label">Max Visitors per Day</label>
-                                                        <div class="input-group">
-                                                            <span class="input-group-text"><i class="bi bi-people"></i></span>
-                                                            <input type="number" class="form-control" id="spotMaxVisitors" value="${spot.maxVisitors}">
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Operating Hours -->
-                                        <div class="custom-card mb-4">
-                                            <div class="custom-card-header">
-                                                <h3 class="custom-card-title">Operating Hours</h3>
-                                                <p class="custom-card-description">Set your opening and closing times</p>
-                                            </div>
-                                            <div class="custom-card-body">
-                                                <div class="row g-3">
-                                                    <div class="col-md-6">
-                                                        <label for="spotOpenTime" class="form-label">Opening Time</label>
-                                                        <div class="input-group">
-                                                            <span class="input-group-text"><i class="bi bi-clock"></i></span>
-                                                            <input type="time" class="form-control" id="spotOpenTime" value="${spot.openTime}">
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label for="spotCloseTime" class="form-label">Closing Time</label>
-                                                        <div class="input-group">
-                                                            <span class="input-group-text"><i class="bi bi-clock"></i></span>
-                                                            <input type="time" class="form-control" id="spotCloseTime" value="${spot.closeTime}">
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Action Buttons -->
-                                        <div class="d-flex gap-2 justify-content-end">
-                                            <button class="btn btn-outline-primary" data-bs-dismiss="modal">Cancel</button>
-                                            <button class="btn btn-primary" id="saveSpotChangesBtn">Save Changes</button>
-                                        </div>
-                                    </div>
-
-                                    <div class="col-lg-4">
-                                        <!-- Spot Status -->
-                                        <div class="custom-card mb-4">
-                                            <div class="custom-card-header">
-                                                <h3 class="custom-card-title">Spot Status</h3>
-                                                <p class="custom-card-description">Control visibility and availability</p>
-                                            </div>
-                                            <div class="custom-card-body">
-                                                <div class="d-flex justify-content-between align-items-center">
-                                                    <div>
-                                                        <label class="form-label mb-0">Active Status</label>
-                                                        <p class="text-muted-custom small mb-0">Make spot available for booking</p>
-                                                    </div>
-                                                    <div class="form-check form-switch">
-                                                        <input class="form-check-input" type="checkbox" id="spotActiveStatus" ${spot.status === 'active' ? 'checked' : ''}>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Spot Images Gallery -->
-                                        <div class="custom-card mb-4">
-                                            <div class="custom-card-header">
-                                                <h3 class="custom-card-title">Spot Images</h3>
-                                                <p class="custom-card-description">Manage your spot photos</p>
-                                            </div>
-                                            <div class="custom-card-body">
-                                                <!-- Image Carousel -->
-                                                <div class="position-relative mb-3">
-                                                    <img src="${spot.images[0]}" 
-                                                        alt="${spot.name}" 
-                                                        class="rounded img-fluid"
-                                                        id="editSpotImage"
-                                                        style="width: 100%; height: 200px; object-fit: cover;">
-                                                    
-                                                    ${spot.images.length > 1 ? `
-                                                        <!-- Previous Button -->
-                                                        <button class="btn btn-dark btn-sm position-absolute top-50 start-0 translate-middle-y ms-2" 
-                                                                id="prevEditImageBtn"
-                                                                style="opacity: 0.8; z-index: 10;">
-                                                            <i class="bi bi-chevron-left"></i>
-                                                        </button>
-                                                        
-                                                        <!-- Next Button -->
-                                                        <button class="btn btn-dark btn-sm position-absolute top-50 end-0 translate-middle-y me-2" 
-                                                                id="nextEditImageBtn"
-                                                                style="opacity: 0.8; z-index: 10;">
-                                                            <i class="bi bi-chevron-right"></i>
-                                                        </button>
-                                                        
-                                                        <!-- Image Counter -->
-                                                        <div class="position-absolute bottom-0 start-50 translate-middle-x mb-2">
-                                                            <span class="badge bg-dark bg-opacity-75" id="editImageCounter">
-                                                                1 / ${spot.images.length}
-                                                            </span>
-                                                        </div>
-                                                    ` : ''}
-                                                </div>
-                                                
-                                                <!-- Thumbnail Strip -->
-                                                ${spot.images.length > 1 ? `
-                                                    <div class="d-flex gap-2 mb-3 overflow-auto" style="max-width: 100%;">
-                                                        ${spot.images.map((img, idx) => `
-                                                            <img src="${img}" 
-                                                                alt="Thumbnail ${idx + 1}" 
-                                                                class="img-thumbnail edit-thumbnail ${idx === 0 ? 'border-primary' : ''}"
-                                                                style="width: 60px; height: 45px; object-fit: cover; cursor: pointer; flex-shrink: 0;"
-                                                                data-edit-thumbnail-index="${idx}">
-                                                        `).join('')}
-                                                    </div>
-                                                ` : ''}
-                                                
-                                                <button class="btn btn-outline-primary w-100" id="openImageUploadBtn">
-                                                    <i class="bi bi-image me-2"></i>Manage Images
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <!-- Quick Stats -->
-                                        <div class="custom-card">
-                                            <div class="custom-card-header">
-                                                <h3 class="custom-card-title">Quick Stats</h3>
-                                            </div>
-                                            <div class="custom-card-body">
-                                                <div class="d-flex justify-content-between mb-3">
-                                                    <span class="text-muted-custom">Total Visits</span>
-                                                    <span class="fw-medium">${spot.totalVisits.toLocaleString()}</span>
-                                                </div>
-                                                <div class="d-flex justify-content-between mb-3">
-                                                    <span class="text-muted-custom">Average Rating</span>
-                                                    <span class="fw-medium">${spot.rating} ⭐</span>
-                                                </div>
-                                                <div class="d-flex justify-content-between">
-                                                    <span class="text-muted-custom">Total Reviews</span>
-                                                    <span class="fw-medium">${spot.reviews}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Delete Confirmation Modal -->
-                <div class="modal fade" id="deleteSpotModal" tabindex="-1">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title text-danger">
-                                    <i class="bi bi-exclamation-triangle me-2"></i>Delete Tourist Spot?
-                                </h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                            </div>
-                            <div class="modal-body">
-                                <p>Are you sure you want to delete <strong id="deleteSpotName"></strong>?</p>
-                                <p class="text-danger">This action cannot be undone. All bookings and data associated with this spot will be permanently deleted.</p>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">Cancel</button>
-                                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete Spot</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Upload Images Modal (for Edit) -->
-                <div class="modal fade" id="uploadImagesModal" tabindex="-1">
-                    <div class="modal-dialog modal-lg">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">Manage Spot Images</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                            </div>
-                            <div class="modal-body">
-                                <p class="text-muted-custom mb-4">Upload and manage photos of your tourist spot. Visitors will see these images when browsing.</p>
-
-                                <!-- Upload Area -->
-                                <div class="upload-area mb-4" id="uploadArea">
-                                    <input type="file" id="imageUploadInput" class="d-none" accept="image/*" multiple>
-                                    <div class="upload-icon">
-                                        <i class="bi bi-cloud-upload"></i>
-                                    </div>
-                                    <p class="mb-1"><span class="text-ocean-medium">Click to upload</span> or drag and drop</p>
-                                    <p class="text-muted-custom small mb-0">PNG, JPG, GIF up to 10MB</p>
-                                </div>
-
-                                <!-- Image Preview Grid -->
-                                <div id="imagePreviewContainer">
-                                    <h6 class="mb-3">Uploaded Images (<span id="imageCount">0</span>)</h6>
-                                    <div class="image-preview-grid" id="imagePreviewGrid">
-                                        <!-- Images will be loaded here -->
-                                    </div>
-                                    <p class="text-muted-custom small mt-3">The first image will be used as the main photo. Drag to reorder.</p>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">Cancel</button>
-                                <button type="button" class="btn btn-primary" id="saveImagesBtn">Save Images</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </main>
+    <!-- Edit form will be loaded here dynamically -->
+</div>
         </div>
     </div>
 
-    <!-- Bootstrap 5 JS Bundle -->
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Geoapify Autocomplete -->
+    
+
+    <!-- Geoapify Map Control -->
+    
+
+    <!-- 1. Bootstrap JS (MUST BE BEFORE sidebar.js) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- 2. SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- 3. Sidebar Toggle (AFTER Bootstrap!) -->
+    <script src="<?= base_url('assets/js/sidebar.js')?>"></script>
+
+
 
   
     
@@ -727,6 +522,26 @@ let currentEditImageIndex = 0;
 
 
 function initManageSpotPage() {
+    // Check if a spot was just added
+    <?php if (session()->getFlashdata('spot_added')): ?>
+        // Update home page data if it exists
+        if (window.opener && !window.opener.closed) {
+            // If this was opened from home page, trigger reload there
+            try {
+                if (typeof window.opener.fetchTouristSpots === 'function') {
+                    window.opener.fetchTouristSpots();
+                }
+            } catch (e) {
+                console.log('Could not update home page:', e);
+            }
+        }
+        
+        // Update shared data for this page and potentially home
+        if (typeof window.fetchManageSpots === 'function') {
+            fetchManageSpots();
+        }
+    <?php endif; ?>
+    
     // Load spots grid
     loadManageSpotsGrid();
     
@@ -937,7 +752,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('addNewSpotModal').addEventListener('shown.bs.modal', function () {
       
         initMap();
-         initGeocoder();
+         //initGeocoder();
         
         // Set up search button handler
         const searchButton = document.getElementById('searchLocation');
@@ -1160,7 +975,25 @@ async function updateLocationFromCoordinates(lat, lng) {
         console.error('Reverse geocoding error:', error);
     }
 }
-
+// Handle form submission with AJAX to update home page
+document.addEventListener('DOMContentLoaded', function() {
+    const addSpotForm = document.querySelector('form[action*="my-spots/store"]');
+    
+    if (addSpotForm) {
+        addSpotForm.addEventListener('submit', function(e) {
+            // Check operating days validation
+            const operatingDays = document.querySelectorAll('input[name="operating_days[]"]:checked');
+            if (operatingDays.length === 0) {
+                e.preventDefault();
+                alert('Please select at least one operating day');
+                return false;
+            }
+            
+            // Store a flag that a new spot is being added
+            sessionStorage.setItem('spotAdded', 'true');
+        });
+    }
+});
 document.addEventListener('DOMContentLoaded', function() {
   
 
@@ -1201,147 +1034,243 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Form validation and operating days handling
-    document.getElementById('addSpotForm').addEventListener('submit', function(e) {
-        const operatingDays = document.querySelectorAll('input[name="operating_days[]"]:checked');
-        if (operatingDays.length === 0) {
-            e.preventDefault();
-            alert('Please select at least one operating day');
-            return;
-        }
-        
-        const formData = new FormData(this);
-        const days = Array.from(operatingDays).map(day => day.value);
-        formData.set('operating_days', days.join(','));
-    });
+    const addSpotForm = document.querySelector('form[action*="my-spots/store"]');
+    if (addSpotForm) {
+        addSpotForm.addEventListener('submit', function(e) {
+            const operatingDays = document.querySelectorAll('input[name="operating_days[]"]:checked');
+            if (operatingDays.length === 0) {
+                e.preventDefault();
+                alert('Please select at least one operating day');
+                return false;
+            }
+        });
+    }
 });
+
 
 async function fetchManageSpots() {
     try {
+        console.log('🔍 Starting to fetch spots...');
         const res = await fetch('/spotowner/my-spots/data');
-        if (!res.ok) throw new Error('Failed to fetch spots');
+        
+        console.log('📡 Response status:', res.status);
+        console.log('📡 Response OK:', res.ok);
+        
+        if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+        }
 
         const data = await res.json();
-        window.sharedTouristSpots = data;
-        loadManageSpotsGrid(); // render the grid
+        console.log('📦 Raw API response:', data);
+        console.log('📊 Data type:', typeof data);
+        console.log('📊 Is array:', Array.isArray(data));
+        console.log('📊 Data length:', data ? data.length : 'null/undefined');
+        
+        if (!data) {
+            console.error('❌ API returned null/undefined');
+            window.sharedTouristSpots = [];
+        } else if (!Array.isArray(data)) {
+            console.error('❌ API did not return an array:', data);
+            window.sharedTouristSpots = [];
+        } else if (data.length === 0) {
+            console.warn('⚠️ API returned empty array');
+            window.sharedTouristSpots = [];
+        } else {
+            console.log('✅ Successfully received', data.length, 'spots');
+            window.sharedTouristSpots = data;
+        }
+        
+        loadManageSpotsGrid();
+        
+        // Also update home page data if the function exists
+        if (typeof window.refreshHomeData === 'function') {
+            console.log('🔄 Refreshing home page data...');
+            window.refreshHomeData();
+        }
+        
     } catch (err) {
-        console.error(err);
+        console.error('❌ Fetch error:', err);
+        window.sharedTouristSpots = [];
         const grid = document.getElementById('manageSpotsGrid');
-        if (grid) grid.innerHTML = '<div class="col-12"><p class="text-center text-danger">Failed to load spots.</p></div>';
+        if (grid) {
+            grid.innerHTML = `
+                <div class="col-12">
+                    <div class="alert alert-danger">
+                        <h5>Failed to load spots</h5>
+                        <p>Error: ${err.message}</p>
+                        <p>Check the console for more details.</p>
+                    </div>
+                </div>
+            `;
+        }
     }
 }
+
+
 
     // Call this function on page load
     fetchManageSpots();
 
 
     function loadManageSpotsGrid() {
-        const grid = document.getElementById('manageSpotsGrid');
-        if (!grid) return;
+    const grid = document.getElementById('manageSpotsGrid');
+    if (!grid) {
+        console.error('❌ Grid element not found!');
+        return;
+    }
 
-        if (!window.sharedTouristSpots || window.sharedTouristSpots.length === 0) {
-            console.error('No tourist spots data available!');
-            grid.innerHTML = '<div class="col-12"><p class="text-center text-muted">No tourist spots available.</p></div>';
-            return;
-        }
-        
-        //dito me magrender ng cards
-        grid.innerHTML = window.sharedTouristSpots.map(spot => {
-            return `
-            <div class="col-lg-4 col-md-6" data-spot-id="${spot.id}" data-status="${spot.status}">
-                <div class="custom-card h-100">
-                    <div class="position-relative">
-                        <img src="${spot.images ? spot.images[0] : spot.image}" alt="${spot.name}" class="img-fluid rounded-top" style="height: 200px; width: 100%; object-fit: cover;">
-                        <div class="position-absolute top-0 end-0 m-3">
-                            <span class="badge ${spot.status === 'active' ? 'bg-success' : 'bg-secondary'}">${spot.status}</span>
-                        </div>
-                        ${spot.images && spot.images.length > 1 ? `
-                            <div class="position-absolute bottom-0 end-0 m-3">
-                                <span class="badge bg-dark bg-opacity-75">
-                                    <i class="bi bi-images me-1"></i>${spot.images.length} photos
-                                </span>
-                            </div>
-                        ` : ''}
-                    </div>
-                    <div class="custom-card-body">
-                        <h4 class="custom-card-title">${spot.name}</h4>
-                        <p class="text-muted-custom mb-2">
-                            <i class="bi bi-geo-alt me-1"></i>${spot.location}
-                        </p>
-                        
-                        <div class="mb-3">
-                            <div class="d-flex justify-content-between mb-2">
-                                <span class="text-muted-custom small">Price:</span>
-                                <span class="fw-medium">₱${spot.price}/person</span>
-                            </div>
-                            <div class="d-flex justify-content-between mb-2">
-                                <span class="text-muted-custom small">Capacity:</span>
-                                <span class="fw-medium">${spot.maxVisitors} visitors</span>
-                            </div>
-                            <div class="d-flex justify-content-between mb-2">
-                                <span class="text-muted-custom small">Hours:</span>
-                                <span class="fw-medium">${spot.openTime} - ${spot.closeTime}</span>
-                            </div>
-                            <div class="d-flex justify-content-between">
-                                <span class="text-muted-custom small">Rating:</span>
-                                <span class="fw-medium">
-                                    <i class="bi bi-star-fill text-warning"></i> ${spot.rating} (${spot.reviews})
-                                </span>
-                            </div>
-                        </div>
+    console.log('🎨 Loading spots grid...');
+    console.log('📊 window.sharedTouristSpots:', window.sharedTouristSpots);
+    console.log('📊 Number of spots:', window.sharedTouristSpots ? window.sharedTouristSpots.length : 'undefined');
 
-                        <div class="d-flex gap-2">
-                            <button class="btn btn-primary flex-fill btn-edit-spot" data-spot-id="${spot.id}">
-                                <i class="bi bi-pencil me-1"></i>Edit Spot
-                            </button>
-                            <button class="btn btn-outline-danger btn-delete-spot" data-spot-id="${spot.id}" data-spot-name="${spot.name}" title="Delete">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </div>
-                    </div>
+    if (!window.sharedTouristSpots || window.sharedTouristSpots.length === 0) {
+        console.warn('⚠️ No tourist spots data available!');
+        grid.innerHTML = `
+            <div class="col-12">
+                <div class="alert alert-warning">
+                    <h5><i class="bi bi-info-circle me-2"></i>No Spots Found</h5>
+                    <p>You haven't added any tourist spots yet.</p>
+                    <button class="btn btn-primary" id="addFirstSpotBtn">
+                        <i class="bi bi-plus-circle me-2"></i>Add Your First Spot
+                    </button>
                 </div>
             </div>
         `;
-        }).join('');
-
-        // Add event listeners to buttons using event delegation
-        // Replace onclick handler to avoid accumulating multiple listeners on repeated renders
-        grid.onclick = async function(e) {
-            const editBtn = e.target.closest('.btn-edit-spot');
-            const deleteBtn = e.target.closest('.btn-delete-spot');
-            
-            if (editBtn) {
-                const spotId = parseInt(editBtn.getAttribute('data-spot-id'));
-                try {
-                    const response = await fetch(`<?= base_url('spotowner/my-spots/get-spot') ?>/${spotId}`);
-                    const spot = await response.json();
-
-                    if (!spot || spot.error) {
-                        alert('Failed to load spot details.');
-                        return;
-                    }
-
-                    // Generate modal content
-                    const modalBody = document.getElementById('editSpotModalBody');
-                    modalBody.innerHTML = generateEditSpotModalContent(spot);
-
-                    // Show modal
-                    const modal = new bootstrap.Modal(document.getElementById('editSpotModal'));
+        
+        // Add event listener for the new button
+        setTimeout(() => {
+            const addBtn = document.getElementById('addFirstSpotBtn');
+            if (addBtn) {
+                addBtn.addEventListener('click', function() {
+                    const modal = new bootstrap.Modal(document.getElementById('addNewSpotModal'));
                     modal.show();
-
-                } catch (err) {
-                    console.error('Error fetching spot details:', err);
-                    alert('Something went wrong while loading the spot details.');
-                }
+                });
             }
-
-            
-            if (deleteBtn) {
-                const spotId = parseInt(deleteBtn.getAttribute('data-spot-id'));
-                const spotName = deleteBtn.getAttribute('data-spot-name');
-                deleteSpot(spotId, spotName);
-            }
-        };
+        }, 100);
+        
+        return;
     }
+    
+    // Continue with rendering spots
+    console.log('✅ Rendering', window.sharedTouristSpots.length, 'spots...');
+    
+    //dito me magrender ng cards
+    grid.innerHTML = window.sharedTouristSpots.map(spot => {
+        return `
+        <div class="col-lg-4 col-md-6" data-spot-id="${spot.id}" data-status="${spot.status}">
+            <div class="custom-card h-100">
+                <div class="position-relative">
+                    <img src="${spot.images && spot.images.length > 0 ? spot.images[0] : spot.image}" 
+                         alt="${spot.name}" 
+                         class="img-fluid rounded-top" 
+                         style="height: 200px; width: 100%; object-fit: cover;"
+                         onerror="this.src='<?= base_url('uploads/default.jpg') ?>'">
+                    <div class="position-absolute top-0 end-0 m-3">
+                        <span class="badge ${spot.status === 'active' ? 'bg-success' : 'bg-secondary'}">${spot.status}</span>
+                    </div>
+                    ${spot.images && spot.images.length > 1 ? `
+                        <div class="position-absolute bottom-0 end-0 m-3">
+                            <span class="badge bg-dark bg-opacity-75">
+                                <i class="bi bi-images me-1"></i>${spot.images.length} photos
+                            </span>
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="custom-card-body">
+                    <h4 class="custom-card-title">${spot.name}</h4>
+                    <p class="text-muted-custom mb-2">
+                        <i class="bi bi-geo-alt me-1"></i>${spot.location}
+                    </p>
+                    
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted-custom small">Price:</span>
+                            <span class="fw-medium">₱${spot.price}/person</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted-custom small">Capacity:</span>
+                            <span class="fw-medium">${spot.maxVisitors} visitors</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted-custom small">Hours:</span>
+                            <span class="fw-medium">${spot.openTime} - ${spot.closeTime}</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted-custom small">Rating:</span>
+                            <span class="fw-medium">
+                                <i class="bi bi-star-fill text-warning"></i> ${spot.rating || 0} (${spot.reviews || 0})
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-primary flex-fill btn-edit-spot" data-spot-id="${spot.id}">
+                            <i class="bi bi-pencil me-1"></i>Edit Spot
+                        </button>
+                        <button class="btn btn-outline-danger btn-delete-spot" data-spot-id="${spot.id}" data-spot-name="${spot.name}" title="Delete">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    }).join('');
+
+    console.log('✅ Grid rendered successfully');
+
+    // Add event listeners to buttons using event delegation
+    // Replace onclick handler to avoid accumulating multiple listeners on repeated renders
+    grid.onclick = async function(e) {
+        const editBtn = e.target.closest('.btn-edit-spot');
+        const deleteBtn = e.target.closest('.btn-delete-spot');
+        
+        if (editBtn) {
+    const spotId = parseInt(editBtn.getAttribute('data-spot-id'));
+    currentEditingSpot = spotId; // Track the spot being edited
+    console.log('🔍 Edit button clicked for spot ID:', spotId);
+    try {
+        const url = `<?= base_url('spotowner/my-spots/get-spot') ?>/${spotId}`;
+        console.log('📡 Fetching from URL:', url);
+        
+        const response = await fetch(url);
+        console.log('📡 Response status:', response.status);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const spot = await response.json();
+        console.log('📦 Received spot data:', spot);
+
+        if (!spot || spot.error) {
+            alert('Failed to load spot details: ' + (spot?.error || 'Unknown error'));
+            return;
+        }
+
+        // Generate modal content
+        const modalBody = document.getElementById('editSpotModalBody');
+        modalBody.innerHTML = generateEditSpotModalContent(spot);
+
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('editSpotModal'));
+        modal.show();
+
+    } catch (err) {
+        console.error('❌ Error fetching spot details:', err);
+        alert('Something went wrong while loading the spot details: ' + err.message);
+    }
+}
+
+        
+        if (deleteBtn) {
+            const spotId = parseInt(deleteBtn.getAttribute('data-spot-id'));
+            const spotName = deleteBtn.getAttribute('data-spot-name');
+            console.log('🗑️ Delete button clicked for spot:', spotName, '(ID:', spotId + ')');
+            deleteSpot(spotId, spotName);
+        }
+    };
+}
 
 
     function changeEditImage(spotId, direction) {
@@ -1602,12 +1531,141 @@ async function fetchManageSpots() {
             }
         });
     }
+
+
+    // Handle Save Changes button click
+// Handle Save Changes button click
+document.addEventListener('click', async function(e) {
+    if (e.target && e.target.id === 'saveSpotChangesBtn') {
+        e.preventDefault();
+        
+        const spotId = currentEditingSpot;
+        
+        if (!spotId) {
+            alert('Error: No spot selected for editing');
+            return;
+        }
+        
+        // Gather form data
+        const formData = {
+            spot_name: document.getElementById('spotName').value,
+            description: document.getElementById('spotDescription').value,
+            location: document.getElementById('spotLocation').value,
+            price_per_person: document.getElementById('spotPrice').value,
+            capacity: document.getElementById('spotMaxVisitors').value,
+            opening_time: document.getElementById('spotOpenTime').value,
+            closing_time: document.getElementById('spotCloseTime').value,
+            status: document.getElementById('spotActiveStatus').checked ? 'active' : 'inactive'
+        };
+        
+        console.log('💾 Saving spot data:', formData);
+        
+        try {
+            const response = await fetch(`<?= base_url('spotowner/my-spots/update') ?>/${spotId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify(formData)
+            });
+            
+            const result = await response.json();
+            console.log('📦 Save response:', result);
+            
+            if (result.success) {
+                // Show success message
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success!',
+                        text: 'Spot updated successfully!',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                } else {
+                    alert('✅ Spot updated successfully!');
+                }
+                
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('editSpotModal'));
+                if (modal) {
+                    modal.hide();
+                }
+                
+                // Update the local data immediately
+                const spotIndex = window.sharedTouristSpots.findIndex(s => s.spot_id === spotId || s.id === spotId);
+                if (spotIndex !== -1) {
+                    window.sharedTouristSpots[spotIndex].status = formData.status;
+                    window.sharedTouristSpots[spotIndex].spot_name = formData.spot_name;
+                    window.sharedTouristSpots[spotIndex].name = formData.spot_name;
+                    window.sharedTouristSpots[spotIndex].description = formData.description;
+                    window.sharedTouristSpots[spotIndex].location = formData.location;
+                    window.sharedTouristSpots[spotIndex].price_per_person = formData.price_per_person;
+                    window.sharedTouristSpots[spotIndex].price = formData.price_per_person;
+                    window.sharedTouristSpots[spotIndex].capacity = formData.capacity;
+                    window.sharedTouristSpots[spotIndex].maxVisitors = formData.capacity;
+                    window.sharedTouristSpots[spotIndex].opening_time = formData.opening_time;
+                    window.sharedTouristSpots[spotIndex].openTime = formData.opening_time;
+                    window.sharedTouristSpots[spotIndex].closing_time = formData.closing_time;
+                    window.sharedTouristSpots[spotIndex].closeTime = formData.closing_time;
+                }
+                
+                // Reload the spots grid to show updated status
+                fetchManageSpots();
+                
+            } else {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Failed to update spot: ' + (result.error || 'Unknown error')
+                    });
+                } else {
+                    alert('❌ Failed to update spot: ' + (result.error || 'Unknown error'));
+                }
+            }
+        } catch (err) {
+            console.error('❌ Error saving spot:', err);
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Something went wrong while saving: ' + err.message
+                });
+            } else {
+                alert('Something went wrong while saving: ' + err.message);
+            }
+        }
+    }
+});
     // Initialize page when DOM is ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initManageSpotPage);
     } else {
         initManageSpotPage();
     }
+
+
+    // Add this at the very end of your JavaScript, before 
+window.refreshAllSpotData = function() {
+    // Refresh manage spots page
+    if (typeof fetchManageSpots === 'function') {
+        fetchManageSpots();
+    }
+    
+    // Refresh home page if the function exists
+    if (typeof fetchTouristSpots === 'function') {
+        fetchTouristSpots();
+    }
+};
+
+// Check if we just added a spot
+if (window.location.search.includes('success')) {
+    setTimeout(function() {
+        window.refreshAllSpotData();
+    }, 500);
+}
    </script>
 
 
@@ -1646,7 +1704,16 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 function generateEditSpotModalContent(spot) {
-    const images = spot.images && spot.images.length ? spot.images : ['/uploads/default.jpg'];
+    // Fix image paths - ensure they're actual URLs, not template literals
+    let images = [];
+    if (spot.images && Array.isArray(spot.images) && spot.images.length > 0) {
+        images = spot.images;
+    } else if (spot.image) {
+        images = [spot.image];
+    } else {
+        images = ['<?= base_url("uploads/default.jpg") ?>'];
+    }
+    
     const totalVisits = spot.totalVisits || 0;
     const rating = spot.rating || 0;
     const reviews = spot.reviews || 0;
@@ -1663,7 +1730,7 @@ function generateEditSpotModalContent(spot) {
                     <div class="custom-card-body">
                         <div class="mb-3">
                             <label class="form-label">Spot Name</label>
-                            <input type="text" class="form-control" id="spotName" value="${spot.spot_name || ''}">
+                            <input type="text" class="form-control" id="spotName" value="${spot.spot_name || spot.name || ''}">
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Description</label>
@@ -1676,10 +1743,6 @@ function generateEditSpotModalContent(spot) {
                                 <input type="text" class="form-control" id="spotLocation" value="${spot.location || ''}">
                             </div>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label">Amenities</label>
-                            <input type="text" class="form-control" id="spotAmenities" value="${spot.amenities || ''}" placeholder="Comma-separated list of amenities">
-                        </div>
                     </div>
                 </div>
 
@@ -1687,7 +1750,6 @@ function generateEditSpotModalContent(spot) {
                 <div class="custom-card mb-4">
                     <div class="custom-card-header">
                         <h3 class="custom-card-title">Pricing & Capacity</h3>
-                        <p class="custom-card-description">Set your pricing and visitor limits</p>
                     </div>
                     <div class="custom-card-body">
                         <div class="row g-3">
@@ -1695,14 +1757,14 @@ function generateEditSpotModalContent(spot) {
                                 <label class="form-label">Price per Person (₱)</label>
                                 <div class="input-group">
                                     <span class="input-group-text"><i class="bi bi-currency-dollar"></i></span>
-                                    <input type="number" class="form-control" id="spotPrice" value="${spot.price_per_person || 0}">
+                                    <input type="number" class="form-control" id="spotPrice" value="${spot.price_per_person || spot.price || 0}">
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Max Visitors per Day</label>
+                                <label class="form-label">Max Visitors</label>
                                 <div class="input-group">
                                     <span class="input-group-text"><i class="bi bi-people"></i></span>
-                                    <input type="number" class="form-control" id="spotMaxVisitors" value="${spot.capacity || 0}">
+                                    <input type="number" class="form-control" id="spotMaxVisitors" value="${spot.capacity || spot.maxVisitors || 0}">
                                 </div>
                             </div>
                         </div>
@@ -1713,29 +1775,21 @@ function generateEditSpotModalContent(spot) {
                 <div class="custom-card mb-4">
                     <div class="custom-card-header">
                         <h3 class="custom-card-title">Operating Hours</h3>
-                        <p class="custom-card-description">Set your opening and closing times</p>
                     </div>
                     <div class="custom-card-body">
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label">Opening Time</label>
-                                <div class="input-group">
-                                    <span class="input-group-text"><i class="bi bi-clock"></i></span>
-                                    <input type="time" class="form-control" id="spotOpenTime" value="${spot.opening_time || ''}">
-                                </div>
+                                <input type="time" class="form-control" id="spotOpenTime" value="${spot.opening_time || spot.openTime || ''}">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Closing Time</label>
-                                <div class="input-group">
-                                    <span class="input-group-text"><i class="bi bi-clock"></i></span>
-                                    <input type="time" class="form-control" id="spotCloseTime" value="${spot.closing_time || ''}">
-                                </div>
+                                <input type="time" class="form-control" id="spotCloseTime" value="${spot.closing_time || spot.closeTime || ''}">
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Action Buttons -->
                 <div class="d-flex gap-2 justify-content-end">
                     <button class="btn btn-outline-primary" data-bs-dismiss="modal">Cancel</button>
                     <button class="btn btn-primary" id="saveSpotChangesBtn">Save Changes</button>
@@ -1747,13 +1801,12 @@ function generateEditSpotModalContent(spot) {
                 <div class="custom-card mb-4">
                     <div class="custom-card-header">
                         <h3 class="custom-card-title">Spot Status</h3>
-                        <p class="custom-card-description">Control visibility and availability</p>
                     </div>
                     <div class="custom-card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
                                 <label class="form-label mb-0">Active Status</label>
-                                <p class="text-muted-custom small mb-0">Make spot available for booking</p>
+                                <p class="text-muted-custom small mb-0">Make spot available</p>
                             </div>
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" id="spotActiveStatus" ${spot.status === 'active' ? 'checked' : ''}>
@@ -1762,48 +1815,18 @@ function generateEditSpotModalContent(spot) {
                     </div>
                 </div>
 
-                <!-- Spot Images Gallery -->
+                <!-- Spot Images -->
                 <div class="custom-card mb-4">
                     <div class="custom-card-header">
                         <h3 class="custom-card-title">Spot Images</h3>
-                        <p class="custom-card-description">Manage your spot photos</p>
                     </div>
                     <div class="custom-card-body">
                         <div class="position-relative mb-3">
-                            <img src="${images[0]}" alt="${spot.spot_name}" class="rounded img-fluid"
-                                id="editSpotImage" style="width: 100%; height: 200px; object-fit: cover;">
-
-                            ${images.length > 1 ? `
-                                <button class="btn btn-dark btn-sm position-absolute top-50 start-0 translate-middle-y ms-2" 
-                                        id="prevEditImageBtn" style="opacity: 0.8; z-index: 10;">
-                                    <i class="bi bi-chevron-left"></i>
-                                </button>
-                                <button class="btn btn-dark btn-sm position-absolute top-50 end-0 translate-middle-y me-2" 
-                                        id="nextEditImageBtn" style="opacity: 0.8; z-index: 10;">
-                                    <i class="bi bi-chevron-right"></i>
-                                </button>
-                                <div class="position-absolute bottom-0 start-50 translate-middle-x mb-2">
-                                    <span class="badge bg-dark bg-opacity-75" id="editImageCounter">
-                                        1 / ${images.length}
-                                    </span>
-                                </div>
-                            ` : ''}
+                            <img src="${images[0]}" alt="${spot.spot_name || spot.name || 'Spot'}" 
+                                class="rounded img-fluid" id="editSpotImage" 
+                                style="width: 100%; height: 200px; object-fit: cover;"
+                                onerror="this.src='<?= base_url("uploads/default.jpg") ?>'">
                         </div>
-
-                        ${images.length > 1 ? `
-                            <div class="d-flex gap-2 mb-3 overflow-auto" style="max-width: 100%;">
-                                ${images.map((img, idx) => `
-                                    <img src="${img}" 
-                                        alt="Thumbnail ${idx + 1}" 
-                                        class="img-thumbnail edit-thumbnail ${idx === 0 ? 'border-primary' : ''}"
-                                        style="width: 60px; height: 45px; object-fit: cover; cursor: pointer;"
-                                        data-edit-thumbnail-index="${idx}">
-                                `).join('')}
-                            </div>
-                        ` : ''}
-                        <button class="btn btn-outline-primary w-100" id="openImageUploadBtn">
-                            <i class="bi bi-image me-2"></i>Manage Images
-                        </button>
                     </div>
                 </div>
 
@@ -1818,11 +1841,11 @@ function generateEditSpotModalContent(spot) {
                             <span class="fw-medium">${totalVisits.toLocaleString()}</span>
                         </div>
                         <div class="d-flex justify-content-between mb-3">
-                            <span class="text-muted-custom">Average Rating</span>
-                            <span class="fw-medium"> ⭐ ${rating}</span>
+                            <span class="text-muted-custom">Rating</span>
+                            <span class="fw-medium">⭐ ${rating}</span>
                         </div>
                         <div class="d-flex justify-content-between">
-                            <span class="text-muted-custom">Total Reviews</span>
+                            <span class="text-muted-custom">Reviews</span>
                             <span class="fw-medium">${reviews}</span>
                         </div>
                     </div>
@@ -1831,11 +1854,28 @@ function generateEditSpotModalContent(spot) {
         </div>
     `;
 }
+
+// Listen for success messages and reload data
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const successMsg = '<?= session()->getFlashdata("success") ?>';
+    
+    if (successMsg && successMsg.includes('successfully')) {
+        console.log('✅ Spot added successfully, refreshing data...');
+        
+        // Reload the spots grid
+        setTimeout(function() {
+            fetchManageSpots();
+        }, 500);
+    }
+});
+
+
+
 </script>
 
-
-
-    
+<!-- Notification System -->
+<script src="<?= base_url('assets/js/spotownerJS/notifications.js') ?>"></script>
 </body>
 
 </html>

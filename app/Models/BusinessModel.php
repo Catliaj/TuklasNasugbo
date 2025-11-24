@@ -95,4 +95,22 @@ class BusinessModel extends Model
                     ->limit($limit)
                     ->get()->getResultArray();
     }
+
+    public function insert($data = null, $returnID = true)
+{
+    $result = parent::insert($data, $returnID);
+    
+    if ($result) {
+        // Create notification for admins
+        $notificationModel = new \App\Models\NotificationModel();
+        $notificationModel->notifyAdmins(
+            'registration',
+            'New Business Registration',
+            'A new business has registered and is pending approval.',
+            '/admin/registrations'
+        );
+    }
+    
+    return $result;
+}
 }

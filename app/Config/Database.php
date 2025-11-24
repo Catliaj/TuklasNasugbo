@@ -190,14 +190,22 @@ class Database extends Config
     ];
 
     public function __construct()
-    {
-        parent::__construct();
+{
+    parent::__construct();
 
-        // Ensure that we always set the database group to 'tests' if
-        // we are currently running an automated test suite, so that
-        // we don't overwrite live data on accident.
-        if (ENVIRONMENT === 'testing') {
-            $this->defaultGroup = 'tests';
-        }
+    // Hardcode database values
+    $this->default['hostname'] = '127.0.0.1';
+    $this->default['username'] = 'root';
+    $this->default['password'] = '';
+    $this->default['database'] = 'tuklas_nasugbu';
+    $this->default['DBDriver'] = 'MySQLi';
+    $this->default['port'] = 3306;
+
+    // Ensure that we always set the database group to 'tests' if
+    // we are currently running an automated test suite, so that
+    // we don't overwrite live data on accident.
+    if (ENVIRONMENT === 'testing') {
+        $this->defaultGroup = 'tests';
     }
+}
 }
