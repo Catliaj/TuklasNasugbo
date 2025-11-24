@@ -312,7 +312,7 @@
                             <?php 
                                 $imagePath = 'uploads/spots/' . ($spot['primary_image'] ?? '');
                                 if (empty($spot['primary_image']) || !is_file(FCPATH . $imagePath)) { 
-                                    $imagePath = 'uploads/spots/Spot-No-Image.png';
+                                        $imagePath = 'uploads/spots/Spot-No-Image.png';
                                 }
                             ?>
                             <div class="activity-item favorite-card" data-spot-id="<?= esc($spot['id'] ?? $spot['spot_id'] ?? '') ?>" style="cursor:pointer;" onclick="window.location.href='/tourist/exploreSpots'">

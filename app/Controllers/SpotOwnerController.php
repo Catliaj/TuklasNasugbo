@@ -449,7 +449,7 @@ return redirect()->to('/spotowner/mySpots')
             // Map field names to match your JS expectations
             $spot['id'] = $spot['spot_id'];
             $spot['name'] = $spot['spot_name'];
-            $spot['image'] = base_url('uploads/spots/' . $spot['primary_image']);
+            $spot['image'] = !empty($spot['primary_image']) ? base_url('uploads/spots/' . $spot['primary_image']) : base_url('uploads/spots/Spot-No-Image.png');
             $spot['status'] = $spot['status'] ?? 'inactive';
             $spot['price'] = $spot['price_per_person'];
             $spot['maxVisitors'] = $spot['capacity'];
@@ -488,7 +488,7 @@ return redirect()->to('/spotowner/mySpots')
 
         // Add primary image to response if it exists
         if (!empty($spot['primary_image'])) {
-            $spot['image'] = base_url('uploads/spots/' . $spot['primary_image']);
+            $spot['image'] = !empty($spot['primary_image']) ? base_url('uploads/spots/' . $spot['primary_image']) : base_url('uploads/spots/Spot-No-Image.png');
         }
 
         return $this->response->setJSON($spot);

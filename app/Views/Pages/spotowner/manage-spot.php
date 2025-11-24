@@ -178,7 +178,7 @@
                                 <div class="col-lg-4 col-md-6" data-spot-id="<?= $spot['id'] ?>" data-status="<?= $spot['status'] ?>">
                                     <div class="custom-card h-100">
                                         <div class="position-relative">
-                                            <img src="<?= !empty($spot['images']) ? base_url('uploads/spots/gallery/' . $spot['images'][0]) : base_url('uploads/spots/' . $spot['primary_image']) ?>" 
+                                            <img src="<?= !empty($spot['images']) ? base_url('uploads/spots/gallery/' . $spot['images'][0]) : base_url('uploads/spots/' . $spot['primary_image']) ?>" onerror="this.src='<?= esc(base_url('uploads/spots/Spot-No-Image.png')) ?>'" 
                                                 alt="<?= esc($spot['spot_name']) ?>" class="img-fluid rounded-top" style="height: 200px; width: 100%; object-fit: cover;">
                                             <div class="position-absolute top-0 end-0 m-3">
                                                 <span class="badge <?= $spot['status'] === 'active' ? 'bg-success' : 'bg-secondary' ?>">
