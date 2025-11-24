@@ -1,6 +1,75 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Flatpickr CSS for date picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <?php
+    // Get user session data for profile
+    $session = session();
+    $userFirstName = $session->get('FirstName') ?? '';
+    $userLastName = $session->get('LastName') ?? '';
+    $userEmail = $session->get('Email') ?? '';
+    $userPhone = $session->get('Phone') ?? '';
+    $userBirthdate = $session->get('Birthdate') ?? '';
+    $userAddress = $session->get('Address') ?? '';
+    $userInitials = strtoupper(substr($userFirstName, 0, 1) . substr($userLastName, 0, 1));
+    ?>
+    <style>
+        /* Enhanced Reviews Header - matches explore */
+        :root { --ocean-accent:#4ecbff; --ocean-accent-soft:#b5ecff; --ocean-text:#e6f8ff; }
+        .page-header {background:#002e55;color:var(--ocean-text);height:210px;min-height:210px;padding:1.6rem 2.4rem 1.8rem;border-radius:28px;position:relative;overflow:hidden;box-shadow:0 12px 34px -10px rgba(0,56,108,.55);display:flex;flex-direction:column;justify-content:center;}            
+        .page-header h2 {font-weight:700;display:flex;align-items:center;gap:.85rem;margin:0 0 .55rem;color:#e2e8f0;font-size:2.6rem;letter-spacing:.6px;line-height:1.1;position:relative;top:-6px;}
+        .page-header h2 i {background:rgba(255,255,255,.12);padding:.8rem;border-radius:18px;font-size:2.2rem;animation:slow-spin 18s linear infinite;color:var(--ocean-text);position:relative;top:-4px;} 
+        @keyframes slow-spin {from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+        .page-header p {font-size:1.05rem;letter-spacing:.5px;margin:0;color:var(--ocean-accent-soft);text-shadow:0 1px 2px rgba(0,0,0,.25);}
+        /* Wave layers */
+        .page-header:before {content:"";position:absolute;left:0;right:0;bottom:0;height:110px;pointer-events:none;display:block;background:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none"><path d="M0,80 C150,120 300,40 450,70 C600,100 750,50 900,80 C1050,110 1200,60 1200,60 L1200,120 L0,120 Z" fill="%2300487a"/></svg>') repeat-x;background-size:1200px 110px;opacity:.55;filter:drop-shadow(0 4px 8px rgba(0,0,0,.3));}
+        .page-header:after {content:"";position:absolute;left:0;right:0;bottom:0;height:90px;pointer-events:none;display:block;background:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none"><path d="M0,60 C200,100 400,20 600,60 C800,100 1000,30 1200,70 L1200,120 L0,120 Z" fill="%23005fae"/></svg>') repeat-x;background-size:1200px 90px;opacity:.35;}
+        .page-header-actions {position:absolute;top:1.1rem;right:1.3rem;display:flex;align-items:center;gap:1rem;z-index:5;}
+        .page-header-actions .user-avatar {background:linear-gradient(135deg,#004b8d,#001d33);color:#e2e8f0;font-weight:600;width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 12px -3px rgba(0,0,0,.5);transition:.25s;border:2px solid rgba(255,255,255,.18);}
+        .page-header-actions .user-avatar:hover {transform:translateY(-2px);background:linear-gradient(135deg,#005fae,#002e55);}
+        @media (max-width: 768px){
+            .page-header {padding:2rem 1.2rem 2.4rem;border-radius:22px;}
+            .page-header-actions {position:static;justify-content:flex-start;margin-bottom:1rem;}
+            .page-header h2{font-size:1.4rem;}
+            .page-header p{font-size:.9rem;}
+        }
+        /* Modern Rating Stars */
+        .rating-star {
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        .rating-star i {
+            color: #d1d5db;
+            transition: all 0.2s ease;
+            font-size: 2rem !important;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        }
+        .rating-star:hover i,
+        .rating-star.active i {
+            color: #fbbf24;
+            transform: scale(1.2);
+            filter: drop-shadow(0 4px 8px rgba(251,191,36,0.4));
+        }
+        .rating-star.filled i {
+            color: #fbbf24;
+        }
+        #ratingStars:hover .rating-star i,
+        #editRatingStars:hover .rating-star i {
+            color: #e5e7eb;
+        }
+        #ratingStars .rating-star:hover i,
+        #editRatingStars .rating-star:hover i,
+        #ratingStars .rating-star:hover ~ .rating-star i,
+        #editRatingStars .rating-star:hover ~ .rating-star i {
+            color: #d1d5db;
+        }
+        #ratingStars .rating-star.hovered i,
+        #editRatingStars .rating-star.hovered i {
+            color: #fbbf24;
+            transform: scale(1.15);
+        }
+    </style>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Reviews - Tuklas Nasugbu</title>
@@ -11,60 +80,64 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Lato:wght@300;400;700&family=Pacifico&display=swap" rel="stylesheet">
-    
+    <!-- Global CSS (Unified Sidebar) -->
+    <link rel="stylesheet" href="<?= base_url('assets/css/globals.css')?>">
     <!-- Custom CSS (Inlined Below) -->
     <link rel="stylesheet" href="<?= base_url('assets/css/touristStyle/reviews.css')?>"> 
 </head>
 <body>
     <div class="dashboard-wrapper">
         <!-- Sidebar -->
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <div class="sidebar-logo">
+        <aside class="tourist-sidebar" id="sidebar">
+            <div class="tourist-sidebar-header">
+                <a href="/tourist/dashboard" class="tourist-sidebar-logo">
                     <i class="bi bi-compass"></i>
-                    <span>Tuklas Nasugbu</span>
-                </div>
-                <button class="sidebar-toggle d-lg-none" onclick="toggleSidebar()">
+                    <div class="tourist-sidebar-logo-text">
+                        <span class="tourist-sidebar-logo-main">Tuklas</span>
+                        <span class="tourist-sidebar-logo-sub">Nasugbu</span>
+                    </div>
+                </a>
+                <button class="tourist-sidebar-toggle d-lg-none" onclick="toggleSidebar()">
                     <i class="bi bi-x"></i>
                 </button>
             </div>
             
-                        <nav>
-                <ul class="nav-menu">
-                    <li class="nav-item">
-                        <a href="/tourist/dashboard" class="nav-link">
+            <nav class="tourist-sidebar-nav">
+                <ul class="tourist-nav-menu">
+                    <li class="tourist-nav-item">
+                        <a href="/tourist/dashboard" class="tourist-nav-link">
                             <i class="bi bi-house-door"></i>
-                            <span>Home</span>
+                            <span class="tourist-nav-link-text">Home</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="/tourist/exploreSpots" class="nav-link">
+                    <li class="tourist-nav-item">
+                        <a href="/tourist/exploreSpots" class="tourist-nav-link">
                             <i class="bi bi-search"></i>
-                            <span>Explore</span>
+                            <span class="tourist-nav-link-text">Explore</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="/tourist/itinerary" class="nav-link">
+                    <li class="tourist-nav-item">
+                        <a href="/tourist/itinerary" class="tourist-nav-link">
                             <i class="bi bi-calendar-check"></i>
-                            <span>My Itinerary</span>
+                            <span class="tourist-nav-link-text">My Itinerary</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="/tourist/myBookings" class="nav-link">
+                    <li class="tourist-nav-item">
+                        <a href="/tourist/myBookings" class="tourist-nav-link">
                             <i class="bi bi-ticket-perforated"></i>
-                            <span>Bookings</span>
+                            <span class="tourist-nav-link-text">Bookings</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="/tourist/visits" class="nav-link">
+                    <li class="tourist-nav-item">
+                        <a href="/tourist/visits" class="tourist-nav-link">
                             <i class="bi bi-geo-alt-fill"></i>
-                            <span>Visited Places</span>
+                            <span class="tourist-nav-link-text">Visited Places</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="/tourist/reviews" class="nav-link active">
+                    <li class="tourist-nav-item">
+                        <a href="/tourist/reviews" class="tourist-nav-link active">
                             <i class="bi bi-star"></i>
-                            <span>My Reviews</span>
+                            <span class="tourist-nav-link-text">My Reviews</span>
                         </a>
                     </li>
                 </ul>
@@ -73,96 +146,47 @@
 
         <!-- Main Content -->
         <main class="main-content">
-            <div class="top-bar">
-                <div class="d-flex align-items-center gap-3">
-                    <button class="sidebar-toggle d-lg-none" onclick="toggleSidebar()">
-                        <i class="bi bi-list"></i>
-                    </button>
-                    <h1 class="page-title">My Reviews</h1>
-                </div>
-                <!-- Fixed User Actions (Top Right) -->
-                <div class="user-actions-fixed">
-                    <!-- Notification -->
-                    <div class="dropdown-wrap">
-                        <button class="notification-btn" onclick="toggleNotificationDropdown()">
-                            <i class="bi bi-bell-fill"></i>
-                            <span class="notification-badge" id="notifBadge">3</span>
-                        </button>
-                        <div class="notification-dropdown" id="notificationDropdown">
-                            <div class="notification-header">
-                                <h6>Notifications</h6>
-                                <button class="mark-all-read" onclick="markAllAsRead()">Mark all read</button>
-                            </div>
-                            <ul class="notification-list" id="notificationList">
-                                <li class="notification-item unread">
-                                    <div class="notification-content">
-                                        <div class="notification-icon success"><i class="bi bi-check-circle-fill"></i></div>
-                                        <div class="notification-text">
-                                            <h6>Review Published</h6>
-                                            <p>Your review for Mount Batulao is now live</p>
-                                            <div class="notification-time"><i class="bi bi-clock"></i><span>20 min ago</span></div>
-                                        </div>
-                                    </div>
-                                </li>
-                                <li class="notification-item unread">
-                                    <div class="notification-content">
-                                        <div class="notification-icon info"><i class="bi bi-hand-thumbs-up-fill"></i></div>
-                                        <div class="notification-text">
-                                            <h6>New Helpful Vote</h6>
-                                            <p>Someone found your Fortune Island review helpful</p>
-                                            <div class="notification-time"><i class="bi bi-clock"></i><span>2 hours ago</span></div>
-                                        </div>
-                                    </div>
-                                </li>
-                                <li class="notification-item">
-                                    <div class="notification-content">
-                                        <div class="notification-icon warning"><i class="bi bi-flag-fill"></i></div>
-                                        <div class="notification-text">
-                                            <h6>Guidelines Update</h6>
-                                            <p>Review community rules updated</p>
-                                            <div class="notification-time"><i class="bi bi-clock"></i><span>Yesterday</span></div>
-                                        </div>
-                                    </div>
-                                </li>
-                            </ul>
-                            <div class="notification-footer">
-                                <a href="#" onclick="viewAllNotifications(event)">View all</a>
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- Page Header (matches explore exactly) -->
+                <div class="page-header">
+                    <div class="page-header-actions">
+                        <div style="position: relative;">
+                            <div class="user-avatar" onclick="toggleUserDropdown()"><?= $userInitials ?></div>
+                            <div class="user-dropdown" id="userDropdown">
+                                <div class="dropdown-header">
+                                    <h6><?= esc($userFirstName . ' ' . $userLastName) ?></h6>
+                                    <p><?= esc($userEmail) ?></p>
+                                </div>
+                                <ul class="dropdown-menu-custom">
+                                    <li>
+                                        <a href="#" class="dropdown-item-custom logout" onclick="handleLogout(event)">
+                                            <i class="bi bi-box-arrow-right"></i>
+                                            <span>Logout</span>
+                                        </a>
+                                    </li>
+                                </ul>
                             </div>
                         </div>
                     </div>
-
-                    <!-- Avatar -->
-                    <div class="dropdown-wrap">
-                        <div class="user-avatar" onclick="toggleUserDropdown()">JD</div>
-                        <div class="user-dropdown" id="userDropdown">
-                            <div class="dropdown-header">
-                                <h6>Juan Dela Cruz</h6>
-                                <p>juan.delacruz@email.com</p>
-                            </div>
-                            <ul class="menu">
-                                <li><a href="#" onclick="openProfile(event); hideUserDropdown(event)"><i class="bi bi-person-circle"></i><span>My Profile</span></a></li>
-                                <li><a class="logout" href="#" onclick="handleLogout(event)"><i class="bi bi-box-arrow-right"></i><span>Logout</span></a></li>
-                            </ul>
-                        </div>
-                    </div>
+                    <h2><i class="bi bi-star-fill"></i> My Reviews</h2>
+                    <p>Share your experiences & help fellow travelers.</p>
                 </div>
-            </div>
-
-            <div class="reviews-container">
+                <div class="reviews-container">
                 <!-- KPI Cards -->
                 <div class="review-stats">
                     <div class="stat-item stagger-1">
-                        <div class="stat-icon blue"><i class="bi bi-journal-text"></i></div>
+                        <div class="stat-icon"><i class="bi bi-journal-text"></i></div>
                         <div class="stat-value" id="kpiTotalReviews">3</div>
                         <div class="stat-label">Total Reviews</div>
                     </div>
                     <div class="stat-item stagger-2">
-                        <div class="stat-icon orange"><i class="bi bi-star-fill"></i></div>
+                        <div class="stat-icon"><i class="bi bi-bar-chart-fill"></i></div>
                         <div class="stat-value" id="kpiAvgRating">4.7</div>
                         <div class="stat-label">Average Rating</div>
                     </div>
                     <div class="stat-item stagger-3">
-                        <div class="stat-icon green"><i class="bi bi-hand-thumbs-up-fill"></i></div>
+                        <div class="stat-icon"><i class="bi bi-hand-thumbs-up"></i></div>
                         <div class="stat-value" id="kpiHelpfulVotes">111</div>
                         <div class="stat-label">Helpful Votes</div>
                     </div>
@@ -254,53 +278,54 @@
                         <div class="review-helpful"><span class="helpful-count"><i class="bi bi-hand-thumbs-up"></i><span>31 found this helpful</span></span></div>
                     </div>
                 </div>
-            </div> <!-- end .reviews-container -->
+                </div> <!-- end .reviews-container -->
+            </div> <!-- end .content-area -->
 
             <!-- Write Review Modal -->
-            <div class="modal fade modal-zoom" id="reviewModal" tabindex="-1" aria-hidden="true">
+            <div class="modal fade" id="reviewModal" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered">
                     <div class="modal-content">
+                        <div class="modal-header" style="background: linear-gradient(135deg, #004b8d 0%, #002e55 50%, #000814 100%); color: #fff; border: none;">
+                            <h5 class="modal-title"><i class="bi bi-pencil-square"></i> Write a Review</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
                         <form id="reviewForm">
-                            <div class="modal-header">
-                                <h5 class="modal-title">Write a Review</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
                             <div class="modal-body">
-                                <div class="row g-3">
-                                    <div class="col-12">
-                                        <label for="reviewPlace" class="form-label">Place</label>
-                                        <input type="text" class="form-control" id="reviewPlace" placeholder="e.g., Mount Batulao" required>
+                                <div class="mb-3">
+                                    <label for="reviewPlace" class="form-label"><strong>Place</strong></label>
+                                    <input type="text" class="form-control" id="reviewPlace" placeholder="e.g., Mount Batulao" required>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="reviewDate" class="form-label"><strong>Date visited</strong></label>
+                                        <input type="text" class="form-control" id="reviewDate" placeholder="Select date" autocomplete="off" required>
                                     </div>
                                     <div class="col-md-6">
-                                        <label for="reviewDate" class="form-label">Date visited</label>
-                                        <input type="date" class="form-control" id="reviewDate" required>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Rating</label>
-                                        <div id="ratingStars" class="d-flex align-items-center gap-1">
-                                            <button type="button" class="btn p-0 border-0 bg-transparent rating-star" data-value="1" aria-label="1 star"><i class="bi bi-star fs-4"></i></button>
-                                            <button type="button" class="btn p-0 border-0 bg-transparent rating-star" data-value="2" aria-label="2 stars"><i class="bi bi-star fs-4"></i></button>
-                                            <button type="button" class="btn p-0 border-0 bg-transparent rating-star" data-value="3" aria-label="3 stars"><i class="bi bi-star fs-4"></i></button>
-                                            <button type="button" class="btn p-0 border-0 bg-transparent rating-star" data-value="4" aria-label="4 stars"><i class="bi bi-star fs-4"></i></button>
-                                            <button type="button" class="btn p-0 border-0 bg-transparent rating-star" data-value="5" aria-label="5 stars"><i class="bi bi-star fs-4"></i></button>
+                                        <label class="form-label"><strong>Rating</strong></label>
+                                        <div id="ratingStars" class="d-flex align-items-center gap-2">
+                                            <button type="button" class="btn p-0 border-0 bg-transparent rating-star" data-value="1" aria-label="1 star"><i class="bi bi-star-fill"></i></button>
+                                            <button type="button" class="btn p-0 border-0 bg-transparent rating-star" data-value="2" aria-label="2 stars"><i class="bi bi-star-fill"></i></button>
+                                            <button type="button" class="btn p-0 border-0 bg-transparent rating-star" data-value="3" aria-label="3 stars"><i class="bi bi-star-fill"></i></button>
+                                            <button type="button" class="btn p-0 border-0 bg-transparent rating-star" data-value="4" aria-label="4 stars"><i class="bi bi-star-fill"></i></button>
+                                            <button type="button" class="btn p-0 border-0 bg-transparent rating-star" data-value="5" aria-label="5 stars"><i class="bi bi-star-fill"></i></button>
                                             <input type="hidden" id="reviewRating" value="0" required>
                                         </div>
-                                        <div class="form-text">Click a star to set your rating.</div>
+                                        <div class="form-text">Click or hover over stars to rate.</div>
                                     </div>
-                                    <div class="col-12">
-                                        <label for="reviewText" class="form-label">Your review</label>
-                                        <textarea class="form-control" id="reviewText" rows="4" placeholder="Share your experience..." required></textarea>
-                                    </div>
-                                    <div class="col-12">
-                                        <label for="reviewPhotos" class="form-label">Photos (optional)</label>
-                                        <input type="file" class="form-control" id="reviewPhotos" accept="image/*" multiple>
-                                        <div id="photoPreview" class="d-flex gap-2 mt-2 flex-wrap"></div>
-                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="reviewText" class="form-label"><strong>Your review</strong></label>
+                                    <textarea class="form-control" id="reviewText" rows="4" placeholder="Share your experience..." required></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="reviewPhotos" class="form-label"><strong>Photos (optional)</strong></label>
+                                    <input type="file" class="form-control" id="reviewPhotos" accept="image/*" multiple>
+                                    <div id="photoPreview" class="d-flex gap-2 mt-2 flex-wrap"></div>
                                 </div>
                             </div>
                             <div class="modal-footer">
-                                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
-                                <button class="btn btn-primary" type="submit">Save Review</button>
+                                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                                <button class="btn btn-primary" type="submit" style="background: linear-gradient(90deg, var(--primary-color), #012c4a); border: none;"><i class="bi bi-check-circle"></i> Save Review</button>
                             </div>
                         </form>
                     </div>
@@ -308,14 +333,14 @@
             </div>
 
             <!-- My Profile Modal (copied from Explore) -->
-            <div class="modal fade modal-zoom" id="profileModal" tabindex="-1" aria-hidden="true">
+            <div class="modal fade" id="profileModal" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered">
                     <div class="modal-content">
+                        <div class="modal-header" style="background: linear-gradient(135deg, #004b8d 0%, #002e55 50%, #000814 100%); color: #fff; border: none;">
+                            <h5 class="modal-title"><i class="bi bi-person-circle"></i> My Profile</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
                         <form id="profileForm">
-                            <div class="modal-header">
-                                <h5 class="modal-title">My Profile</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
                             <div class="modal-body">
                                 <div class="text-center mb-4">
                                     <div class="profile-avatar-large" id="profileAvatar">
@@ -330,31 +355,31 @@
 
                                 <div class="row g-3">
                                     <div class="col-md-6">
-                                        <label for="profileFirstName" class="form-label">First Name</label>
+                                        <label for="profileFirstName" class="form-label"><strong>First Name</strong></label>
                                         <input type="text" class="form-control" id="profileFirstName" value="Juan" required>
                                     </div>
                                     <div class="col-md-6">
-                                        <label for="profileLastName" class="form-label">Last Name</label>
+                                        <label for="profileLastName" class="form-label"><strong>Last Name</strong></label>
                                         <input type="text" class="form-control" id="profileLastName" value="Dela Cruz" required>
                                     </div>
                                     <div class="col-12">
-                                        <label for="profileEmail" class="form-label">Email Address</label>
+                                        <label for="profileEmail" class="form-label"><strong>Email Address</strong></label>
                                         <input type="email" class="form-control" id="profileEmail" value="juan.delacruz@email.com" required>
                                     </div>
                                     <div class="col-md-6">
-                                        <label for="profilePhone" class="form-label">Phone Number</label>
+                                        <label for="profilePhone" class="form-label"><strong>Phone Number</strong></label>
                                         <input type="tel" class="form-control" id="profilePhone" value="+63 912 345 6789">
                                     </div>
                                     <div class="col-md-6">
-                                        <label for="profileBirthdate" class="form-label">Birthdate</label>
+                                        <label for="profileBirthdate" class="form-label"><strong>Birthdate</strong></label>
                                         <input type="date" class="form-control" id="profileBirthdate" value="1995-05-15">
                                     </div>
                                     <div class="col-12">
-                                        <label for="profileAddress" class="form-label">Address</label>
+                                        <label for="profileAddress" class="form-label"><strong>Address</strong></label>
                                         <textarea class="form-control" id="profileAddress" rows="2">Nasugbu, Batangas, Philippines</textarea>
                                     </div>
                                     <div class="col-12">
-                                        <label for="profileBio" class="form-label">Bio</label>
+                                        <label for="profileBio" class="form-label"><strong>Bio</strong></label>
                                         <textarea class="form-control" id="profileBio" rows="3" placeholder="Tell us about yourself...">Adventure seeker and travel enthusiast exploring Nasugbu!</textarea>
                                     </div>
                                 </div>
@@ -364,23 +389,23 @@
                                 <h6 class="mb-3">Change Password</h6>
                                 <div class="row g-3">
                                     <div class="col-12">
-                                        <label for="currentPassword" class="form-label">Current Password</label>
+                                        <label for="currentPassword" class="form-label"><strong>Current Password</strong></label>
                                         <input type="password" class="form-control" id="currentPassword" placeholder="Enter current password">
                                     </div>
                                     <div class="col-md-6">
-                                        <label for="newPassword" class="form-label">New Password</label>
+                                        <label for="newPassword" class="form-label"><strong>New Password</strong></label>
                                         <input type="password" class="form-control" id="newPassword" placeholder="Enter new password">
                                     </div>
                                     <div class="col-md-6">
-                                        <label for="confirmPassword" class="form-label">Confirm Password</label>
+                                        <label for="confirmPassword" class="form-label"><strong>Confirm Password</strong></label>
                                         <input type="password" class="form-control" id="confirmPassword" placeholder="Confirm new password">
                                     </div>
                                 </div>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                                <button type="submit" class="btn btn-primary" id="profileSaveBtn">
-                                    <span class="save-text">Save Changes</span>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-primary" id="profileSaveBtn" style="background: linear-gradient(90deg, var(--primary-color), #012c4a); border: none;">
+                                    <i class="bi bi-check-circle"></i> <span class="save-text">Save Changes</span>
                                     <span class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true"></span>
                                 </button>
                             </div>
@@ -390,56 +415,88 @@
             </div>
 
             <!-- Edit Review Modal -->
-            <div class="modal fade modal-zoom" id="editReviewModal" tabindex="-1" aria-hidden="true">
+            <div class="modal fade" id="editReviewModal" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered">
                     <div class="modal-content">
+                        <div class="modal-header" style="background: linear-gradient(135deg, #004b8d 0%, #002e55 50%, #000814 100%); color: #fff; border: none;">
+                            <h5 class="modal-title"><i class="bi bi-pencil-square"></i> Edit Review</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
                         <form id="editReviewForm">
-                            <div class="modal-header">
-                                <h5 class="modal-title">Edit Review</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
                             <div class="modal-body">
-                                <div class="row g-3">
-                                    <div class="col-12">
-                                        <label for="editReviewPlace" class="form-label">Place</label>
-                                        <input type="text" class="form-control" id="editReviewPlace" required>
+                                <div class="mb-3">
+                                    <label for="editReviewPlace" class="form-label"><strong>Place</strong></label>
+                                    <input type="text" class="form-control" id="editReviewPlace" required>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="editReviewDate" class="form-label"><strong>Date visited</strong></label>
+                                        <input type="text" class="form-control" id="editReviewDate" placeholder="Select date" autocomplete="off" required>
                                     </div>
                                     <div class="col-md-6">
-                                        <label for="editReviewDate" class="form-label">Date visited</label>
-                                        <input type="date" class="form-control" id="editReviewDate" required>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Rating</label>
-                                        <div id="editRatingStars" class="d-flex align-items-center gap-1">
-                                            <button type="button" class="btn p-0 border-0 bg-transparent rating-star" data-value="1" aria-label="1 star"><i class="bi bi-star fs-4"></i></button>
-                                            <button type="button" class="btn p-0 border-0 bg-transparent rating-star" data-value="2" aria-label="2 stars"><i class="bi bi-star fs-4"></i></button>
-                                            <button type="button" class="btn p-0 border-0 bg-transparent rating-star" data-value="3" aria-label="3 stars"><i class="bi bi-star fs-4"></i></button>
-                                            <button type="button" class="btn p-0 border-0 bg-transparent rating-star" data-value="4" aria-label="4 stars"><i class="bi bi-star fs-4"></i></button>
-                                            <button type="button" class="btn p-0 border-0 bg-transparent rating-star" data-value="5" aria-label="5 stars"><i class="bi bi-star fs-4"></i></button>
+                                        <label class="form-label"><strong>Rating</strong></label>
+                                        <div id="editRatingStars" class="d-flex align-items-center gap-2">
+                                            <button type="button" class="btn p-0 border-0 bg-transparent rating-star" data-value="1" aria-label="1 star"><i class="bi bi-star-fill"></i></button>
+                                            <button type="button" class="btn p-0 border-0 bg-transparent rating-star" data-value="2" aria-label="2 stars"><i class="bi bi-star-fill"></i></button>
+                                            <button type="button" class="btn p-0 border-0 bg-transparent rating-star" data-value="3" aria-label="3 stars"><i class="bi bi-star-fill"></i></button>
+                                            <button type="button" class="btn p-0 border-0 bg-transparent rating-star" data-value="4" aria-label="4 stars"><i class="bi bi-star-fill"></i></button>
+                                            <button type="button" class="btn p-0 border-0 bg-transparent rating-star" data-value="5" aria-label="5 stars"><i class="bi bi-star-fill"></i></button>
                                             <input type="hidden" id="editReviewRating" value="0" required>
                                         </div>
-                                        <div class="form-text">Click a star to set rating.</div>
+                                        <div class="form-text">Click or hover over stars to rate.</div>
                                     </div>
-                                    <div class="col-12">
-                                        <label for="editReviewText" class="form-label">Your review</label>
-                                        <textarea class="form-control" id="editReviewText" rows="4" required></textarea>
-                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="editReviewText" class="form-label"><strong>Your review</strong></label>
+                                    <textarea class="form-control" id="editReviewText" rows="4" required></textarea>
                                 </div>
                             </div>
                             <div class="modal-footer">
-                                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
-                                <button class="btn btn-primary" type="submit">Save Changes</button>
+                                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                                <button class="btn btn-primary" type="submit" style="background: linear-gradient(90deg, var(--primary-color), #012c4a); border: none;"><i class="bi bi-check-circle"></i> Save Changes</button>
                             </div>
                         </form>
                     </div>
                 </div>
             </div>
+
+            <!-- Delete Review Confirmation Modal -->
+            <div class="modal fade" id="deleteReviewModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header" style="background: linear-gradient(135deg, #002e55 0%, #000814 100%); color: #fff; border: none;">
+                            <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill"></i> Delete Review</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body text-center py-4">
+                            <div class="delete-icon mb-3">
+                                <i class="bi bi-trash3" style="font-size: 4rem; color: #002e55;"></i>
+                            </div>
+                            <h5 class="mb-3">Are you sure you want to delete this review?</h5>
+                            <p class="text-muted mb-0">This action cannot be undone. Your review will be permanently removed.</p>
+                        </div>
+                        <div class="modal-footer justify-content-center border-0 pb-4">
+                            <button class="btn btn-secondary px-4" type="button" data-bs-dismiss="modal">
+                                <i class="bi bi-x-circle"></i> Cancel
+                            </button>
+                            <button class="btn btn-danger px-4" type="button" onclick="confirmDeleteReview()" style="background: linear-gradient(135deg, #002e55, #000814); border: none;">
+                                <i class="bi bi-trash-fill"></i> Delete Review
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
-    </div>
+     </div>
+
+     <!-- Mobile Menu Button -->
+     <button class="mobile-menu-btn" onclick="toggleSidebar()">
+         <i class="bi bi-list"></i>
+     </button>
 
     <!-- Toasts -->
-    <div class="toast-container" id="toastContainer"></div>
-
+    <div class="toast-container" id="toastContainer"></div>    <!-- Flatpickr JS -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
@@ -448,38 +505,38 @@
             document.getElementById('sidebar').classList.toggle('show');
         }
 
-        // === Dashboard-like dropdowns + toasts ===
-        function toggleNotificationDropdown() {
-            const dd = document.getElementById('notificationDropdown');
-            const ud = document.getElementById('userDropdown');
-            ud?.classList.remove('show');
-            dd.classList.toggle('show');
-        }
         function toggleUserDropdown() {
-            const dd = document.getElementById('userDropdown');
-            const nd = document.getElementById('notificationDropdown');
-            nd?.classList.remove('show');
-            dd.classList.toggle('show');
+            const dropdown = document.getElementById('userDropdown');
+            if (dropdown) {
+                dropdown.classList.toggle('show');
+            }
         }
-        function hideUserDropdown(e){ e?.preventDefault?.(); document.getElementById('userDropdown')?.classList.remove('show'); }
 
-        function markAllAsRead() {
-            document.querySelectorAll('.notification-item.unread').forEach(li => li.classList.remove('unread'));
-            const badge = document.getElementById('notifBadge');
-            if (badge) { badge.textContent = '0'; badge.style.display = 'none'; }
-            showToast('Notifications', 'All notifications marked as read.');
+        function handleLogout(event) {
+            event.preventDefault();
+            if (confirm('Are you sure you want to logout?')) {
+                window.location.href = '/logout';
+            }
         }
-        function viewAllNotifications(e){ e.preventDefault(); showToast('Notifications', 'Opening all notifications...'); }
 
-        // Close on outside click
-        document.addEventListener('click', (e) => {
-            const nd = document.getElementById('notificationDropdown');
-            const ud = document.getElementById('userDropdown');
-            const bell = document.querySelector('.notification-btn');
-            const avatar = document.querySelector('.user-avatar');
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function(event) {
+            const sidebar = document.getElementById('sidebar');
+            const menuBtn = document.querySelector('.mobile-menu-btn');
+            const userDropdown = document.getElementById('userDropdown');
+            const userAvatar = document.querySelector('.user-avatar');
+            
+            // Close sidebar on mobile
+            if (window.innerWidth <= 992) {
+                if (sidebar && menuBtn && !sidebar.contains(event.target) && !menuBtn.contains(event.target)) {
+                    sidebar.classList.remove('show');
+                }
+            }
 
-            if (nd && !nd.contains(e.target) && !bell.contains(e.target)) nd.classList.remove('show');
-            if (ud && !ud.contains(e.target) && !avatar.contains(e.target)) ud.classList.remove('show');
+            // Close user dropdown
+            if (userDropdown && userAvatar && !userAvatar.contains(event.target) && !userDropdown.contains(event.target)) {
+                userDropdown.classList.remove('show');
+            }
         });
 
         // Toast helper
@@ -516,21 +573,6 @@
             });
             [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]')).map(el => new bootstrap.Tooltip(el));
 
-            // Notification item click -> mark read and update badge
-            document.querySelectorAll('.notification-item').forEach(item => {
-                item.addEventListener('click', function(){
-                    if (this.classList.contains('unread')) {
-                        this.classList.remove('unread');
-                        const unread = document.querySelectorAll('.notification-item.unread').length;
-                        const badge = document.getElementById('notifBadge');
-                        if (badge){
-                            badge.textContent = unread;
-                            if (unread === 0) badge.style.display = 'none';
-                        }
-                    }
-                });
-            });
-
             // Helpful count toggle
             document.querySelectorAll('.helpful-count').forEach(pill => {
                 pill.addEventListener('click', () => {
@@ -545,20 +587,66 @@
                 });
             });
 
-            // Rating stars
-            const stars = document.querySelectorAll('#ratingStars .rating-star');
-            const ratingInput = document.getElementById('reviewRating');
-            stars.forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const val = parseInt(btn.dataset.value, 10);
-                    ratingInput.value = val;
-                    stars.forEach((s, i) => {
-                        const icon = s.querySelector('i');
-                        icon.classList.toggle('bi-star-fill', i < val);
-                        icon.classList.toggle('bi-star', i >= val);
+            // Initialize Flatpickr for review dates
+            if (window.flatpickr) {
+                flatpickr('#reviewDate', {
+                    dateFormat: 'Y-m-d',
+                    maxDate: 'today',
+                    altInput: true,
+                    altFormat: 'F j, Y',
+                    allowInput: true
+                });
+
+                flatpickr('#editReviewDate', {
+                    dateFormat: 'Y-m-d',
+                    maxDate: 'today',
+                    altInput: true,
+                    altFormat: 'F j, Y',
+                    allowInput: true
+                });
+            }
+
+            // Modern Rating stars with hover effects
+            function initRatingStars(containerId, inputId) {
+                const container = document.getElementById(containerId);
+                const stars = container.querySelectorAll('.rating-star');
+                const ratingInput = document.getElementById(inputId);
+
+                // Hover effect
+                stars.forEach((btn, index) => {
+                    btn.addEventListener('mouseenter', () => {
+                        stars.forEach((s, i) => {
+                            if (i <= index) {
+                                s.classList.add('hovered');
+                            } else {
+                                s.classList.remove('hovered');
+                            }
+                        });
                     });
                 });
-            });
+
+                container.addEventListener('mouseleave', () => {
+                    stars.forEach(s => s.classList.remove('hovered'));
+                });
+
+                // Click to set rating
+                stars.forEach((btn, index) => {
+                    btn.addEventListener('click', () => {
+                        const val = parseInt(btn.dataset.value, 10);
+                        ratingInput.value = val;
+                        stars.forEach((s, i) => {
+                            if (i < val) {
+                                s.classList.add('filled');
+                            } else {
+                                s.classList.remove('filled');
+                            }
+                        });
+                    });
+                });
+            }
+
+            initRatingStars('ratingStars', 'reviewRating');
+            initRatingStars('editRatingStars', 'editReviewRating');
 
             // Photo preview
             const reviewPhotos = document.getElementById('reviewPhotos');
@@ -617,20 +705,7 @@
                 }, 1000);
             });
 
-            // Edit stars
-            const editStars = document.querySelectorAll('#editRatingStars .rating-star');
-            const editRatingInput = document.getElementById('editReviewRating');
-            editStars.forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const val = parseInt(btn.dataset.value, 10);
-                    editRatingInput.value = val;
-                    editStars.forEach((s, i) => {
-                        const icon = s.querySelector('i');
-                        icon.classList.toggle('bi-star-fill', i < val);
-                        icon.classList.toggle('bi-star', i >= val);
-                    });
-                });
-            });
+            // Edit stars are now initialized with initRatingStars function above
 
             // Save edit
             document.getElementById('editReviewForm').addEventListener('submit', (e) => {
@@ -682,25 +757,48 @@
             // Attempt to parse dateText to yyyy-mm-dd; if fail, leave empty
             let iso = '';
             try { const d = new Date(dateText); if (!isNaN(d)) iso = d.toISOString().slice(0,10); } catch(e){}
-            document.getElementById('editReviewDate').value = iso;
+            const dateInput = document.getElementById('editReviewDate');
+            if (dateInput._flatpickr) {
+                dateInput._flatpickr.setDate(iso, true);
+            } else {
+                dateInput.value = iso;
+            }
             document.getElementById('editReviewText').value = text;
             document.getElementById('editReviewRating').value = rating;
 
             // Paint stars
             document.querySelectorAll('#editRatingStars .rating-star').forEach((s, i) => {
-                const icon = s.querySelector('i');
-                icon.classList.toggle('bi-star-fill', i < rating);
-                icon.classList.toggle('bi-star', i >= rating);
+                if (i < rating) {
+                    s.classList.add('filled');
+                } else {
+                    s.classList.remove('filled');
+                }
             });
 
             editModal.show();
         }
-        function deleteReview() { if (confirm('Delete this review?')) showToast('Delete', 'Review deleted (demo).'); }
+        
+        let deleteModal;
+        function deleteReview() {
+            if (!deleteModal) {
+                deleteModal = new bootstrap.Modal(document.getElementById('deleteReviewModal'));
+            }
+            deleteModal.show();
+        }
+        
+        function confirmDeleteReview() {
+            deleteModal.hide();
+            showToast('Delete', 'Review deleted successfully.');
+            // Add actual delete logic here
+        }
 
-        // Open Profile modal (from Explore)
+        // Open Profile modal
         function openProfile(e){
-            e?.preventDefault?.();
-            document.getElementById('userDropdown')?.classList.remove('show');
+            e.preventDefault();
+            const userDropdown = document.getElementById('userDropdown');
+            if (userDropdown) {
+                userDropdown.classList.remove('show');
+            }
             profileModal?.show();
         }
         function setLoading(btn, isLoading) {
