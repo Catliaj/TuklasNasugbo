@@ -460,7 +460,7 @@ body {
 
 /* --- Summary Sidebar --- */
 .summary-sidebar { position: sticky; top: 1.5rem; }
-.summary-card { background: var(--light-bg); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+.summary-card { background: linear-gradient(145deg, rgba(0,75,141,0.20), rgba(0,46,85,0.16) 60%, rgba(255,255,255,0.10)); border: 1px solid rgba(0,75,141,0.32); border-radius: 14px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 6px 20px rgba(0,46,85,0.16); backdrop-filter: blur(8px); }
 .summary-card-title { font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; }
 .budget-total { text-align: center; margin-bottom: 1rem; }
 .budget-label { font-size: 0.9rem; color: var(--light-text); }
@@ -472,7 +472,7 @@ body {
 
 /* Trip Buddies / Expense Sharing */
 .trip-buddies { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 0.75rem; }
-.buddy-item { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem; background: var(--white-color); border-radius: 8px; font-size: 0.9rem; }
+.buddy-item { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem; background: linear-gradient(135deg, rgba(0,75,141,0.12), rgba(255,255,255,0.15)); border: 1px solid rgba(0,75,141,0.20); border-radius: 10px; font-size: 0.9rem; backdrop-filter: blur(4px); }
 .buddy-info { display: flex; align-items: center; gap: 0.6rem; }
 .buddy-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--secondary-color), #e8c9a0); color:#fff; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.8rem; }
 .buddy-name { font-weight: 500; }
@@ -487,7 +487,7 @@ body {
 #map { width: 100%; height: 100%; }
 
 /* Day card & activity styles */
-.day-card { background: var(--white-color); border: 1px solid var(--border-color); border-radius: 12px; margin-bottom: 1rem; overflow: hidden; }
+.day-card { background: linear-gradient(150deg, rgba(0,75,141,0.18), rgba(0,46,85,0.14) 65%, rgba(255,255,255,0.08)); border: 1px solid rgba(0,75,141,0.30); border-radius: 14px; margin-bottom: 1rem; overflow: hidden; box-shadow: 0 5px 18px rgba(0,46,85,0.15); backdrop-filter: blur(7px); }
 .day-header { padding: 1.5rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(90deg, rgba(1,58,99,0.02), transparent); border-bottom: 1px solid var(--border-color); transition: all 0.18s; }
 .day-header:hover { background: linear-gradient(90deg, rgba(1,58,99,0.05), transparent); }
 .day-header-left { display: flex; align-items: center; gap: 1rem; }

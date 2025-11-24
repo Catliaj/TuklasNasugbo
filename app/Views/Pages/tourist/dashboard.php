@@ -11,59 +11,64 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Lato:wght@300;400;700&family=Pacifico&display=swap" rel="stylesheet">
+    <!-- Global CSS (Unified Sidebar) -->
+    <link rel="stylesheet" href="<?= base_url('assets/css/globals.css')?>">
     <!-- Custom CSS -->
     <link rel="stylesheet" href="<?= base_url('assets/css/touristStyle/dashboard.css')?>">
 </head>
 <body>
     <div class="dashboard-wrapper">
         <!-- Sidebar -->
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <div class="sidebar-logo">
+        <aside class="tourist-sidebar" id="sidebar">
+            <div class="tourist-sidebar-header">
+                <a href="/tourist/dashboard" class="tourist-sidebar-logo">
                     <i class="bi bi-compass"></i>
-                    <span>Tuklas Nasugbu</span>
-                </div>
-                <button class="sidebar-toggle d-lg-none btn btn-link text-white" onclick="toggleMobileSidebar()">
+                    <div class="tourist-sidebar-logo-text">
+                        <span class="tourist-sidebar-logo-main">Tuklas</span>
+                        <span class="tourist-sidebar-logo-sub">Nasugbu</span>
+                    </div>
+                </a>
+                <button class="tourist-sidebar-toggle d-lg-none" onclick="toggleMobileSidebar()">
                     <i class="bi bi-x fs-3"></i>
                 </button>
             </div>
             
-            <nav>
-                <ul class="nav-menu">
-                    <li class="nav-item">
-                        <a href="/tourist/dashboard" class="nav-link active">
+            <nav class="tourist-sidebar-nav">
+                <ul class="tourist-nav-menu">
+                    <li class="tourist-nav-item">
+                        <a href="/tourist/dashboard" class="tourist-nav-link active">
                             <i class="bi bi-house-door"></i>
-                            <span>Home</span>
+                            <span class="tourist-nav-link-text">Home</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="/tourist/exploreSpots" class="nav-link">
+                    <li class="tourist-nav-item">
+                        <a href="/tourist/exploreSpots" class="tourist-nav-link">
                             <i class="bi bi-search"></i>
-                            <span>Explore</span>
+                            <span class="tourist-nav-link-text">Explore</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="/tourist/itinerary" class="nav-link">
+                    <li class="tourist-nav-item">
+                        <a href="/tourist/itinerary" class="tourist-nav-link">
                             <i class="bi bi-calendar-check"></i>
-                            <span>My Itinerary</span>
+                            <span class="tourist-nav-link-text">My Itinerary</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="/tourist/myBookings" class="nav-link">
+                    <li class="tourist-nav-item">
+                        <a href="/tourist/myBookings" class="tourist-nav-link">
                             <i class="bi bi-ticket-perforated"></i>
-                            <span>Bookings</span>
+                            <span class="tourist-nav-link-text">Bookings</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="/tourist/visits" class="nav-link">
+                    <li class="tourist-nav-item">
+                        <a href="/tourist/visits" class="tourist-nav-link">
                             <i class="bi bi-geo-alt-fill"></i>
-                            <span>Visited Places</span>
+                            <span class="tourist-nav-link-text">Visited Places</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="/tourist/reviews" class="nav-link">
+                    <li class="tourist-nav-item">
+                        <a href="/tourist/reviews" class="tourist-nav-link">
                             <i class="bi bi-star"></i>
-                            <span>My Reviews</span>
+                            <span class="tourist-nav-link-text">My Reviews</span>
                         </a>
                     </li>
                 </ul>
@@ -72,13 +77,9 @@
         
         <!-- Main Content -->
         <main class="main-content">
-            <!-- Header -->
-            <div class="dashboard-header">
-                <div class="welcome-section">
-                    <h2>Welcome back, <?= esc($FullName ?? 'Traveler') ?>!</h2>
-                    <p>Ready to explore Nasugbu today?</p>
-                </div>
-                <div class="user-actions">
+            <!-- Ocean Wave Header -->
+            <div class="page-header">
+                <div class="page-header-actions">
                     <!-- Notification Button -->
                     <div style="position: relative;">
                         <button class="notification-btn" onclick="toggleNotificationDropdown()">
@@ -159,11 +160,11 @@
                     </div>
 
                     <!-- User Avatar -->
-                    <div class="user-avatar" onclick="toggleUserDropdown()">JD</div>
+                    <div class="user-avatar" onclick="toggleUserDropdown()"><?= $userInitials ?? 'JD' ?></div>
                     <div class="user-dropdown" id="userDropdown">
                         <div class="dropdown-header">
-                            <h6>Juan Dela Cruz</h6>
-                            <p>juan.delacruz@email.com</p>
+                            <h6><?= esc(($userFirstName ?? 'Juan') . ' ' . ($userLastName ?? 'Dela Cruz')) ?></h6>
+                            <p><?= esc($userEmail ?? 'juan.delacruz@email.com') ?></p>
                         </div>
                         <ul class="dropdown-menu-custom">
                             <li>
@@ -181,6 +182,8 @@
                         </ul>
                     </div>
                 </div>
+                <h2><i class="bi bi-house-door-fill"></i> Welcome back, <?= esc($FullName ?? 'Traveler') ?>!</h2>
+                <p>Ready to explore Nasugbu today?</p>
             </div>
             
             <!-- Stats Grid -->
@@ -233,29 +236,10 @@
                     </div>
                 </div>
             </div>
-            
-            <!-- Quick Actions -->
-            <div class="quick-actions">
-                <h3>Quick Actions</h3>
-                <div class="actions-grid">
-                    <a href="/tourist/itinerary" class="action-btn">
-                        <i class="bi bi-calendar-check"></i>
-                        <span>Create Itinerary</span>
-                    </a>
-                    <a href="/tourist/exploreSpots" class="action-btn">
-                        <i class="bi bi-search"></i>
-                        <span>Explore Spots</span>
-                    </a>
-                    <a href="/tourist/reviews" class="action-btn">
-                        <i class="bi bi-star-fill"></i>
-                        <span>My Reviews</span>
-                    </a>
-                </div>
-            </div>
 
             <!-- Popular Spots Gallery -->
             <div class="spots-gallery">
-                <h3>Popular Spots in Nasugbu</h3>
+                <h3><i class="bi bi-fire"></i> Popular Spots in Nasugbu</h3>
                 <div class="gallery-grid">
                     <?php if (!empty($popularSpots) && is_array($popularSpots)): ?>
                         <?php foreach ($popularSpots as $spot): ?>
@@ -312,53 +296,43 @@
                 </div>
             </div>
             
-            <!-- Recent Activity -->
+            <!-- Your Favorites -->
             <div class="recent-activity">
-                <h3>Recent Activity</h3>
+                <h3 class="d-flex align-items-center gap-2">
+                    <i class="bi bi-heart-fill" style="color:#ff5d5d;"></i> Your Favorites
+                </h3>
                 
-                <div class="activity-item">
-                    <div class="activity-icon">
-                        <i class="bi bi-calendar-check"></i>
+                <?php if (!empty($favoriteSpots) && count($favoriteSpots) > 0): ?>
+                    <?php foreach (array_slice($favoriteSpots, 0, 4) as $spot): ?>
+                        <?php 
+                            $imagePath = 'uploads/spots/' . $spot['primary_image'];
+                            if (!is_file(FCPATH . $imagePath)) { 
+                                $imagePath = 'uploads/spots/Spot-No-Image.png';
+                            }
+                        ?>
+                        <div class="activity-item" style="cursor:pointer;" onclick="window.location.href='/tourist/exploreSpots'">
+                            <div class="activity-icon" style="background-image:url('<?= base_url($imagePath) ?>');background-size:cover;background-position:center;width:48px;height:48px;border-radius:8px;">
+                            </div>
+                            <div class="activity-content">
+                                <h6><?= esc($spot['spot_name']) ?></h6>
+                                <p><?= esc($spot['category']) ?> • ⭐ <?= esc($spot['rating'] ?? '4.5') ?></p>
+                            </div>
+                            <div class="activity-time">
+                                <i class="bi bi-heart-fill text-danger"></i>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <div class="activity-item">
+                        <div class="activity-icon">
+                            <i class="bi bi-heart"></i>
+                        </div>
+                        <div class="activity-content">
+                            <h6>No Favorites Yet</h6>
+                            <p>Start exploring and add your favorite spots!</p>
+                        </div>
                     </div>
-                    <div class="activity-content">
-                        <h6>Itinerary Created</h6>
-                        <p>3-Day Beach Adventure itinerary</p>
-                    </div>
-                    <div class="activity-time">2 hours ago</div>
-                </div>
-                
-                <div class="activity-item">
-                    <div class="activity-icon">
-                        <i class="bi bi-star-fill"></i>
-                    </div>
-                    <div class="activity-content">
-                        <h6>Review Posted</h6>
-                        <p>Reviewed Mount Batulao</p>
-                    </div>
-                    <div class="activity-time">1 day ago</div>
-                </div>
-                
-                <div class="activity-item">
-                    <div class="activity-icon">
-                        <i class="bi bi-heart-fill"></i>
-                    </div>
-                    <div class="activity-content">
-                        <h6>Spot Favorited</h6>
-                        <p>Added Fortune Island to favorites</p>
-                    </div>
-                    <div class="activity-time">3 days ago</div>
-                </div>
-                
-                <div class="activity-item">
-                    <div class="activity-icon">
-                        <i class="bi bi-bookmark-check"></i>
-                    </div>
-                    <div class="activity-content">
-                        <h6>Visit Completed</h6>
-                        <p>Checked in at Canyon Cove</p>
-                    </div>
-                    <div class="activity-time">1 week ago</div>
-                </div>
+                <?php endif; ?>
             </div>
         </main>
     </div>

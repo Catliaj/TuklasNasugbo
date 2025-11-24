@@ -9,60 +9,87 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <!-- Flatpickr (date range like booking modal) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Lato:wght@300;400;700&family=Pacifico&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?= base_url('assets/css/touristStyle/itinerary.css')?>"> 
+    <!-- Global CSS (Unified Sidebar) -->
+    <link rel="stylesheet" href="<?= base_url('assets/css/globals.css')?>">
+    <link rel="stylesheet" href="<?= base_url('assets/css/touristStyle/itinerary.css')?>">
+    <style>
+      /* Enhanced Page Header (from Explore) */
+      :root { --ocean-accent:#4ecbff; --ocean-accent-soft:#b5ecff; --ocean-text:#e6f8ff; }
+      .page-header {background:#002e55;color:var(--ocean-text);height:210px;min-height:210px;padding:1.6rem 2.4rem 1.8rem;border-radius:28px;position:relative;overflow:hidden;box-shadow:0 12px 34px -10px rgba(0,56,108,.55);display:flex;flex-direction:column;justify-content:center;margin-bottom:2rem;}
+      .page-header h2 {font-weight:700;display:flex;align-items:center;gap:.85rem;margin:0 0 .55rem;color:#e2e8f0;font-size:2.10rem;letter-spacing:.6px;line-height:1.1;position:relative;top:-6px;z-index:2;}
+      .page-header h2 i {background:rgba(255,255,255,.10);padding:.8rem;border-radius:18px;font-size:2.2rem;animation:slow-spin 18s linear infinite;color:var(--ocean-text);position:relative;top:-4px;}
+      @keyframes slow-spin {from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+      .page-header p {font-size:1.05rem;letter-spacing:.5px;margin:0;color:var(--ocean-accent-soft);text-shadow:0 1px 2px rgba(0,0,0,.25);z-index:2;position:relative;}
+      /* Wave layers */
+      .page-header:before {content:"";position:absolute;left:0;right:0;bottom:0;height:110px;pointer-events:none;display:block;background:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none"><path d="M0,80 C150,120 300,40 450,70 C600,100 750,50 900,80 C1050,110 1200,60 1200,60 L1200,120 L0,120 Z" fill="%2300487a"/></svg>') repeat-x;background-size:1200px 110px;opacity:.55;filter:drop-shadow(0 4px 8px rgba(0,0,0,.3));z-index:1;}
+      .page-header:after {content:"";position:absolute;left:0;right:0;bottom:0;height:90px;pointer-events:none;display:block;background:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none"><path d="M0,60 C200,100 400,20 600,60 C800,100 1000,30 1200,70 L1200,120 L0,120 Z" fill="%23005fae"/></svg>') repeat-x;background-size:1200px 90px;opacity:.35;z-index:1;}
+      .page-header-actions {position:absolute;top:1.1rem;right:1.3rem;display:flex;align-items:center;gap:1rem;z-index:5;}
+      .page-header-actions .user-avatar {background:linear-gradient(135deg,#004b8d,#001d33);color:#e2e8f0;font-weight:600;width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 12px -3px rgba(0,0,0,.5);transition:.25s;border:2px solid rgba(255,255,255,.18);}
+      .page-header-actions .user-avatar:hover {transform:translateY(-2px);background:linear-gradient(135deg,#005fae,#002e55);}
+      @media (max-width: 768px){
+        .page-header {padding:2rem 1.2rem 2.4rem;border-radius:22px;height:auto;min-height:180px;}
+        .page-header h2 {font-size:1.75rem;}
+        .page-header p {font-size:.95rem;}
+      }
+    </style>
 </head>
 <body>
     <div class="dashboard-wrapper">
         <!-- Sidebar -->
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <div class="sidebar-logo">
+        <aside class="tourist-sidebar" id="sidebar">
+            <div class="tourist-sidebar-header">
+                <a href="/tourist/dashboard" class="tourist-sidebar-logo">
                     <i class="bi bi-compass"></i>
-                    <span>Tuklas Nasugbu</span>
-                </div>
-                <button class="sidebar-toggle d-lg-none" onclick="toggleSidebar()" style="background: none; border: none; color: #fff; font-size: 1.5rem;">
+                    <div class="tourist-sidebar-logo-text">
+                        <span class="tourist-sidebar-logo-main">Tuklas</span>
+                        <span class="tourist-sidebar-logo-sub">Nasugbu</span>
+                    </div>
+                </a>
+                <button class="tourist-sidebar-toggle d-lg-none" onclick="toggleSidebar()">
                     <i class="bi bi-x"></i>
                 </button>
             </div>
 
-            <nav>
-                <ul class="nav-menu">
-                    <li class="nav-item">
-                        <a href="/tourist/dashboard" class="nav-link">
+            <nav class="tourist-sidebar-nav">
+                <ul class="tourist-nav-menu">
+                    <li class="tourist-nav-item">
+                        <a href="/tourist/dashboard" class="tourist-nav-link">
                             <i class="bi bi-house-door"></i>
-                            <span>Home</span>
+                            <span class="tourist-nav-link-text">Home</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="/tourist/exploreSpots" class="nav-link">
+                    <li class="tourist-nav-item">
+                        <a href="/tourist/exploreSpots" class="tourist-nav-link">
                             <i class="bi bi-search"></i>
-                            <span>Explore</span>
+                            <span class="tourist-nav-link-text">Explore</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="/tourist/itinerary" class="nav-link active">
+                    <li class="tourist-nav-item">
+                        <a href="/tourist/itinerary" class="tourist-nav-link active">
                             <i class="bi bi-calendar-check"></i>
-                            <span>My Itinerary</span>
+                            <span class="tourist-nav-link-text">My Itinerary</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="/tourist/myBookings" class="nav-link">
+                    <li class="tourist-nav-item">
+                        <a href="/tourist/myBookings" class="tourist-nav-link">
                             <i class="bi bi-ticket-perforated"></i>
-                            <span>Bookings</span>
+                            <span class="tourist-nav-link-text">Bookings</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="/tourist/visits" class="nav-link">
+                    <li class="tourist-nav-item">
+                        <a href="/tourist/visits" class="tourist-nav-link">
                             <i class="bi bi-geo-alt-fill"></i>
-                            <span>Visited Places</span>
+                            <span class="tourist-nav-link-text">Visited Places</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="/tourist/reviews" class="nav-link">
+                    <li class="tourist-nav-item">
+                        <a href="/tourist/reviews" class="tourist-nav-link">
                             <i class="bi bi-star"></i>
-                            <span>My Reviews</span>
+                            <span class="tourist-nav-link-text">My Reviews</span>
                         </a>
                     </li>
                 </ul>
@@ -71,73 +98,25 @@
 
         <!-- Main Content -->
         <main class="main-content">
-            <h1 class="page-title">My Itinerary</h1>
-
-            <!-- Fixed User Actions (Top Right) -->
-            <div class="user-actions-fixed">
-                <!-- Notification -->
-                <div style="position: relative;">
-                    <button class="notification-btn" onclick="toggleNotificationDropdown()">
-                        <i class="bi bi-bell-fill"></i>
-                        <span class="notification-badge" id="notifBadge">3</span>
-                    </button>
-                    <div class="notification-dropdown" id="notificationDropdown">
-                        <div class="notification-header">
-                            <h6>Notifications</h6>
-                            <button class="mark-all-read" onclick="markAllAsRead()">Mark all read</button>
-                        </div>
-                        <ul class="notification-list" id="notificationList">
-                            <li class="notification-item unread">
-                                <div class="notification-content">
-                                    <div class="notification-icon success"><i class="bi bi-check-circle-fill"></i></div>
-                                    <div class="notification-text">
-                                        <h6>Itinerary Updated</h6>
-                                        <p>Your Nasugbu Adventure itinerary has been updated</p>
-                                        <div class="notification-time"><i class="bi bi-clock"></i><span>1 hour ago</span></div>
-                                    </div>
-                                </div>
-                            </li>
-                            <li class="notification-item unread">
-                                <div class="notification-content">
-                                    <div class="notification-icon info"><i class="bi bi-people-fill"></i></div>
-                                    <div class="notification-text">
-                                        <h6>Buddy Invited</h6>
-                                        <p>Alex Brown accepted your trip buddy invitation</p>
-                                        <div class="notification-time"><i class="bi bi-clock"></i><span>3 hours ago</span></div>
-                                    </div>
-                                </div>
-                            </li>
-                            <li class="notification-item unread">
-                                <div class="notification-content">
-                                    <div class="notification-icon warning"><i class="bi bi-calendar-event"></i></div>
-                                    <div class="notification-text">
-                                        <h6>Trip Reminder</h6>
-                                        <p>Your trip starts in 5 days - December 15, 2024</p>
-                                        <div class="notification-time"><i class="bi bi-clock"></i><span>1 day ago</span></div>
-                                    </div>
-                                </div>
-                            </li>
-                        </ul>
-                        <div class="notification-footer">
-                            <a href="#" onclick="viewAllNotifications(event)">View all</a>
+            <!-- Page Header (Ocean Theme) -->
+            <div class="page-header">
+                <div class="page-header-actions">
+                    <div style="position: relative;">
+                        <div class="user-avatar" onclick="toggleUserDropdown()">JD</div>
+                        <div class="user-dropdown" id="userDropdown">
+                            <div class="dropdown-header">
+                                <h6>Juan Dela Cruz</h6>
+                                <p>juan.delacruz@email.com</p>
+                            </div>
+                            <ul class="menu">
+                                <li><a href="#" onclick="openProfile(event); hideUserDropdown(event)"><i class="bi bi-person-circle"></i> <span>My Profile</span></a></li>
+                                <li><a class="logout" href="#" onclick="handleLogout(event)"><i class="bi bi-box-arrow-right"></i> <span>Logout</span></a></li>
+                            </ul>
                         </div>
                     </div>
                 </div>
-
-                <!-- Avatar -->
-                <div style="position: relative;">
-                    <div class="user-avatar" onclick="toggleUserDropdown()">JD</div>
-                    <div class="user-dropdown" id="userDropdown">
-                        <div class="dropdown-header">
-                            <h6>Juan Dela Cruz</h6>
-                            <p>juan.delacruz@email.com</p>
-                        </div>
-                        <ul class="menu">
-                            <li><a href="#" onclick="openProfile(event); hideUserDropdown(event)"><i class="bi bi-person-circle"></i> <span>My Profile</span></a></li>
-                            <li><a class="logout" href="#" onclick="handleLogout(event)"><i class="bi bi-box-arrow-right"></i> <span>Logout</span></a></li>
-                        </ul>
-                    </div>
-                </div>
+                <h2><i class="bi bi-calendar-check"></i> My Itinerary</h2>
+                <p>Plan your perfect Nasugbu adventure with personalized trip schedules.</p>
             </div>
 
             <!-- Itinerary Content -->
@@ -147,20 +126,11 @@
                     <div class="trip-title-section">
                         <h2 class="trip-title" id="tripTitle">Nasugbu Adventure Trip</h2>
                         <div class="trip-actions">
-                            <button class="btn-action" data-bs-toggle="modal" data-bs-target="#createItineraryModal">
+                            <button class="btn-action btn-create" data-bs-toggle="modal" data-bs-target="#createItineraryModal">
                                 <i class="bi bi-plus-lg"></i> Create New
                             </button>
                             <button class="btn-action" id="autoGenBtn">
                                 <i class="bi bi-lightning-charge"></i> Auto-generate
-                            </button>
-                            <button class="btn-action">
-                                <i class="bi bi-share"></i> Share
-                            </button>
-                            <button class="btn-action">
-                                <i class="bi bi-download"></i> Export
-                            </button>
-                            <button class="btn-action primary" id="editTripBtn">
-                                <i class="bi bi-pencil"></i> Edit Trip
                             </button>
                             <!-- IMPORTANT: unique id for history button so JS can find it reliably -->
                             <button class="btn-action primary" id="historyBtn">
@@ -258,20 +228,20 @@
                     <!-- Summary Sidebar -->
                     <div class="summary-sidebar">
                         <!-- Map Card -->
-                        <div class="summary-card">
-                            <h3 class="summary-card-title"><i class="bi bi-map"></i> Map View</h3>
-                            <div class="map-container">
-                                <div id="map" style="display: flex; align-items: center; justify-content: center; color: #999;">Map placeholder</div>
-                            </div>
+                        <div class="summary-card ocean-card map-card">
+                          <h3 class="summary-card-title"><i class="bi bi-map"></i> Map View</h3>
+                          <div class="map-container">
+                            <div id="map" class="map-placeholder">Map placeholder</div>
+                          </div>
                         </div>
 
-                        <!-- Budget & Buddies Card -->
-                        <div class="summary-card">
-                            <h3 class="summary-card-title"><i class="bi bi-wallet2"></i> Trip Budget</h3>
-                            <div class="budget-total">
-                                <div class="budget-label">Total Estimated Cost</div>
-                                <div class="budget-amount"></div>
-                            </div>
+                        <!-- Budget Card -->
+                        <div class="summary-card ocean-card budget-card">
+                          <h3 class="summary-card-title"><i class="bi bi-wallet2"></i> Trip Budget</h3>
+                          <div class="budget-total">
+                            <div class="budget-label">Total Estimated Cost</div>
+                            <div class="budget-amount"></div>
+                          </div>
                         </div>
                     </div>
                 </div>
@@ -516,82 +486,92 @@
     </div>
 
     <!-- Auto-generated Itinerary Modal -->
-    <div class="modal fade" id="generatedModal" tabindex="-1" aria-labelledby="generatedModalLabel" aria-hidden="true">
+    <div class="modal fade" id="generatedModal" tabindex="-1" aria-labelledby="generatedModalLabel">
       <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="generatedModalLabel">
-              <i class="bi bi-lightning-charge-fill"></i> Auto-generate Itinerary
+          <div class="modal-header create-modal-header">
+            <h5 class="modal-title" id="generatedModalLabel" style="display:flex;align-items:center;gap:.55rem;font-weight:700;letter-spacing:.4px;">
+              <span style="display:inline-flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#004b8d,#002e55);color:#fff;padding:.55rem .65rem;border-radius:14px;box-shadow:0 6px 16px -6px rgba(0,46,85,.45);"><i class="bi bi-lightning-charge-fill"></i></span>
+              Auto-generate Itinerary
             </h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
-          <div class="modal-body" id="generatedModalBody">
-            <form id="autoGenerateForm">
+          <div class="modal-body" id="generatedModalBody" style="background:linear-gradient(140deg,#f5f9fc,#eef5fa);border-radius:0 0 18px 18px;">
+            <form id="autoGenerateForm" class="glass-panel" style="padding:20px;">
               <!-- Trip Title -->
               <div class="mb-3">
                 <label class="form-label">Trip Title</label>
                 <input type="text" class="form-control" id="autoGenTripTitle" placeholder="e.g., Nasugbu Adventure" required>
               </div>
-
-              <!-- Date Range -->
-              <div class="row mb-3">
-                <div class="col-md-6">
-                  <label class="form-label">Start Date</label>
-                  <input type="date" class="form-control" id="autoGenStartDate" required>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">End Date</label>
-                  <input type="date" class="form-control" id="autoGenEndDate" required>
-                </div>
+              <!-- Date Range (Flatpickr) -->
+              <div class="mb-3">
+                <label class="form-label"><strong>Date Range</strong></label>
+                <input type="text" class="form-control" id="autoGenDateRange" placeholder="Select date range" autocomplete="off" required>
+                <input type="hidden" id="autoGenStartDate">
+                <input type="hidden" id="autoGenEndDate">
               </div>
 
-              <!-- Number of Days -->
-              <div class="mb-3">
-                <label class="form-label">Number of Days</label>
-                <input type="number" class="form-control" id="autoGenDay" min="1" max="30" value="3" required>
-                <small class="form-text text-muted">How many days do you want to plan?</small>
-              </div>
-
-              <!-- Budget -->
-              <div class="mb-3">
-                <label class="form-label">Budget (₱)</label>
-                <input type="number" class="form-control" id="autoGenBudget" min="0" step="100" placeholder="e.g., 5000" required>
-                <small class="form-text text-muted">Your estimated budget for the entire trip</small>
+              <!-- Days & Budget Row -->
+              <div class="row mb-3 align-items-end">
+                <div class="col-md-6 mb-3 mb-md-0">
+                  <label class="form-label">Days</label>
+                  <input type="number" class="form-control" id="autoGenDay" value="" readonly>
+                  <small class="form-text text-muted">Auto-calculated from selected range</small>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Budget (₱)</label>
+                  <input type="number" class="form-control" id="autoGenBudget" min="0" step="100" placeholder="e.g., 5000" required>
+                  <small class="form-text text-muted">Estimated total trip budget</small>
+                </div>
               </div>
 
               <!-- Travelers Section -->
               <div class="mb-3">
-                <label class="form-label">Number of Travelers</label>
-                <div class="row g-2">
-                  <div class="col-md-4">
-                    <label class="form-label small">Adults</label>
-                    <input type="number" class="form-control" id="autoGenAdults" min="0" value="1" required>
+                <label class="form-label d-block"><strong>Guests</strong></label>
+                <div class="guest-list d-flex flex-column gap-2">
+                  <div class="guest-row p-2 border rounded d-flex align-items-center justify-content-between">
+                    <div class="me-3"><strong>Adults</strong></div>
+                    <div class="guest-spinner" data-input="autoGenAdults">
+                      <button type="button" class="btn-guest btn-guest-minus" data-target="autoGenAdults">−</button>
+                      <input type="number" class="guest-input" id="autoGenAdults" min="0" value="1" required>
+                      <button type="button" class="btn-guest btn-guest-plus" data-target="autoGenAdults">+</button>
+                    </div>
                   </div>
-                  <div class="col-md-4">
-                    <label class="form-label small">Children</label>
-                    <input type="number" class="form-control" id="autoGenChildren" min="0" value="0">
+                  <div class="guest-row p-2 border rounded d-flex align-items-center justify-content-between">
+                    <div class="me-3"><strong>Children</strong></div>
+                    <div class="guest-spinner" data-input="autoGenChildren">
+                      <button type="button" class="btn-guest btn-guest-minus" data-target="autoGenChildren">−</button>
+                      <input type="number" class="guest-input" id="autoGenChildren" min="0" value="0" required>
+                      <button type="button" class="btn-guest btn-guest-plus" data-target="autoGenChildren">+</button>
+                    </div>
                   </div>
-                  <div class="col-md-4">
-                    <label class="form-label small">Seniors</label>
-                    <input type="number" class="form-control" id="autoGenSeniors" min="0" value="0">
+                  <div class="guest-row p-2 border rounded d-flex align-items-center justify-content-between">
+                    <div class="me-3"><strong>Seniors</strong></div>
+                    <div class="guest-spinner" data-input="autoGenSeniors">
+                      <button type="button" class="btn-guest btn-guest-minus" data-target="autoGenSeniors">−</button>
+                      <input type="number" class="guest-input" id="autoGenSeniors" min="0" value="0" required>
+                      <button type="button" class="btn-guest btn-guest-plus" data-target="autoGenSeniors">+</button>
+                    </div>
                   </div>
                 </div>
               </div>
 
               <!-- Preview Section (initially hidden) -->
-              <div id="generatedPreview" style="display: none;">
-                <hr class="my-4">
-                <h6 class="text-muted mb-3">Generated Itinerary Preview:</h6>
+              <div id="generatedPreview" class="selected-spot-glass mt-3" style="display:none;">
+                <h6 style="display:flex;align-items:center;gap:.5rem;font-weight:700;color:#003a6e;margin:0 0 .85rem;">
+                  <span style="display:inline-flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#004b8d,#002e55);color:#fff;padding:.45rem .55rem;border-radius:14px;box-shadow:0 4px 12px -4px rgba(0,46,85,.45);font-size:.95rem;"><i class="bi bi-eye"></i></span>
+                  Generated Itinerary Preview
+                </h6>
                 <div id="generatedContent"></div>
               </div>
             </form>
           </div>
           <div class="modal-footer">
             <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            <button class="btn btn-primary" id="btnGenerateItinerary">
+            <button class="btn-gradient-primary" id="btnGenerateItinerary" style="display:inline-flex;align-items:center;gap:.5rem;">
               <i class="bi bi-lightning-charge-fill"></i> Generate
             </button>
-            <button class="btn btn-success" id="btnApplyItinerary" style="display: none;">
+            <button class="btn-gradient-success" id="btnApplyItinerary" style="display:none;align-items:center;gap:.5rem;">
               <i class="bi bi-check-circle"></i> Apply to Trip
             </button>
           </div>
@@ -600,66 +580,146 @@
     </div>
 
     <!-- Create New Itinerary Modal -->
-    <div class="modal fade" id="createItineraryModal" tabindex="-1" aria-labelledby="createItineraryModalLabel" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-centered">
+    <div class="modal fade" id="createItineraryModal" tabindex="-1" aria-labelledby="createItineraryModalLabel">
+      <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
-          <div class="modal-header">
+          <div class="modal-header create-modal-header">
             <h5 class="modal-title" id="createItineraryModalLabel"><i class="bi bi-plus-lg"></i> Create New Itinerary</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body">
-            <form id="createItineraryForm">
-              <div class="mb-3">
-                <label class="form-label">Trip Title</label>
-                <input type="text" class="form-control" id="newTripTitle" placeholder="e.g., Nasugbu Adventure" required>
+            <div class="row">
+              <!-- Left Panel - Trip Details -->
+              <div class="col-md-6 border-end trip-details-panel">
+                <h6 class="mb-3"><i class="bi bi-clipboard-check"></i> Trip Details</h6>
+                <form id="createItineraryForm">
+                  <div class="mb-3">
+                    <label class="form-label">Trip Title</label>
+                    <input type="text" class="form-control" id="newTripTitle" placeholder="e.g., Nasugbu Adventure" required>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label"><strong>Date Range</strong></label>
+                    <input type="text" class="form-control" id="newTripDateRange" placeholder="Select date range" autocomplete="off" required>
+                    <input type="hidden" id="newTripStart">
+                    <input type="hidden" id="newTripEnd">
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label d-block"><strong>Guests</strong></label>
+                    <div class="guest-list d-flex flex-column gap-2">
+                      <div class="guest-row p-2 border rounded d-flex align-items-center justify-content-between">
+                        <div class="me-3"><strong>Adults</strong> <span id="itPriceAdult" class="text-muted small"></span></div>
+                        <div class="guest-spinner" data-input="itAdults">
+                          <button type="button" class="btn-guest btn-guest-minus" data-target="itAdults">−</button>
+                          <input type="number" class="guest-input" id="itAdults" min="0" value="1" required>
+                          <button type="button" class="btn-guest btn-guest-plus" data-target="itAdults">+</button>
+                        </div>
+                      </div>
+                      <div class="guest-row p-2 border rounded d-flex align-items-center justify-content-between">
+                        <div class="me-3"><strong>Children</strong> <span id="itPriceChild" class="text-muted small"></span></div>
+                        <div class="guest-spinner" data-input="itChildren">
+                          <button type="button" class="btn-guest btn-guest-minus" data-target="itChildren">−</button>
+                          <input type="number" class="guest-input" id="itChildren" min="0" value="0" required>
+                          <button type="button" class="btn-guest btn-guest-plus" data-target="itChildren">+</button>
+                        </div>
+                      </div>
+                      <div class="guest-row p-2 border rounded d-flex align-items-center justify-content-between">
+                        <div class="me-3"><strong>Seniors</strong> <span id="itPriceSenior" class="text-muted small"></span></div>
+                        <div class="guest-spinner" data-input="itSeniors">
+                          <button type="button" class="btn-guest btn-guest-minus" data-target="itSeniors">−</button>
+                          <input type="number" class="guest-input" id="itSeniors" min="0" value="0" required>
+                          <button type="button" class="btn-guest btn-guest-plus" data-target="itSeniors">+</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Selected Spot Details -->
+                  <div id="selectedSpotDetails" style="display:none;">
+                    <hr>
+                    <h6 class="mb-3"><i class="bi bi-info-circle"></i> Selected Spot Details (<span id="selectedCount">0</span>)</h6>
+                    <div class="selected-spot-glass">
+                      <div id="selectedSpotItems" class="d-flex flex-column gap-3"></div>
+                      <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+                        <div class="small fw-semibold text-primary" id="aggregatePricing"></div>
+                        <button class="btn btn-outline-danger btn-sm clear-selection-btn" type="button" id="clearSpotBtn"><i class="bi bi-x-circle"></i> Clear All</button>
+                      </div>
+                    </div>
+                  </div>
+                </form>
               </div>
-              <div class="row mb-3">
-                <div class="col">
-                  <label class="form-label">Start Date</label>
-                  <input type="date" class="form-control" id="newTripStart" required>
+
+              <!-- Right Panel - Recommended Tourist Spots -->
+              <div class="col-md-6 glass-panel">
+                <h6 class="mb-3"><i class="bi bi-star-fill text-warning"></i> Recommended Tourist Spots</h6>
+                <div class="input-group mb-3">
+                  <input type="text" class="form-control" id="spotSearchInput" placeholder="Search tourist spots...">
+                  <button class="btn btn-outline-secondary" type="button" id="searchSpotBtn">
+                    <i class="bi bi-search"></i>
+                  </button>
                 </div>
-                <div class="col">
-                  <label class="form-label">End Date</label>
-                  <input type="date" class="form-control" id="newTripEnd" required>
+                <div class="recommended-spots-grid" id="recommendedSpotsGrid" style="max-height: 450px; overflow-y: auto;">
+                  <!-- Spots will be loaded here -->
+                  <div class="text-center text-muted py-3">
+                    <i class="bi bi-compass"></i>
+                    <p class="mb-0 small">Search or browse recommended spots</p>
+                  </div>
                 </div>
               </div>
-              <div class="mb-3">
-                <label class="form-label">Location</label>
-                <input type="text" class="form-control" id="newTripLocation" placeholder="e.g., Nasugbu, Batangas" required>
-              </div>
-              <div class="mb-3">
-                <label class="form-label">Travelers</label>
-                <input type="number" class="form-control" id="newTripTravelers" min="1" value="1" required>
-              </div>
-            </form>
+            </div>
           </div>
           <div class="modal-footer">
             <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button class="btn btn-primary" data-bs-dismiss="modal">Create</button>
+            <button class="btn btn-gradient-primary" id="createItineraryBtn">Create</button>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Add New Day Modal -->
-    <div class="modal fade" id="addDayModal" tabindex="-1" aria-labelledby="addDayModalLabel" aria-hidden="true">
+    <div class="modal fade" id="addDayModal" tabindex="-1" aria-labelledby="addDayModalLabel">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-          <div class="modal-header">
+          <div class="modal-header create-modal-header">
             <h5 class="modal-title" id="addDayModalLabel"><i class="bi bi-plus-circle"></i> Add New Day</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body">
             <form id="addDayForm">
               <div class="mb-3">
-                <label class="form-label">Day Label</label>
-                <input type="text" class="form-control" id="newDayLabel" placeholder="e.g., Day 3 (Monday, Dec 17)" required>
+                <label class="form-label">Day Number</label>
+                <input type="number" class="form-control" id="newDayNumber" placeholder="e.g., 3" min="1" required>
+                <small class="form-text text-muted">The date will be calculated automatically based on your trip dates.</small>
               </div>
             </form>
           </div>
           <div class="modal-footer">
             <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button class="btn btn-primary" data-bs-dismiss="modal">Add Day</button>
+            <button class="btn btn-gradient-primary" id="addDayBtn" data-bs-dismiss="modal"><i class="bi bi-check-circle"></i> Add Day</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Itinerary History Modal -->
+    <div class="modal fade" id="tripsHistoryModal" tabindex="-1" aria-labelledby="historyModalLabel">
+      <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header create-modal-header">
+            <h5 class="modal-title" id="historyModalLabel" style="display:flex;align-items:center;gap:.55rem;font-weight:700;letter-spacing:.4px;">
+              <span style="display:inline-flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#004b8d,#002e55);color:#fff;padding:.55rem .65rem;border-radius:14px;box-shadow:0 6px 16px -6px rgba(0,46,85,.45);"><i class="bi bi-clock-history"></i></span>
+              Itinerary History
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body" style="background:linear-gradient(140deg,#f5f9fc,#eef5fa);border-radius:0 0 18px 18px;">
+            <div class="glass-panel" style="padding:18px;">
+              <div id="historyContent" class="trips-list" style="display:flex;flex-direction:column;gap:14px;">
+                <!-- History items populated by JavaScript -->
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
           </div>
         </div>
       </div>
@@ -668,38 +728,231 @@
     <!-- Toasts (UI only) -->
     <div class="toast-container" id="toastContainer"></div>
 
+    <style>
+      .recommended-spots-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+      .spot-card {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: #fff;
+      }
+      .spot-card:hover {
+        border-color: #0d6efd;
+        box-shadow: 0 2px 8px rgba(13, 110, 253, 0.15);
+        transform: translateY(-2px);
+      }
+      .spot-card.selected {
+        border-color: #0d6efd;
+        background-color: #e7f1ffff;
+      }
+      .spot-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 8px;
+      }
+      .spot-card-title {
+        font-weight: 600;
+        font-size: 0.95rem;
+        margin: 0;
+        color: #212529;
+      }
+      .spot-card-category {
+        font-size: 0.75rem;
+        padding: 2px 8px;
+        border-radius: 12px;
+        background: #e9ecef;
+        color: #495057;
+      }
+      .spot-card-body {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-bottom: 8px;
+      }
+      .spot-card-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.8rem;
+        color: #6c757d;
+      }
+      .spot-price {
+        font-weight: 600;
+        color: #198754;
+      }
+      /* Larger Trip Details heading & icon */
+      #createItineraryModal h6.mb-3 {font-size:1.35rem;display:flex;align-items:center;gap:.75rem;font-weight:700;letter-spacing:.5px;color:#003a6e;}
+      #createItineraryModal h6.mb-3 i {font-size:1.6rem;background:rgba(0,75,141,0.15);padding:.55rem .65rem;border-radius:14px;color:#004b8d;box-shadow:0 4px 10px -4px rgba(0,46,85,.35);}
+      /* Selected spot glass design */
+      .selected-spot-glass {background:rgba(255,255,255,0.55);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(0,75,141,0.25);border-radius:20px;padding:18px 20px;position:relative;overflow:hidden;box-shadow:0 10px 30px -10px rgba(0,46,85,.35);}
+      .selected-spot-glass:before {content:"";position:absolute;inset:0;border-radius:20px;background:linear-gradient(145deg,rgba(0,75,141,0.10),rgba(0,46,85,0.05));pointer-events:none;}
+      .spot-header-line {display:flex;align-items:center;gap:14px;margin-bottom:12px;}
+      .spot-icon-circle {width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#004b8d,#002e55);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.6rem;box-shadow:0 6px 18px -6px rgba(0,46,85,.55);}
+      .spot-detail-title {margin:0;font-weight:700;font-size:1.15rem;color:#003a6e;letter-spacing:.4px;}
+      .spot-chips {display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+      .spot-chip {background:linear-gradient(135deg,#0072c6,#004b8d);color:#fff;font-size:.65rem;font-weight:600;padding:6px 12px;border-radius:40px;letter-spacing:.5px;box-shadow:0 4px 12px -4px rgba(0,46,85,.45);}
+      .spot-desc-box {background:rgba(255,255,255,0.6);border:1px solid rgba(0,75,141,0.15);border-radius:16px;padding:14px 16px;box-shadow:0 6px 20px -8px rgba(0,46,85,.25);margin-bottom:10px;}
+      .spot-desc-box p {font-size:.9rem;line-height:1.4;color:#0b2236;font-weight:500;margin:0;}
+      .spot-meta-lines {display:flex;flex-wrap:wrap;gap:12px;margin-top:4px;}
+      .spot-meta-item {display:inline-flex;align-items:center;gap:6px;font-size:.75rem;font-weight:600;color:#004b8d;background:rgba(0,75,141,0.08);padding:6px 10px;border-radius:12px;}
+      .spot-pricing-tags {display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+      .price-pill {background:linear-gradient(135deg,#ffffff,#f0f6fa);border:1px solid #d5e4ee;color:#003a6e;font-size:.65rem;font-weight:600;padding:6px 10px;border-radius:40px;box-shadow:0 2px 6px -2px rgba(0,46,85,.25);display:inline-flex;align-items:center;gap:4px;}
+      .price-pill:before {content:"";width:6px;height:6px;border-radius:50%;background:#004b8d;display:inline-block;box-shadow:0 0 0 2px rgba(0,75,141,.18);}
+      .clear-selection-btn {border-radius:40px;}
+      @media (max-width:768px){
+        .spot-icon-circle {width:50px;height:50px;font-size:1.3rem;}
+        .spot-detail-title {font-size:1.05rem;}
+        .selected-spot-glass {padding:16px;}
+      }
+      /* Solid white background for Trip Details (like booking form) */
+      .trip-details-panel {background:#ffffff;border:1px solid #e2e8f0;border-radius:18px;padding:18px 20px;box-shadow:0 6px 22px -8px rgba(0,0,0,.08);}
+      /* Guest spinner styles (mirroring booking modal) */
+      .guest-spinner { display:inline-flex; align-items:center; gap:6px; }
+      .guest-input { width:50px; text-align:center; border:1px solid #ced4da; border-radius:6px; padding:4px 6px; }
+      .guest-input::-webkit-outer-spin-button, .guest-input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+      .guest-input { -moz-appearance:textfield; appearance:textfield; }
+      .btn-guest { width:36px; height:36px; border-radius:50%; border:1px solid #0d4d7d; background:linear-gradient(135deg,#004b8d,#002e55); color:#fff; font-weight:600; display:flex; align-items:center; justify-content:center; padding:0; cursor:pointer; transition:background .2s, transform .15s; }
+      .btn-guest:hover { background:linear-gradient(135deg,#005fae,#003a6e); }
+      .btn-guest:active { transform:scale(.92); }
+      .guest-row { background:#fff; }
+      .guest-row:hover { background:#f5f9fc; }
+      /* Flatpickr override for glass look */
+      .flatpickr-calendar { border-radius:14px; box-shadow:0 12px 34px -10px rgba(0,46,85,.35); }
+      .flatpickr-day.selected, .flatpickr-day.startRange, .flatpickr-day.endRange { background:#004b8d; border-color:#004b8d; }
+      /* Deep ocean gradient & glass styles to match booking modal */
+      .create-modal-header {background:linear-gradient(135deg,#004b8d 0%,#002e55 50%,#000814 100%);color:#fff;border:none;}
+      .create-modal-header .btn-close {filter:invert(1);}
+      .btn-create {background:linear-gradient(135deg,#004b8d,#002e55);color:#fff !important;border:1px solid rgba(255,255,255,0.35);border-radius:14px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 6px 18px -6px rgba(0,46,85,.45);font-weight:600;letter-spacing:.4px;transition:.35s;}
+      .btn-create:hover {transform:translateY(-3px);box-shadow:0 10px 28px -8px rgba(0,46,85,.55);} .btn-create:active {transform:translateY(0);box-shadow:none;}
+      #createItineraryModal .glass-panel, #generatedModal .glass-panel {background:rgba(255,255,255,0.55);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(0,75,141,0.18);border-radius:18px;padding:18px 20px;box-shadow:0 8px 26px -8px rgba(0,46,85,0.35);position:relative;overflow:hidden;}
+      #createItineraryModal .glass-panel:before, #generatedModal .glass-panel:before {content:"";position:absolute;inset:0;border-radius:18px;background:linear-gradient(145deg,rgba(0,75,141,0.10),rgba(0,46,85,0.06));pointer-events:none;}
+      .btn-gradient-primary {background:linear-gradient(135deg,#004b8d,#002e55);color:#fff;border:none;border-radius:14px;font-weight:600;box-shadow:0 6px 18px -6px rgba(0,46,85,.45);transition:.25s;}
+      .btn-gradient-primary:hover {transform:translateY(-3px);box-shadow:0 10px 26px -8px rgba(0,46,85,.55);}
+      .btn-gradient-primary:active {transform:translateY(0);box-shadow:none;}
+      .btn-gradient-success {background:linear-gradient(135deg,#1b8d2f,#0e5620);color:#fff;border:none;border-radius:14px;font-weight:600;box-shadow:0 6px 18px -6px rgba(27,141,47,.45);transition:.25s;}
+      .btn-gradient-success:hover {transform:translateY(-3px);box-shadow:0 10px 26px -8px rgba(27,141,47,.55);}
+      .btn-gradient-success:active {transform:translateY(0);box-shadow:none;}
+      #selectedSpotDetails .card {background:rgba(255,255,255,0.6);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(0,75,141,0.15);box-shadow:0 6px 20px -8px rgba(0,46,85,.3);border-radius:16px;}
+      #selectedSpotDetails h6 {font-weight:700;color:#003a6e;}
+      
+        /* View Details Button Style (from Explore) for Auto-generate & Add Day buttons */
+        #autoGenBtn, .btn-add-day {
+          position: relative;
+          padding: 0.65rem 0.9rem;
+          border-radius: 14px;
+          cursor: pointer;
+          font-weight: 600;
+          letter-spacing: .4px;
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
+          overflow: hidden;
+          transition: all .35s ease;
+          background: rgba(255,255,255,0.55);
+          color: #003a6e;
+          border: 1px solid rgba(0,75,141,0.35);
+        }
+        #autoGenBtn:before, .btn-add-day:before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          border-radius: 14px;
+          background: linear-gradient(145deg,rgba(0,75,141,0.15),rgba(0,46,85,0.10));
+          opacity: 0;
+          transition: opacity .35s ease;
+        }
+        #autoGenBtn:hover:before, .btn-add-day:hover:before {
+          opacity: 1;
+        }
+        #autoGenBtn:hover, .btn-add-day:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 8px 22px -6px rgba(0,46,85,.35);
+          border-color: rgba(0,75,141,0.55);
+        }
+        #autoGenBtn:active, .btn-add-day:active {
+          transform: translateY(0);
+          box-shadow: none;
+        }
+        /* Ocean themed summary cards */
+        .summary-sidebar {display:flex;flex-direction:column;gap:1.2rem;}
+        .summary-card.ocean-card {position:relative;background:rgba(255,255,255,0.55);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(0,75,141,0.20);border-radius:20px;padding:18px 20px;overflow:hidden;box-shadow:0 10px 30px -10px rgba(0,46,85,.30);}
+        .summary-card.ocean-card:before {content:"";position:absolute;inset:0;border-radius:20px;background:linear-gradient(145deg,rgba(0,75,141,0.10),rgba(0,46,85,0.06));pointer-events:none;}
+        
+        /* Ocean themed itinerary container */
+        .itinerary-container {position:relative;background:rgba(255,255,255,0.65);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(0,75,141,0.18);border-radius:22px;padding:2rem;overflow:hidden;box-shadow:0 12px 36px -12px rgba(0,46,85,.32);}
+        .itinerary-container:before {content:"";position:absolute;inset:0;border-radius:22px;background:linear-gradient(145deg,rgba(0,75,141,0.08),rgba(0,46,85,0.05));pointer-events:none;z-index:0;}
+        .itinerary-header {position:relative;z-index:1;border-bottom:1px solid rgba(0,75,141,0.15);padding-bottom:1.5rem;margin-bottom:1.5rem;}
+        .trip-title {color:#003a6e;font-weight:700;letter-spacing:.5px;position:relative;z-index:1;}
+        .trip-actions {position:relative;z-index:1;}
+        .trip-title-section {position:relative;z-index:1;}
+        .trip-info {position:relative;z-index:1;}
+        .trip-info-item {color:#0d4d7d;}
+        .trip-info-item i {color:#004b8d;}
+        .itinerary-layout {position:relative;z-index:1;}
+        
+        /* Ocean themed timeline section */
+        .timeline-section {position:relative;background:rgba(255,255,255,0.55);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(0,75,141,0.20);border-radius:20px;padding:20px 22px;overflow:hidden;box-shadow:0 10px 30px -10px rgba(0,46,85,.30);}
+        .timeline-section:before {content:"";position:absolute;inset:0;border-radius:20px;background:linear-gradient(145deg,rgba(0,75,141,0.10),rgba(0,46,85,0.06));pointer-events:none;z-index:0;}
+        .timeline-header {position:relative;z-index:1;}
+        .timeline-title {color:#003a6e;font-weight:700;letter-spacing:.4px;}
+        
+        /* Ocean themed day cards */
+        .day-card {position:relative;background:rgba(255,255,255,0.65);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(0,75,141,0.18);border-radius:18px;margin-bottom:1rem;overflow:hidden;box-shadow:0 6px 22px -8px rgba(0,46,85,.28);transition:.3s;z-index:1;}
+        .day-card:before {content:"";position:absolute;inset:0;border-radius:18px;background:linear-gradient(145deg,rgba(0,75,141,0.08),rgba(0,46,85,0.04));pointer-events:none;z-index:0;}
+        .day-header {position:relative;z-index:1;background:linear-gradient(90deg,rgba(0,75,141,0.05),transparent);border-bottom:1px solid rgba(0,75,141,0.15);}
+        .day-header:hover {background:linear-gradient(90deg,rgba(0,75,141,0.10),transparent);}
+        .day-number {color:#003a6e;font-weight:700;}
+        .day-date {color:#004b8d;}
+        .day-stat {color:#0d4d7d;}
+        .day-stat i {color:#004b8d;}
+        .day-content {position:relative;z-index:1;}
+        
+        /* Ocean themed activity items */
+        .activity-item {position:relative;background:rgba(255,255,255,0.75);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(0,75,141,0.12);border-radius:14px;padding:1rem;overflow:hidden;box-shadow:0 4px 16px -6px rgba(0,46,85,.22);transition:.3s;}
+        .activity-item:before {content:"";position:absolute;inset:0;border-radius:14px;background:linear-gradient(145deg,rgba(0,75,141,0.06),rgba(0,46,85,0.02));pointer-events:none;}
+        .activity-item:hover {transform:translateY(-2px);box-shadow:0 8px 24px -8px rgba(0,46,85,.35);border-color:rgba(0,75,141,0.25);}
+        .activity-title {color:#003a6e;position:relative;z-index:1;}
+        .activity-details {position:relative;z-index:1;}
+        .activity-icon.place {background:linear-gradient(135deg,#004b8d,#002e55);}
+        .activity-icon.lodging {background:linear-gradient(135deg,#1b8d2f,#0e5620);}
+        .activity-icon.food {background:linear-gradient(135deg,#d4a574,#c49563);}
+        .activity-icon.transport {background:linear-gradient(135deg,#1abc9c,#16a085);}
+        .add-activity-btn {position:relative;z-index:1;background:rgba(255,255,255,0.6);border:2px dashed rgba(0,75,141,0.35);color:#004b8d;border-radius:14px;}
+        .add-activity-btn:hover {background:rgba(0,75,141,0.08);border-color:#004b8d;color:#003a6e;}
+        .summary-card-title {display:flex;align-items:center;gap:.55rem;font-size:1.05rem;font-weight:700;color:#003a6e;letter-spacing:.4px;margin:0 0 .75rem;}
+        .summary-card-title i {background:linear-gradient(135deg,#004b8d,#002e55);color:#fff;padding:.55rem .6rem;border-radius:14px;font-size:1.15rem;box-shadow:0 6px 16px -6px rgba(0,46,85,.45);}
+        .map-placeholder {display:flex;align-items:center;justify-content:center;height:160px;border:2px dashed rgba(0,75,141,0.30);border-radius:16px;color:#0d4d7d;font-weight:600;font-size:.9rem;background:linear-gradient(135deg,#e9f4fb,#d9ecf7);position:relative;overflow:hidden;}
+        .map-placeholder:after {content:"";position:absolute;inset:0;background:radial-gradient(circle at 30% 25%,rgba(0,75,141,0.18),transparent 60%);mix-blend-mode:overlay;opacity:.6;}
+        .budget-total {background:rgba(255,255,255,0.6);border:1px solid rgba(0,75,141,0.15);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;}
+        .budget-label {font-size:.75rem;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#004b8d;opacity:.85;}
+        .budget-amount {font-size:1.4rem;font-weight:700;color:#003a6e;letter-spacing:.5px;background:linear-gradient(90deg,#004b8d,#0072c6);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 4px 10px rgba(0,46,85,.25));}
+        @media (max-width:768px){
+          .map-placeholder {height:140px;}
+          .budget-amount {font-size:1.25rem;}
+        }
+    </style>
+
     <!-- Bootstrap JS only (no app logic) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <!-- jQuery is available but the main rendering uses vanilla JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
     <!-- Minimal UI-only dropdown script -->
     <script>
       (function () {
-        const notifBtn = document.querySelector('.notification-btn');
-        const notifDrop = document.getElementById('notificationDropdown');
-        const badge = document.getElementById('notifBadge');
         const userBtn = document.querySelector('.user-avatar');
         const userDrop = document.getElementById('userDropdown');
 
         // Expose the handlers your HTML calls
-        window.toggleNotificationDropdown = function () {
-          if (!notifDrop) return;
-          userDrop?.classList.remove('show');
-          notifDrop.classList.toggle('show');
-        };
         window.toggleUserDropdown = function () {
           if (!userDrop) return;
-          notifDrop?.classList.remove('show');
           userDrop.classList.toggle('show');
-        };
-        window.markAllAsRead = function () {
-          document.querySelectorAll('#notificationList .notification-item.unread').forEach(li => li.classList.remove('unread'));
-          badge?.classList.add('d-none');
-        };
-        window.viewAllNotifications = function (e) {
-          e?.preventDefault();
-          notifDrop?.classList.remove('show');
         };
         window.hideUserDropdown = function (e) {
           e?.preventDefault();
@@ -717,12 +970,11 @@
 
         // Close when clicking outside
         document.addEventListener('click', (e) => {
-          if (notifDrop && !notifDrop.contains(e.target) && !notifBtn.contains(e.target)) notifDrop.classList.remove('show');
           if (userDrop && !userDrop.contains(e.target) && !userBtn.contains(e.target)) userDrop.classList.remove('show');
         });
         // Close on Escape
         document.addEventListener('keydown', (e) => {
-          if (e.key === 'Escape') { notifDrop?.classList.remove('show'); userDrop?.classList.remove('show'); }
+          if (e.key === 'Escape') { userDrop?.classList.remove('show'); }
         });
       })();
     </script>
@@ -748,14 +1000,25 @@
 
       function placeholderMarkup() {
         return `
-          <div class="mb-3 text-center text-muted">
-            <i class="bi bi-lightning-charge-fill text-warning"></i>
-            <span class="ms-2">Generating your personalized itinerary...</span>
+          <div class="mb-3 text-center text-muted" style="font-weight:600;letter-spacing:.3px;">
+            <span style="display:inline-flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#004b8d,#002e55);color:#fff;padding:.5rem .55rem;border-radius:14px;box-shadow:0 6px 14px -6px rgba(0,46,85,.45);margin-right:.5rem;">
+              <i class="bi bi-lightning-charge-fill"></i>
+            </span>
+            Generating your personalized itinerary...
           </div>
           <div class="placeholder-glow">
-            <div class="card mb-2"><div class="card-body"><h6 class="placeholder col-6"></h6><p><span class="placeholder col-7"></span></p></div></div>
-            <div class="card mb-2"><div class="card-body"><h6 class="placeholder col-5"></h6><p><span class="placeholder col-8"></span></p></div></div>
-            <div class="card mb-2"><div class="card-body"><h6 class="placeholder col-4"></h6><p><span class="placeholder col-6"></span></p></div></div>
+            <div class="selected-spot-glass mb-3 p-3">
+              <h6 class="placeholder col-6" style="height:1.1rem;"></h6>
+              <p class="mb-0"><span class="placeholder col-8" style="height:.9rem;"></span></p>
+            </div>
+            <div class="selected-spot-glass mb-3 p-3">
+              <h6 class="placeholder col-5" style="height:1.1rem;"></h6>
+              <p class="mb-0"><span class="placeholder col-7" style="height:.9rem;"></span></p>
+            </div>
+            <div class="selected-spot-glass mb-3 p-3">
+              <h6 class="placeholder col-4" style="height:1.1rem;"></h6>
+              <p class="mb-0"><span class="placeholder col-6" style="height:.9rem;"></span></p>
+            </div>
           </div>
         `;
       }
@@ -772,6 +1035,11 @@
           seniors: $('#autoGenSeniors').value
         };
 
+        if (!formData.start_date || !formData.end_date || !formData.day) {
+          alert('Please select a complete date range first.');
+          return;
+        }
+
         previewContent.innerHTML = placeholderMarkup();
         previewSection.style.display = 'block';
         generateBtn.disabled = true;
@@ -779,7 +1047,10 @@
         const url = `http://127.0.0.1:8000/api/recommend/?days=${formData.day}&budget=${formData.budget}&adults=${formData.adults}&children=${formData.children}&seniors=${formData.seniors}&preference=${userPreference}&start_date=${formData.start_date}&end_date=${formData.end_date}`;
 
         try {
-          const response = await fetch(url);
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
+          const response = await fetch(url, { signal: controller.signal });
+          clearTimeout(timeoutId);
 
           if (response.status === 409) {
             const data = await response.json();
@@ -853,7 +1124,25 @@
           generateBtn.style.display = 'none';
           applyBtn.style.display = 'inline-block';
         } catch (err) {
-          previewContent.innerHTML = `<div class="alert alert-danger"><strong>Error:</strong> ${err.message}</div>`;
+          console.error('Auto-generate error:', err);
+          const errorMsg = err.name === 'AbortError' 
+            ? 'Request timed out. The AI recommendation service is not available. Please ensure the Django server is running on port 8000.'
+            : err.message.includes('Failed to fetch') || err.message.includes('NetworkError')
+            ? 'Cannot connect to AI recommendation service. Please start the Django server or try again later.'
+            : err.message;
+          previewContent.innerHTML = `
+            <div class="alert alert-danger">
+              <strong><i class="bi bi-exclamation-triangle"></i> Error:</strong> ${errorMsg}
+            </div>
+            <div class="alert alert-info">
+              <strong>To enable AI recommendations:</strong>
+              <ol class="mb-0 mt-2">
+                <li>Open PowerShell in <code>python-algo</code> folder</li>
+                <li>Run: <code>.\\venv\\Scripts\\python.exe manage.py runserver 127.0.0.1:8000</code></li>
+                <li>Click Generate again once server is running</li>
+              </ol>
+            </div>
+          `;
           generateBtn.disabled = false;
         }
       }
@@ -1174,11 +1463,124 @@
     })();
     </script>
 
-    <!-- Itinerary History modal builder (calls attach helper) -->
+    <!-- Naive Bayes Recommendations Loader -->
+    <script>
+      (function(){
+        // Load NB ranked spots into the suggestedGrid (Add Activity modal)
+        async function loadNbRecommendations(){
+          const grid = document.getElementById('suggestedGrid');
+          if(!grid) return;
+          
+          // Check if Django server is accessible first
+          const nbUrl = 'http://127.0.0.1:8000/recommender/nb_recommend/?user_id=<?= esc($userID ?? '') ?>&preference=<?= urlencode($categories ?? '') ?>&limit=8';
+          
+          try {
+            grid.innerHTML = '<div class="text-center text-muted py-3"><div class="spinner-border spinner-border-sm"></div><p class="small mb-0 mt-2">Loading recommendations...</p></div>';
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+            
+            const resp = await fetch(nbUrl, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            
+            if(!resp.ok) {
+              throw new Error('NB endpoint returned ' + resp.status);
+            }
+            
+            const data = await resp.json();
+            
+            if(!data.results || !Array.isArray(data.results) || data.results.length===0){
+              // Fallback to default recommendations
+              loadDefaultRecommendations(grid);
+              return;
+            }
+            
+            grid.innerHTML = data.results.map(r => {
+              const price = Number(r.price_per_person||0);
+              const score = (r.nb_score!==undefined)? r.nb_score.toFixed(3):'';
+              const freeTag = price===0 ? '<span class="badge bg-success ms-1">Free</span>' : '';
+              return `
+                <div class="suggested-card" data-type="place" data-title="${r.name}" data-location="${r.location}" data-cost="${price}">
+                  <div class="sugg-icon place"><i class="bi bi-geo-alt"></i></div>
+                  <div class="sugg-info">
+                    <div class="sugg-title">${r.name}</div>
+                    <div class="sugg-meta">${r.category || 'Spot'} • ${r.location || ''} • ₱${price}${freeTag}</div>
+                    <small class="text-muted">AI Score: ${score}</small>
+                  </div>
+                  <button class="sugg-add" type="button"><i class="bi bi-plus-lg"></i></button>
+                </div>`;
+            }).join('');
+            
+            // Attach add button handlers
+            grid.querySelectorAll('.suggested-card .sugg-add').forEach(btn => {
+              btn.addEventListener('click', () => {
+                const card = btn.closest('.suggested-card');
+                if(card) card.classList.toggle('selected');
+              });
+            });
+          } catch(err){
+            console.warn('NB recommendation unavailable, using defaults:', err.message);
+            // Fall back to default static recommendations
+            loadDefaultRecommendations(grid);
+          }
+        }
+        
+        function loadDefaultRecommendations(grid){
+          // Default fallback recommendations (keep existing static cards)
+          grid.innerHTML = `
+            <div class="suggested-card" data-type="place" data-title="Mount Batulao Viewpoint" data-location="Nasugbu, Batangas" data-cost="0">
+              <div class="sugg-icon place"><i class="bi bi-geo-alt"></i></div>
+              <div class="sugg-info">
+                <div class="sugg-title">Mount Batulao Viewpoint</div>
+                <div class="sugg-meta">Attraction • Nasugbu, Batangas • ₱0</div>
+              </div>
+              <button class="sugg-add" type="button"><i class="bi bi-plus-lg"></i></button>
+            </div>
+            <div class="suggested-card" data-type="place" data-title="Calayo Beach" data-location="Calayo, Nasugbu" data-cost="50">
+              <div class="sugg-icon place"><i class="bi bi-geo-alt"></i></div>
+              <div class="sugg-info">
+                <div class="sugg-title">Calayo Beach</div>
+                <div class="sugg-meta">Attraction • Calayo, Nasugbu • ₱50</div>
+              </div>
+              <button class="sugg-add" type="button"><i class="bi bi-plus-lg"></i></button>
+            </div>
+            <div class="suggested-card" data-type="food" data-title="Beachfront Grill" data-location="Nasugbu Town" data-cost="350">
+              <div class="sugg-icon food"><i class="bi bi-cup-hot"></i></div>
+              <div class="sugg-info">
+                <div class="sugg-title">Beachfront Grill</div>
+                <div class="sugg-meta">Food • Nasugbu Town • ₱350</div>
+              </div>
+              <button class="sugg-add" type="button"><i class="bi bi-plus-lg"></i></button>
+            </div>
+            <div class="suggested-card" data-type="lodging" data-title="Coastal Inn" data-location="Nasugbu" data-cost="1500">
+              <div class="sugg-icon lodging"><i class="bi bi-house-door"></i></div>
+              <div class="sugg-info">
+                <div class="sugg-title">Coastal Inn</div>
+                <div class="sugg-meta">Accommodation • Nasugbu • ₱1,500</div>
+              </div>
+              <button class="sugg-add" type="button"><i class="bi bi-plus-lg"></i></button>
+            </div>
+          `;
+        }
+        
+        // Expose for manual triggering if needed
+        window.loadNbRecommendations = loadNbRecommendations;
+        
+        document.addEventListener('DOMContentLoaded', () => {
+          // Defer slightly to avoid blocking other scripts
+          setTimeout(loadNbRecommendations, 400);
+        });
+      })();
+    </script>
+
+    <!-- Itinerary History modal population -->
     <script>
     (function () {
       const historyBtn = document.getElementById('historyBtn');
-      if (!historyBtn) return;
+      const modal = document.getElementById('tripsHistoryModal');
+      const historyContent = document.getElementById('historyContent');
+      
+      if (!historyBtn || !modal || !historyContent) return;
 
       historyBtn.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -1188,41 +1590,41 @@
           const data = await response.json();
 
           if (!data.trips || !data.trips.length) {
-            alert('No saved trips found.');
+            historyContent.innerHTML = `
+              <div class="text-center py-4" style="color:#6c757d;">
+                <i class="bi bi-inbox" style="font-size:3rem;opacity:.5;"></i>
+                <p class="mt-2 mb-0" style="font-weight:600;">No saved trips found</p>
+                <p class="small">Create your first itinerary to see it here</p>
+              </div>
+            `;
+            const bsModal = new bootstrap.Modal(modal);
+            bsModal.show();
             return;
           }
 
-          // Build trips modal HTML
-          let tripsHtml = `
-            <div class="modal fade" id="tripsHistoryModal" tabindex="-1" aria-hidden="true">
-              <div class="modal-dialog modal-lg modal-dialog-centered">
-                <div class="modal-content">
-                  <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-history"></i> Saved Trips</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                  </div>
-                  <div class="modal-body">
-                    <div class="trips-list">
-          `;
-
+          // Build trips HTML
+          let tripsHtml = '';
           data.trips.forEach((trip, idx) => {
             const startDate = new Date(trip.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
             const endDate = new Date(trip.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
             tripsHtml += `
-              <div class="trip-card mb-3 p-3 border rounded" data-trip-index="${idx}">
-                <div class="d-flex justify-content-between align-items-start">
+              <div class="history-trip-card" data-trip-index="${idx}" style="position:relative;background:rgba(255,255,255,0.55);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(0,75,141,0.20);border-radius:18px;padding:16px 18px;overflow:hidden;box-shadow:0 8px 26px -8px rgba(0,46,85,0.35);transition:.3s;">
+                <div style="position:absolute;inset:0;border-radius:18px;background:linear-gradient(145deg,rgba(0,75,141,0.10),rgba(0,46,85,0.06));pointer-events:none;"></div>
+                <div class="d-flex justify-content-between align-items-start position-relative" style="z-index:2;">
                   <div>
-                    <h6 class="mb-1"><strong>${trip.trip_title || 'Untitled Trip'}</strong></h6>
-                    <small class="text-muted d-block"><i class="bi bi-calendar"></i> ${startDate} to ${endDate}</small>
-                    <small class="text-muted d-block"><i class="bi bi-geo-alt"></i> ${trip.spot_count || 0} spots</small>
-                    <small class="text-muted d-block"><i class="bi bi-clock"></i> Created: ${new Date(trip.created_at).toLocaleDateString()}</small>
+                    <h6 class="mb-1" style="font-weight:700;color:#003a6e;letter-spacing:.3px;">${trip.trip_title || 'Untitled Trip'}</h6>
+                    <div class="d-flex flex-wrap gap-2 mt-1" style="font-size:.7rem;font-weight:600;color:#004b8d;letter-spacing:.4px;">
+                      <span style="background:rgba(0,75,141,0.08);padding:4px 8px;border-radius:12px;display:inline-flex;align-items:center;gap:4px;"><i class="bi bi-calendar"></i> ${startDate} – ${endDate}</span>
+                      <span style="background:rgba(0,75,141,0.08);padding:4px 8px;border-radius:12px;display:inline-flex;align-items:center;gap:4px;"><i class="bi bi-geo-alt"></i> ${trip.spot_count || 0} spots</span>
+                      <span style="background:rgba(0,75,141,0.08);padding:4px 8px;border-radius:12px;display:inline-flex;align-items:center;gap:4px;"><i class="bi bi-clock"></i> Created ${new Date(trip.created_at).toLocaleDateString()}</span>
+                    </div>
                   </div>
-                  <div class="btn-group btn-group-sm">
+                  <div class="btn-group btn-group-sm" style="z-index:3;">
                     <button class="btn btn-outline-primary btn-view-trip" data-trip-title="${encodeURIComponent(trip.trip_title)}" data-start-date="${encodeURIComponent(trip.start_date)}">
-                      <i class="bi bi-eye"></i> View
+                      <i class="bi bi-eye"></i>
                     </button>
                     <button class="btn btn-outline-danger btn-delete-trip" data-trip-title="${encodeURIComponent(trip.trip_title)}">
-                      <i class="bi bi-trash"></i> Delete
+                      <i class="bi bi-trash"></i>
                     </button>
                   </div>
                 </div>
@@ -1230,23 +1632,9 @@
             `;
           });
 
-          tripsHtml += `
-                    </div>
-                  </div>
-                  <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          `;
+          historyContent.innerHTML = tripsHtml;
 
-          // Append and show modal
-          const tempDiv = document.createElement('div');
-          tempDiv.innerHTML = tripsHtml;
-          const modal = tempDiv.querySelector('#tripsHistoryModal');
-          document.body.appendChild(modal);
-
+          // Show modal
           const bsModal = new bootstrap.Modal(modal);
           bsModal.show();
 
@@ -1271,17 +1659,420 @@
             });
           }
 
-          // Cleanup when modal hidden
-          modal.addEventListener('hidden.bs.modal', () => {
-            modal.remove();
-          });
-
         } catch (err) {
           console.error('Error loading trips:', err);
-          alert('Failed to load saved trips: ' + err.message);
+          historyContent.innerHTML = `
+            <div class="text-center py-4 text-danger">
+              <i class="bi bi-exclamation-triangle" style="font-size:3rem;"></i>
+              <p class="mt-2 mb-0" style="font-weight:600;">Failed to load trips</p>
+              <p class="small">${err.message}</p>
+            </div>
+          `;
+          const bsModal = new bootstrap.Modal(modal);
+          bsModal.show();
         }
       });
     })();
+    </script>
+
+    <!-- Create New Itinerary with Tourist Spots -->
+    <script>
+    (function() {
+      // Multi-selection state
+      let selectedSpots = [];
+      let allSpots = [];
+
+      // Load tourist spots when modal opens
+      const createModal = document.getElementById('createItineraryModal');
+      if (createModal) {
+        createModal.addEventListener('shown.bs.modal', async () => {
+          await loadTouristSpots();
+        });
+
+        // Reset when modal closes
+        createModal.addEventListener('hidden.bs.modal', () => {
+          selectedSpots = [];
+          updateSelectedSpotDetails();
+          document.getElementById('createItineraryForm').reset();
+          document.querySelectorAll('.spot-card.selected').forEach(card => card.classList.remove('selected'));
+        });
+      }
+
+      // Load tourist spots from API or database
+      async function loadTouristSpots(searchQuery = '') {
+        const grid = document.getElementById('recommendedSpotsGrid');
+        if (!grid) return;
+
+        try {
+          grid.innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm" role="status"></div><p class="mb-0 small mt-2">Loading spots...</p></div>';
+
+          // Replace with your actual API endpoint
+          const response = await fetch(`/api/tourist-spots${searchQuery ? '?search=' + encodeURIComponent(searchQuery) : ''}`);
+          
+          if (!response.ok) {
+            // Fallback to sample data if API fails
+            allSpots = getSampleSpots();
+          } else {
+            const data = await response.json();
+            allSpots = data.spots || data.data || getSampleSpots();
+          }
+
+          renderSpots(allSpots);
+        } catch (err) {
+          console.error('Error loading spots:', err);
+          allSpots = getSampleSpots();
+          renderSpots(allSpots);
+        }
+      }
+
+      // Helper to check if a spot is already selected
+      function isSpotSelected(spot) {
+        return selectedSpots.some(s => 
+          (s.name || s.title) === (spot.name || spot.title) && 
+          s.location === spot.location
+        );
+      }
+
+      // Render spots in the grid
+      function renderSpots(spots) {
+        const grid = document.getElementById('recommendedSpotsGrid');
+        if (!grid) return;
+
+        if (!spots || spots.length === 0) {
+          grid.innerHTML = '<div class="text-center text-muted py-3"><i class="bi bi-inbox"></i><p class="mb-0 small">No spots found</p></div>';
+          return;
+        }
+
+        grid.innerHTML = spots.map((spot, index) => `
+          <div class="spot-card${isSpotSelected(spot) ? ' selected' : ''}" data-spot-index="${index}">
+            <div class="spot-card-header">
+              <h6 class="spot-card-title">${spot.name || spot.title || 'Unnamed Spot'}</h6>
+              <span class="spot-card-category">${spot.category || 'Attraction'}</span>
+            </div>
+            <div class="spot-card-body">
+              <div class="mb-1"><i class="bi bi-geo-alt-fill"></i> ${spot.location || 'Location not specified'}</div>
+              ${spot.description ? `<p class="mb-0 small">${spot.description.substring(0, 80)}${spot.description.length > 80 ? '...' : ''}</p>` : ''}
+            </div>
+            <div class="spot-card-footer">
+              <span class="spot-price">₱${spot.price_per_person || spot.adult_price || 0}</span>
+              <small class="text-muted">per adult</small>
+            </div>
+          </div>
+        `).join('');
+        // Attach click handlers (toggle selection)
+        grid.querySelectorAll('.spot-card').forEach(card => {
+          card.addEventListener('click', () => {
+            const index = parseInt(card.dataset.spotIndex);
+            toggleSpotSelection(spots[index], card);
+          });
+        });
+      }
+
+      // Toggle selection of a spot
+      function toggleSpotSelection(spot, cardElement) {
+        const idx = selectedSpots.findIndex(s => 
+          (s.name || s.title) === (spot.name || spot.title) && 
+          s.location === spot.location
+        );
+        if (idx > -1) {
+          selectedSpots.splice(idx, 1);
+          cardElement.classList.remove('selected');
+        } else {
+          selectedSpots.push(spot);
+          cardElement.classList.add('selected');
+        }
+        updateSelectedSpotDetails();
+      }
+
+      // Render selected spot details list & aggregate pricing
+      function updateSelectedSpotDetails() {
+        const container = document.getElementById('selectedSpotDetails');
+        const itemsWrapper = document.getElementById('selectedSpotItems');
+        const countEl = document.getElementById('selectedCount');
+        const aggregateEl = document.getElementById('aggregatePricing');
+        if (!container || !itemsWrapper || !countEl) return;
+
+        countEl.textContent = selectedSpots.length;
+        if (selectedSpots.length === 0) {
+          container.style.display = 'none';
+          itemsWrapper.innerHTML = '';
+          if (aggregateEl) aggregateEl.textContent = '';
+          return;
+        }
+        container.style.display = 'block';
+
+        // Current guest counts for dynamic aggregate pricing
+        const adults = parseInt(document.getElementById('itAdults')?.value) || 0;
+        const children = parseInt(document.getElementById('itChildren')?.value) || 0;
+        const seniors = parseInt(document.getElementById('itSeniors')?.value) || 0;
+
+        let totalAdult = 0, totalChild = 0, totalSenior = 0;
+
+        itemsWrapper.innerHTML = selectedSpots.map((spot, i) => {
+          const name = spot.name || spot.title || 'Unnamed Spot';
+          const cat = spot.category || 'Attraction';
+          const loc = spot.location || 'Location not specified';
+          const pAdult = Number(spot.price_per_person || spot.adult_price || 0);
+          const pChild = Number(spot.child_price || 0);
+          const pSenior = Number(spot.senior_price || 0);
+
+          totalAdult += pAdult * adults;
+          totalChild += pChild * children;
+          totalSenior += pSenior * seniors;
+
+          return `
+            <div class="d-flex flex-column gap-1 border-bottom pb-2">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div class="fw-semibold">${name}</div>
+                  <div class="small text-muted">${cat} • ${loc}</div>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-danger" data-remove-index="${i}"><i class="bi bi-x"></i></button>
+              </div>
+              <div class="spot-pricing-tags">
+                 <span class="price-pill">Adult: ₱${pAdult}</span>
+                 <span class="price-pill">Child: ₱${pChild}</span>
+                 <span class="price-pill">Senior: ₱${pSenior}</span>
+              </div>
+            </div>`;
+        }).join('');
+
+        if (aggregateEl) {
+          const grandTotal = totalAdult + totalChild + totalSenior;
+          aggregateEl.innerHTML = `Selected Cost (x Guests): <span class="text-dark">₱${grandTotal.toLocaleString()} (Adult ₱${totalAdult.toLocaleString()} • Child ₱${totalChild.toLocaleString()} • Senior ₱${totalSenior.toLocaleString()})</span>`;
+        }
+
+        // Attach remove handlers
+        itemsWrapper.querySelectorAll('[data-remove-index]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const removeIdx = parseInt(btn.getAttribute('data-remove-index'));
+            if (!isNaN(removeIdx)) {
+              const spot = selectedSpots[removeIdx];
+              selectedSpots.splice(removeIdx, 1);
+              document.querySelectorAll('.spot-card').forEach(card => {
+                const index = parseInt(card.getAttribute('data-spot-index'));
+                if (!isNaN(index) && allSpots[index] === spot) card.classList.remove('selected');
+              });
+              updateSelectedSpotDetails();
+            }
+          });
+        });
+      }
+
+      // Search spots
+      const searchBtn = document.getElementById('searchSpotBtn');
+      const searchInput = document.getElementById('spotSearchInput');
+
+      if (searchBtn && searchInput) {
+        searchBtn.addEventListener('click', () => {
+          const query = searchInput.value.trim();
+          if (query) {
+            const filtered = allSpots.filter(spot => {
+              const searchText = `${spot.name} ${spot.category} ${spot.location} ${spot.description}`.toLowerCase();
+              return searchText.includes(query.toLowerCase());
+            });
+            renderSpots(filtered);
+          } else {
+            renderSpots(allSpots);
+          }
+        });
+
+        searchInput.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            searchBtn.click();
+          }
+        });
+      }
+
+      // Clear spot selection
+      const clearBtn = document.getElementById('clearSpotBtn');
+      if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+          selectedSpots = [];
+          document.querySelectorAll('.spot-card.selected').forEach(c => c.classList.remove('selected'));
+          updateSelectedSpotDetails();
+        });
+      }
+
+      // Initialize Flatpickr range for Create New Itinerary
+      const dateRangeInput = document.getElementById('newTripDateRange');
+      if (dateRangeInput && window.flatpickr) {
+        flatpickr(dateRangeInput, {
+          mode: 'range',
+          dateFormat: 'Y-m-d',
+          minDate: 'today',
+          onChange: function(selectedDates) {
+            const startEl = document.getElementById('newTripStart');
+            const endEl = document.getElementById('newTripEnd');
+            if (selectedDates.length > 0 && startEl) startEl.value = selectedDates[0].toISOString().split('T')[0];
+            if (selectedDates.length > 1 && endEl) endEl.value = selectedDates[1].toISOString().split('T')[0];
+            updateSelectedSpotDetails(); // Recompute if date impacts pricing later
+          }
+        });
+      }
+
+      // Initialize Flatpickr range for Auto-generate modal
+      const autoGenRangeInput = document.getElementById('autoGenDateRange');
+      if (autoGenRangeInput && window.flatpickr) {
+        flatpickr(autoGenRangeInput, {
+          mode: 'range',
+          dateFormat: 'Y-m-d',
+          minDate: 'today',
+          onChange: function(selectedDates) {
+            const startEl = document.getElementById('autoGenStartDate');
+            const endEl = document.getElementById('autoGenEndDate');
+            if (selectedDates.length > 0 && startEl) startEl.value = selectedDates[0].toISOString().split('T')[0];
+            if (selectedDates.length > 1 && endEl) endEl.value = selectedDates[1].toISOString().split('T')[0];
+            if (selectedDates.length === 2) {
+              const diffDays = Math.round((selectedDates[1] - selectedDates[0]) / (1000*60*60*24)) + 1; // inclusive
+              const dayInput = document.getElementById('autoGenDay');
+              if (dayInput) dayInput.value = diffDays;
+            }
+          }
+        });
+      }
+
+      // Guest spinner buttons for auto-generate modal
+      document.querySelectorAll('#generatedModal .btn-guest').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const targetId = btn.getAttribute('data-target');
+          const input = document.getElementById(targetId);
+          if (!input) return;
+          let val = parseInt(input.value) || 0;
+          if (btn.classList.contains('btn-guest-minus')) {
+            val = Math.max(0, val - 1);
+          } else if (btn.classList.contains('btn-guest-plus')) {
+            val = val + 1;
+          }
+          input.value = val;
+        });
+      });
+
+      // Guest spinner buttons for itinerary create modal
+      document.querySelectorAll('#createItineraryModal .btn-guest').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const targetId = btn.getAttribute('data-target');
+          const input = document.getElementById(targetId);
+          if (!input) return;
+          let val = parseInt(input.value) || 0;
+          if (btn.classList.contains('btn-guest-minus')) {
+            val = Math.max(0, val - 1);
+          } else if (btn.classList.contains('btn-guest-plus')) {
+            val = val + 1;
+          }
+          input.value = val;
+          updateSelectedSpotDetails();
+        });
+      });
+
+      // Create itinerary button
+      const createBtn = document.getElementById('createItineraryBtn');
+      if (createBtn) {
+        createBtn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          const form = document.getElementById('createItineraryForm');
+          
+          if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+          }
+
+          const formData = {
+            title: document.getElementById('newTripTitle').value,
+            start_date: document.getElementById('newTripStart').value,
+            end_date: document.getElementById('newTripEnd').value,
+            adults: parseInt(document.getElementById('itAdults').value) || 0,
+            children: parseInt(document.getElementById('itChildren').value) || 0,
+            seniors: parseInt(document.getElementById('itSeniors').value) || 0,
+            selected_spots: selectedSpots.map(s => ({
+              name: s.name || s.spot_name || s.title || 'Unnamed Spot',
+              category: s.category || 'Attraction',
+              location: s.location || '',
+              price_per_person: s.price_per_person || s.adult_price || 0,
+              child_price: s.child_price || 0,
+              senior_price: s.senior_price || 0
+            }))
+          };
+
+          console.log('Creating itinerary with data:', formData);
+          alert(`Itinerary created: ${formData.title}\nDates: ${formData.start_date} to ${formData.end_date}\nGuests - Adults: ${formData.adults}, Children: ${formData.children}, Seniors: ${formData.seniors}\nSelected Spots: ${formData.selected_spots.length}`);
+          // Close modal only; no persistence
+          bootstrap.Modal.getInstance(createModal).hide();
+        });
+      }
+
+      // Sample spots data (fallback)
+      function getSampleSpots() {
+        return [
+          {
+            name: 'Mount Batulao',
+            category: 'Mountain',
+            location: 'Nasugbu, Batangas',
+            description: 'A popular hiking destination with stunning views and accessible trails for beginners and experienced hikers.',
+            price_per_person: 50,
+            child_price: 30,
+            senior_price: 40
+          },
+          {
+            name: 'Fortune Island',
+            category: 'Beach',
+            location: 'Nasugbu, Batangas',
+            description: 'An island paradise featuring Greek-inspired ruins, clear waters, and pristine beaches perfect for swimming and photography.',
+            price_per_person: 500,
+            child_price: 300,
+            senior_price: 400
+          },
+          {
+            name: 'Punta Fuego',
+            category: 'Beach Resort',
+            location: 'Nasugbu, Batangas',
+            description: 'An exclusive beach club with luxurious amenities, white sand beaches, and crystal-clear waters.',
+            price_per_person: 1500,
+            child_price: 1000,
+            senior_price: 1200
+          },
+          {
+            name: 'Calayo Beach',
+            category: 'Beach',
+            location: 'Calayo, Nasugbu',
+            description: 'A beautiful public beach with golden sand, gentle waves, and affordable entrance fees.',
+            price_per_person: 50,
+            child_price: 30,
+            senior_price: 40
+          },
+          {
+            name: 'Tali Beach',
+            category: 'Beach',
+            location: 'Nasugbu, Batangas',
+            description: 'A long stretch of white sand beach ideal for swimming, beach volleyball, and sunset viewing.',
+            price_per_person: 100,
+            child_price: 50,
+            senior_price: 80
+          },
+          {
+            name: 'Munting Buhangin',
+            category: 'Beach',
+            location: 'Nasugbu, Batangas',
+            description: 'A hidden gem beach with fine white sand and calm turquoise waters, perfect for relaxation.',
+            price_per_person: 200,
+            child_price: 150,
+            senior_price: 180
+          }
+        ];
+      }
+    })();
+    </script>
+
+    <!-- Add Day Modal Handler -->
+    <script>
+      function openAddDayModal() {
+        const modal = document.getElementById('addDayModal');
+        if (modal) {
+          const bsModal = new bootstrap.Modal(modal);
+          bsModal.show();
+        }
+      }
     </script>
 
   </body>

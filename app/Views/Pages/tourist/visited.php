@@ -11,58 +11,62 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Lato:wght@300;400;700&family=Pacifico&display=swap" rel="stylesheet">
-    
+    <!-- Global CSS (Unified Sidebar) -->
+    <link rel="stylesheet" href="<?= base_url('assets/css/globals.css')?>">
     <!-- Custom CSS (Inlined Below) -->
     <link rel="stylesheet" href="<?= base_url('assets/css/touristStyle/visited.css')?>">
 </head>
 <body>
     <div class="dashboard-wrapper">
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <div class="sidebar-logo">
+        <aside class="tourist-sidebar" id="sidebar">
+            <div class="tourist-sidebar-header">
+                <a href="/tourist/dashboard" class="tourist-sidebar-logo">
                     <i class="bi bi-compass"></i>
-                    <span>Tuklas Nasugbu</span>
-                </div>
-                <button class="sidebar-toggle d-lg-none" onclick="toggleSidebar()">
+                    <div class="tourist-sidebar-logo-text">
+                        <span class="tourist-sidebar-logo-main">Tuklas</span>
+                        <span class="tourist-sidebar-logo-sub">Nasugbu</span>
+                    </div>
+                </a>
+                <button class="tourist-sidebar-toggle d-lg-none" onclick="toggleSidebar()">
                     <i class="bi bi-x"></i>
                 </button>
             </div>
-                        <nav>
-                <ul class="nav-menu">
-                    <li class="nav-item">
-                        <a href="/tourist/dashboard" class="nav-link">
+            <nav class="tourist-sidebar-nav">
+                <ul class="tourist-nav-menu">
+                    <li class="tourist-nav-item">
+                        <a href="/tourist/dashboard" class="tourist-nav-link">
                             <i class="bi bi-house-door"></i>
-                            <span>Home</span>
+                            <span class="tourist-nav-link-text">Home</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="/tourist/exploreSpots" class="nav-link">
+                    <li class="tourist-nav-item">
+                        <a href="/tourist/exploreSpots" class="tourist-nav-link">
                             <i class="bi bi-search"></i>
-                            <span>Explore</span>
+                            <span class="tourist-nav-link-text">Explore</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="/tourist/itinerary" class="nav-link">
+                    <li class="tourist-nav-item">
+                        <a href="/tourist/itinerary" class="tourist-nav-link">
                             <i class="bi bi-calendar-check"></i>
-                            <span>My Itinerary</span>
+                            <span class="tourist-nav-link-text">My Itinerary</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="/tourist/myBookings" class="nav-link">
+                    <li class="tourist-nav-item">
+                        <a href="/tourist/myBookings" class="tourist-nav-link">
                             <i class="bi bi-ticket-perforated"></i>
-                            <span>Bookings</span>
+                            <span class="tourist-nav-link-text">Bookings</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="/tourist/visits" class="nav-link active">
+                    <li class="tourist-nav-item">
+                        <a href="/tourist/visits" class="tourist-nav-link active">
                             <i class="bi bi-geo-alt-fill"></i>
-                            <span>Visited Places</span>
+                            <span class="tourist-nav-link-text">Visited Places</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="/tourist/reviews" class="nav-link">
+                    <li class="tourist-nav-item">
+                        <a href="/tourist/reviews" class="tourist-nav-link">
                             <i class="bi bi-star"></i>
-                            <span>My Reviews</span>
+                            <span class="tourist-nav-link-text">My Reviews</span>
                         </a>
                     </li>
                 </ul>
