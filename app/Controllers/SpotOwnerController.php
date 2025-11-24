@@ -631,6 +631,201 @@ public function updateSpot($id)
         return $this->response->setJSON(['success' => true]);
     }
 
+    /**
+     * Mark a booking as paid (simple endpoint).
+     * Note: In production, validate payment using PayMango webhooks or server-side verification.
+     */
+    public function markPaymentPaid($id)
+    {
+        try {
+            $model = new BookingModel();
+            $model->update($id, [
+                'payment_status' => 'Paid',
+                'updated_at' => date('Y-m-d H:i:s')
+            ]);
+            return $this->response->setJSON(['success' => true]);
+        } catch (\Exception $e) {
+            log_message('error', '[markPaymentPaid] Exception: ' . $e->getMessage());
+            return $this->response->setJSON(['error' => 'Failed to mark payment as paid'])->setStatusCode(500);
+        }
+    }
+
+
+    /**
+     * Create a PayMango payment session for a booking and return checkout URL.
+     * Requires environment variable: PAYMANGO_SECRET (server-side secret)
+     * Optional: PAYMANGO_API_BASE (defaults to https://api.paymango.com)
+     */
+    public function createPaymentSession($id)
+    {
+        $session = session();
+        $userID = $session->get('UserID');
+        if (!$userID || !$session->get('isLoggedIn') || $session->get('Role') !== 'Spot Owner') {
+            return $this->response->setJSON(['error' => 'Unauthorized'])->setStatusCode(401);
+        }
+
+        $bookingModel = new BookingModel();
+        $booking = $bookingModel->getBookingDetails($id);
+        if (!$booking) {
+            return $this->response->setJSON(['error' => 'Booking not found'])->setStatusCode(404);
+        }
+
+        // Verify booking belongs to this user's business
+        $businessModel = new BusinessModel();
+        $business = $businessModel->where('user_id', $userID)->first();
+        if (!$business || ($booking['business_id'] ?? $booking['businessid'] ?? null) != $business['business_id']) {
+            return $this->response->setJSON(['error' => 'Forbidden: booking does not belong to your business'])->setStatusCode(403);
+        }
+
+        $secret = getenv('PAYMANGO_SECRET') ?: null;
+        if (empty($secret)) {
+            log_message('error', '[createPaymentSession] PAYMANGO_SECRET not set');
+            return $this->response->setJSON(['error' => 'Payment gateway not configured (PAYMANGO_SECRET missing)'])->setStatusCode(500);
+        }
+
+        $apiBase = getenv('PAYMANGO_API_BASE') ?: 'https://api.paymango.com';
+
+        // Prefer total_price if available, else fallback to amount/price fields
+        $total = isset($booking['total_price']) ? (float)$booking['total_price'] : (float)($booking['amount'] ?? 0);
+        // Many gateways expect amount in cents - adapt as needed by your PayMango account
+        $amountCents = (int)round($total * 100);
+
+        $successUrl = base_url('/spotowner/bookings?payment=success&booking_id=' . $id);
+        $cancelUrl = base_url('/spotowner/bookings?payment=cancel&booking_id=' . $id);
+
+        $payload = [
+            'amount' => $amountCents,
+            'currency' => 'PHP',
+            'reference' => 'booking_' . $id,
+            'description' => 'Payment for booking #' . $id,
+            'metadata' => [
+                'booking_id' => $id
+            ],
+            'success_url' => $successUrl,
+            'cancel_url' => $cancelUrl
+        ];
+
+        try {
+            $ch = curl_init();
+            $url = rtrim($apiBase, '/') . '/v1/checkout/sessions';
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Content-Type: application/json',
+                'Accept: application/json',
+                'Authorization: Bearer ' . $secret
+            ]);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+            $resp = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            if ($resp === false) {
+                $err = curl_error($ch);
+                curl_close($ch);
+                log_message('error', '[createPaymentSession] cURL error: ' . $err);
+                return $this->response->setJSON(['error' => 'Failed to contact payment provider'])->setStatusCode(502);
+            }
+            curl_close($ch);
+
+            $json = json_decode($resp, true);
+            if ($httpCode >= 200 && $httpCode < 300) {
+                // Try several possible response shapes for checkout URL
+                $checkoutUrl = $json['checkout_url'] ?? $json['data']['checkout_url'] ?? $json['data']['url'] ?? $json['redirect_url'] ?? null;
+                if ($checkoutUrl) {
+                    return $this->response->setJSON(['checkout_url' => $checkoutUrl]);
+                }
+                // If no checkout_url found, return raw response for debugging
+                return $this->response->setJSON(['error' => 'Unexpected provider response', 'response' => $json])->setStatusCode(502);
+            }
+
+            log_message('error', '[createPaymentSession] Provider returned HTTP ' . $httpCode . ' body: ' . $resp);
+            return $this->response->setJSON(['error' => 'Payment provider error', 'details' => $json])->setStatusCode(502);
+        } catch (\Throwable $e) {
+            log_message('error', '[createPaymentSession] Exception: ' . $e->getMessage());
+            return $this->response->setJSON(['error' => 'Server error while creating payment session'])->setStatusCode(500);
+        }
+    }
+
+
+    /**
+     * Webhook endpoint for PayMango to notify payment events.
+     * Verifies signature with PAYMANGO_WEBHOOK_SECRET and marks bookings paid.
+     */
+    public function paymangoWebhook()
+    {
+        $secret = getenv('PAYMANGO_WEBHOOK_SECRET') ?: null;
+        if (empty($secret)) {
+            log_message('error', '[paymangoWebhook] PAYMANGO_WEBHOOK_SECRET not set');
+            return $this->response->setStatusCode(400)->setJSON(['error' => 'Webhook secret not configured']);
+        }
+
+        $raw = file_get_contents('php://input');
+        $sig = $this->request->getHeaderLine('X-Paymango-Signature') ?: $this->request->getHeaderLine('X-Signature') ?: $this->request->getHeaderLine('Signature');
+        if (empty($sig)) {
+            log_message('warning', '[paymangoWebhook] Missing signature header');
+            return $this->response->setStatusCode(400)->setJSON(['error' => 'Missing signature']);
+        }
+
+        $expected = hash_hmac('sha256', $raw, $secret);
+        if (!hash_equals($expected, $sig)) {
+            log_message('warning', '[paymangoWebhook] Signature mismatch');
+            return $this->response->setStatusCode(400)->setJSON(['error' => 'Invalid signature']);
+        }
+
+        $event = json_decode($raw, true);
+        if (!$event) {
+            log_message('warning', '[paymangoWebhook] Invalid JSON payload');
+            return $this->response->setStatusCode(400)->setJSON(['error' => 'Invalid payload']);
+        }
+
+        // normalize event data
+        $type = $event['type'] ?? $event['event'] ?? null;
+        $data = $event['data']['object'] ?? $event['data'] ?? $event['object'] ?? $event;
+
+        // find booking id: prefer metadata.booking_id, then parse reference
+        $bookingId = $data['metadata']['booking_id'] ?? null;
+        if (!$bookingId && !empty($data['reference'])) {
+            if (strpos($data['reference'], 'booking_') === 0) {
+                $bookingId = (int)substr($data['reference'], 8);
+            }
+        }
+
+        // determine if this is a successful payment event
+        $status = strtolower($data['status'] ?? $data['payment_status'] ?? '');
+        $isPaid = false;
+        if (strpos($type ?? '', 'payment') !== false || strpos($type ?? '', 'checkout') !== false) {
+            if (in_array($status, ['paid', 'succeeded', 'completed'])) $isPaid = true;
+        }
+        // also accept explicit flags in payload
+        if (!$isPaid && (isset($data['paid']) && $data['paid'] == true)) $isPaid = true;
+
+        if ($isPaid && $bookingId) {
+            try {
+                $db = \Config\Database::connect();
+                $update = [
+                    'payment_status' => 'Paid',
+                    'updated_at' => date('Y-m-d H:i:s')
+                ];
+                // try to store provider txn id if present
+                if (!empty($data['id'])) $update['payment_provider_txn_id'] = $data['id'];
+                if (!empty($data['transaction_id'])) $update['payment_provider_txn_id'] = $data['transaction_id'];
+                if (!empty($data['payment_id'])) $update['payment_provider_txn_id'] = $data['payment_id'];
+                $update['payment_received_at'] = date('Y-m-d H:i:s');
+
+                $db->table('bookings')->where('booking_id', $bookingId)->update($update);
+                log_message('info', '[paymangoWebhook] Marked booking ' . $bookingId . ' as Paid');
+                return $this->response->setStatusCode(200)->setJSON(['success' => true]);
+            } catch (\Throwable $e) {
+                log_message('error', '[paymangoWebhook] DB update error: ' . $e->getMessage());
+                return $this->response->setStatusCode(500)->setJSON(['error' => 'Failed to update booking']);
+            }
+        }
+
+        log_message('info', '[paymangoWebhook] Ignored event type: ' . json_encode($event));
+        return $this->response->setStatusCode(200)->setJSON(['ignored' => true]);
+    }
+
 
 
 /**

@@ -86,7 +86,10 @@ $routes->get('/spotowner/getBookings', 'SpotOwnerController::getBookings');
 $routes->get('/spotowner/getBooking/(:num)', 'SpotOwnerController::getBooking/$1');
 $routes->post('/spotowner/confirmBooking/(:num)', 'SpotOwnerController::confirmBooking/$1');
 $routes->post('/spotowner/rejectBooking/(:num)', 'SpotOwnerController::rejectBooking/$1');
+$routes->post('/spotowner/markPaymentPaid/(:num)', 'SpotOwnerController::markPaymentPaid/$1');
 $routes->post('/spotowner/my-spots/store', 'SpotOwnerController::storeMySpots');
+$routes->post('/spotowner/createPaymentSession/(:num)', 'SpotOwnerController::createPaymentSession/$1');
+$routes->post('/paymango/webhook', 'SpotOwnerController::paymangoWebhook');
 $routes->post('spotowner/my-spots/update/(:num)', 'SpotOwnerController::updateSpot/$1');
 
 

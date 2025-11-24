@@ -326,6 +326,56 @@
                 </div>
 
                 <!-- QR Scanner Modal -->
+                
+                <!-- Payment Modal -->
+                <div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true">
+                  <div class="modal-dialog modal-md modal-dialog-centered">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-wallet2"></i> Collect Payment</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                      </div>
+                      <div class="modal-body">
+                        <div class="mb-2"><strong>Booking ID:</strong> <span id="payBookingId"></span></div>
+                        <div class="mb-2"><strong>Customer:</strong> <span id="payCustomerName"></span></div>
+                        <div class="mb-2"><strong>Amount:</strong> <span id="payAmount"></span></div>
+                        <div class="mb-2"><strong>Notes:</strong> <div id="payDetails" class="small text-muted"></div></div>
+
+                        <div class="mt-3">
+                          <p class="small text-muted">Select a payment option below. For production integrate PayMango SDK/server-side checkout and validate via webhooks. For now you can verify payment externally then click <strong>Mark as Paid</strong>.</p>
+                          <div class="d-flex gap-2">
+                            <button class="btn btn-outline-primary" disabled>Pay via Card (integrate SDK)</button>
+                            <button class="btn btn-outline-secondary" disabled>Generate QR (integrate)</button>
+                            <button class="btn btn-primary" id="startCheckoutBtn">Proceed to Checkout</button>
+                            <button class="btn btn-outline-info" onclick="window.open('/payments/manual?booking='+document.getElementById('payBookingId').textContent, '_blank')">Open External Link</button>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-success" onclick="markPaymentPaid(document.getElementById('payBookingId').textContent)">Mark as Paid</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Payment Receipt Modal -->
+                <div class="modal fade" id="paymentReceiptModal" tabindex="-1" aria-hidden="true">
+                  <div class="modal-dialog modal-md modal-dialog-centered">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-receipt"></i> Payment Receipt</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                      </div>
+                      <div class="modal-body" id="paymentReceiptBody">
+                        <!-- populated by JS -->
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
             </main>
         </div>
     </div>

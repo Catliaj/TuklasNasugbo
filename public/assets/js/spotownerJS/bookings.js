@@ -1,3 +1,13 @@
+// Ensure escHtml helper exists (may be provided inline in page). Provide fallback.
+if (typeof escHtml === 'undefined') {
+    function escHtml(s) {
+        if (s === null || s === undefined) return '';
+        return String(s).replace(/[&<>"']/g, function(c) {
+            return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"})[c] || c;
+        });
+    }
+}
+
 document.addEventListener('DOMContentLoaded', async() => {
     await loadBookings();
 });
@@ -61,6 +71,15 @@ async function loadBookings() {
                                         <button class="btn btn-sm btn-success" onclick="confirmBooking('${b.booking_id}')">Confirm</button>
                                         <button class="btn btn-sm btn-danger" onclick="rejectBooking('${b.booking_id}')">Reject</button>
                                       `
+                                    : ''
+                            }
+                            ${
+                                status === 'Confirmed'
+                                    ? (
+                                        (b.payment_status && b.payment_status === 'Paid')
+                                            ? `<button class="btn btn-sm btn-outline-success" onclick="viewReceipt('${b.booking_id}')">Receipt</button>`
+                                            : `<button class="btn btn-sm btn-warning" onclick="collectPayment('${b.booking_id}')">Collect Payment</button>`
+                                      )
                                     : ''
                             }
                         </div>
@@ -222,3 +241,124 @@ async function rejectBooking(bookingId) {
         }
     }
 }
+
+// --- Payment flow helpers ---
+async function collectPayment(bookingId) {
+    try {
+        const res = await fetch(`/spotowner/getBooking/${bookingId}`);
+        const booking = await res.json();
+        if (!booking) return alert('Booking not found');
+
+        // populate modal with booking info
+        let modal = document.getElementById('paymentModal');
+        if (!modal) {
+            console.error('Payment modal not found in DOM');
+            return;
+        }
+
+        document.getElementById('payBookingId').textContent = booking.booking_id;
+        document.getElementById('payCustomerName').textContent = booking.customer_name || '';
+        document.getElementById('payAmount').textContent = '₱' + parseFloat(booking.total_price).toFixed(2);
+        document.getElementById('payDetails').textContent = booking.special_requests || '—';
+
+        // show modal
+        const bsModal = new bootstrap.Modal(modal);
+        bsModal.show();
+
+        // wire checkout button to create server-side payment session
+        try {
+            const startBtn = document.getElementById('startCheckoutBtn');
+            if (startBtn) {
+                startBtn.disabled = false;
+                startBtn.textContent = 'Proceed to Checkout';
+                startBtn.onclick = async function () {
+                    await startCheckout(booking.booking_id);
+                };
+            }
+        } catch (e) { console.warn('Failed to attach checkout button handler', e); }
+    } catch (err) {
+        console.error('collectPayment error', err);
+        alert('Failed to open payment modal');
+    }
+}
+
+async function startCheckout(bookingId) {
+    const startBtn = document.getElementById('startCheckoutBtn');
+    if (startBtn) { startBtn.disabled = true; startBtn.textContent = 'Opening checkout…'; }
+
+    try {
+        const res = await fetch(`/spotowner/createPaymentSession/${bookingId}`, { method: 'POST' });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+            throw new Error((data && data.error) ? data.error : 'Payment provider error');
+        }
+        const url = data.checkout_url || data.url;
+        if (!url) throw new Error('No checkout URL returned by payment provider');
+
+        // open checkout in a new tab/window
+        const w = window.open(url, '_blank');
+        if (w) w.focus();
+
+        // Optionally inform the user to wait for webhook/redirect
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ icon: 'info', title: 'Checkout opened', text: 'Complete the payment in the new tab. Receipt will be available after confirmation.' });
+        } else {
+            alert('Checkout opened in a new tab. Complete the payment there.');
+        }
+    } catch (err) {
+        console.error('startCheckout error', err);
+        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Payment error', text: err.message });
+        else alert('Payment error: ' + err.message);
+    } finally {
+        if (startBtn) { startBtn.disabled = false; startBtn.textContent = 'Proceed to Checkout'; }
+    }
+}
+
+async function markPaymentPaid(bookingId) {
+    if (!confirm('Mark this booking as PAID? Only do this after verifying the payment.')) return;
+    try {
+        const res = await fetch(`/spotowner/markPaymentPaid/${bookingId}`, { method: 'POST' });
+        const data = await res.json();
+        if (data && data.success) {
+            // close payment modal if open
+            const pm = document.getElementById('paymentModal');
+            try { bootstrap.Modal.getInstance(pm)?.hide(); } catch(e){}
+
+            // show receipt modal
+            await showReceipt(bookingId);
+            // reload bookings
+            await loadBookings();
+        } else {
+            throw new Error(data?.error || 'Failed to mark paid');
+        }
+    } catch (err) {
+        console.error('markPaymentPaid error', err);
+        alert('Failed to mark payment as paid');
+    }
+}
+
+async function showReceipt(bookingId) {
+    try {
+        const res = await fetch(`/spotowner/getBooking/${bookingId}`);
+        const booking = await res.json();
+        if (!booking) return alert('Booking not found');
+
+        const rModalBody = document.getElementById('paymentReceiptBody');
+        rModalBody.innerHTML = `
+            <h5>Receipt — Booking #${escHtml(booking.booking_id)}</h5>
+            <p><strong>Customer:</strong> ${escHtml(booking.customer_name || '')}</p>
+            <p><strong>Date:</strong> ${new Date(booking.visit_date || booking.booking_date).toLocaleString()}</p>
+            <p><strong>Visitors:</strong> ${escHtml(String(booking.total_guests || ''))}</p>
+            <p><strong>Amount Paid:</strong> ₱${parseFloat(booking.total_price).toFixed(2)}</p>
+            <p><strong>Payment Status:</strong> ${escHtml(booking.payment_status || 'Unpaid')}</p>
+            <p class="small text-muted">This is a simple receipt record. For authoritative records integrate PayMango webhooks/backend validation.</p>
+        `;
+
+        const rModal = new bootstrap.Modal(document.getElementById('paymentReceiptModal'));
+        rModal.show();
+    } catch (err) {
+        console.error('showReceipt error', err);
+    }
+}
+
+function viewReceipt(bookingId) { showReceipt(bookingId); }
