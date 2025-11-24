@@ -161,6 +161,54 @@ public function touristDashboard()
         $favoriteCount = 0;
     }
 
+    // --- Favorite spots data (for dashboard) ---
+    $favoriteSpots = [];
+    try {
+        // Prefer dedicated favorite table
+        if ($db->tableExists('spot_fav_by_customer')) {
+            $rows = $db->table('spot_fav_by_customer')
+                ->select('spot_id')
+                ->where('user_id', $userID)
+                ->orderBy('favorited_at', 'DESC')
+                ->limit(4)
+                ->get()
+                ->getResultArray();
+            $ids = array_column($rows, 'spot_id');
+            if (!empty($ids)) {
+                $spotModel = new \App\Models\TouristSpotModel();
+                $favoriteSpots = $spotModel->whereIn('spot_id', $ids)->findAll();
+            }
+        } elseif ($db->tableExists('user_favorites')) {
+            $rows = $db->table('user_favorites')
+                ->select('spot_id')
+                ->where('user_id', $userID)
+                ->orderBy('created_at', 'DESC')
+                ->limit(4)
+                ->get()
+                ->getResultArray();
+            $ids = array_column($rows, 'spot_id');
+            if (!empty($ids)) {
+                $spotModel = new \App\Models\TouristSpotModel();
+                $favoriteSpots = $spotModel->whereIn('spot_id', $ids)->findAll();
+            }
+        } elseif ($db->tableExists('favorites')) {
+            $rows = $db->table('favorites')
+                ->select('spot_id')
+                ->where('user_id', $userID)
+                ->orderBy('created_at', 'DESC')
+                ->limit(4)
+                ->get()
+                ->getResultArray();
+            $ids = array_column($rows, 'spot_id');
+            if (!empty($ids)) {
+                $spotModel = new \App\Models\TouristSpotModel();
+                $favoriteSpots = $spotModel->whereIn('spot_id', $ids)->findAll();
+            }
+        }
+    } catch (\Exception $e) {
+        $favoriteSpots = [];
+    }
+
     // --- 4) Upcoming bookings ---
     $upcomingBookings = 0;
     try {
@@ -251,6 +299,12 @@ public function touristDashboard()
         }
     }
 
+    // Normalize popularSpots: ensure each has a numeric 'views' key for the view
+    foreach ($popularSpots as &$ps) {
+        $ps['views'] = isset($ps['views']) ? (int)$ps['views'] : 0;
+    }
+    unset($ps);
+
     // --- Finally render view with data ---
     return view('Pages/tourist/dashboard', [
         'userID'            => $userID,
@@ -260,10 +314,99 @@ public function touristDashboard()
         'TotalSaveItineray' => $TotalSaveItineray,
         'placesVisited'     => $placesVisited,
         'favoriteCount'     => $favoriteCount,
+            'favoriteSpots'     => $favoriteSpots,
         'upcomingBookings'  => $upcomingBookings,
         'popularSpots'      => $popularSpots,
     ]);
 }
+
+    /**
+     * Return live dashboard stats as JSON for the current user.
+     * Used by dashboard AJAX polling to keep counts up-to-date.
+     */
+    public function dashboardStats()
+    {
+        $session = session();
+        $userID = $session->get('UserID');
+        if (!$userID) {
+            return $this->response->setJSON(['error' => 'Not logged in'], 401);
+        }
+
+        $db = \Config\Database::connect();
+
+        // Saved itineraries
+        $TotalSaveItineray = 0;
+        try {
+            $preferencesModel = new \App\Models\UserPreferenceModel();
+            $itineraryModel = new \App\Models\ItineraryModel();
+            $preference = $preferencesModel->where('user_id', $userID)->first();
+            $preferenceID = $preference['preference_id'] ?? null;
+            if ($preferenceID) {
+                $TotalSaveItineray = (int) $itineraryModel->countDistinctDates($preferenceID);
+            }
+        } catch (\Throwable $e) {
+            $TotalSaveItineray = 0;
+        }
+
+        // Places visited
+        $placesVisited = 0;
+        try {
+            if ($db->tableExists('createuservisits')) {
+                $placesVisited = (int) $db->table('createuservisits')->where('user_id', $userID)->countAllResults();
+            }
+        } catch (\Throwable $e) {
+            $placesVisited = 0;
+        }
+
+        // Favorite count
+        $favoriteCount = 0;
+        try {
+            if ($db->tableExists('spot_fav_by_customer')) {
+                $favoriteCount = (int) $db->table('spot_fav_by_customer')->where('user_id', $userID)->countAllResults();
+            } elseif ($db->tableExists('user_favorites')) {
+                $favoriteCount = (int) $db->table('user_favorites')->where('user_id', $userID)->countAllResults();
+            } elseif ($db->tableExists('favorites')) {
+                $favoriteCount = (int) $db->table('favorites')->where('user_id', $userID)->countAllResults();
+            }
+        } catch (\Throwable $e) {
+            $favoriteCount = 0;
+        }
+
+        // Upcoming bookings
+        $upcomingBookings = 0;
+        try {
+            $today = date('Y-m-d');
+            $bookingModel = new \App\Models\BookingModel();
+            $fields = [];
+            if ($db->tableExists('bookings')) {
+                $fields = $db->getFieldNames('bookings');
+            }
+            if (!empty($fields) && in_array('user_id', $fields, true)) {
+                $upcomingBookings = (int) $bookingModel->where('user_id', $userID)->where('visit_date >=', $today)->where('booking_status !=', 'cancelled')->countAllResults();
+            } elseif (!empty($fields) && in_array('customer_id', $fields, true)) {
+                // try resolve customer id
+                try {
+                    $customerModel = new \App\Models\CustomerModel();
+                    $customerRow = $customerModel->where('user_id', $userID)->first();
+                    $customerID = $customerRow['customer_id'] ?? null;
+                    if ($customerID) {
+                        $upcomingBookings = (int) $bookingModel->where('customer_id', $customerID)->where('visit_date >=', $today)->where('booking_status !=', 'cancelled')->countAllResults();
+                    }
+                } catch (\Throwable $e) {
+                    $upcomingBookings = 0;
+                }
+            }
+        } catch (\Throwable $e) {
+            $upcomingBookings = 0;
+        }
+
+        return $this->response->setJSON([
+            'savedItineraries' => $TotalSaveItineray,
+            'placesVisited' => $placesVisited,
+            'favoriteCount' => $favoriteCount,
+            'upcomingBookings' => $upcomingBookings,
+        ]);
+    }
 
 
     public function exploreSpots()
@@ -387,6 +530,81 @@ public function touristDashboard()
             'FullName' => session()->get('FirstName') . ' ' . session()->get('LastName'),
             'email' => session()->get('Email'),
         ]);
+    }
+
+    /**
+     * Return recommended spots for the Add Activity modal.
+     * Accepts GET param `limit` to limit the number of spots returned.
+     */
+    public function recommendedSpots()
+    {
+        $limit = (int) ($this->request->getGet('limit') ?? 8);
+        $spotModel = new \App\Models\TouristSpotModel();
+        try {
+            $spots = [];
+
+            // Try to prefer user's categories if available
+            $session = session();
+            $userID = $session->get('UserID');
+            if ($userID) {
+                try {
+                    $userModel = new \App\Models\UsersModel();
+                    $catStr = $userModel->getUserCategoryString($userID) ?: '';
+                    $cats = array_filter(array_map('trim', explode(',', $catStr)));
+                    if (!empty($cats)) {
+                        // fetch spots that match any of the user's categories
+                        // Use model whereIn if available; fallback to getApprovedTouristSpots and filter
+                        try {
+                            $candidates = $spotModel->whereIn('category', $cats)->findAll();
+                        } catch (\Throwable $inner) {
+                            // fallback to filtering approved spots in PHP
+                            $approved = $spotModel->getApprovedTouristSpots();
+                            $candidates = array_values(array_filter($approved, function($s) use ($cats) {
+                                return in_array(trim((string)($s['category'] ?? '')), $cats, true);
+                            }));
+                        }
+
+                        if (!empty($candidates)) {
+                            // randomize order
+                            shuffle($candidates);
+                            $spots = $candidates;
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    // If user model or preferences fail, ignore and fallback
+                    log_message('warning', 'recommendedSpots: failed to get user prefs: ' . $e->getMessage());
+                }
+            }
+
+            // Fallback: use approved spots randomized
+            if (empty($spots)) {
+                $approved = $spotModel->getApprovedTouristSpots();
+                if (!is_array($approved)) $approved = [];
+                shuffle($approved);
+                $spots = $approved;
+            }
+
+            if ($limit > 0) $spots = array_slice($spots, 0, $limit);
+
+            // Normalize output and include accessible image URL and lat/lng keys
+            $out = array_map(function($s){
+                return [
+                    'id' => $s['spot_id'] ?? null,
+                    'name' => $s['spot_name'] ?? ($s['name'] ?? ''),
+                    'category' => $s['category'] ?? '',
+                    'location' => $s['location'] ?? '',
+                    'price_per_person' => $s['price_per_person'] ?? ($s['price'] ?? 0),
+                    'lat' => $s['latitude'] ?? $s['lat'] ?? null,
+                    'lng' => $s['longitude'] ?? $s['lng'] ?? null,
+                    'primary_image' => isset($s['primary_image']) && $s['primary_image'] ? base_url('uploads/spots/'.$s['primary_image']) : base_url('uploads/spots/Spot-No-Image.png'),
+                ];
+            }, $spots);
+
+            return $this->response->setJSON(['success' => true, 'spots' => $out]);
+        } catch (\Throwable $e) {
+            log_message('error', 'recommendedSpots failed: ' . $e->getMessage());
+            return $this->response->setJSON(['success' => false, 'spots' => [], 'error' => 'Server error'], 500);
+        }
     }
 
     //goods
@@ -544,6 +762,93 @@ public function listUserTrips()
 }
 
 
+    /**
+     * Create a new itinerary (called from Create New Itinerary modal)
+     * Expects JSON: { title, start_date, end_date, adults, children, seniors, selected_spots: [ { name, category, location, price_per_person } ] }
+     */
+    public function createItinerary()
+    {
+        $session = session();
+        $userID = $session->get('UserID');
+        if (!$userID) {
+            return $this->response->setJSON(['error' => 'Not logged in'], 401);
+        }
+
+        $input = $this->request->getJSON(true) ?: $this->request->getPost();
+        $title = trim($input['title'] ?? $input['trip_title'] ?? 'Untitled Trip');
+        $start = $input['start_date'] ?? null;
+        $end = $input['end_date'] ?? null;
+        $adults = isset($input['adults']) ? (int)$input['adults'] : 0;
+        $children = isset($input['children']) ? (int)$input['children'] : 0;
+        $seniors = isset($input['seniors']) ? (int)$input['seniors'] : 0;
+        $spots = $input['selected_spots'] ?? [];
+
+        if (!$title || !$start) {
+            return $this->response->setJSON(['error' => 'Missing required fields (title/start_date)'], 400);
+        }
+
+        try {
+            $prefModel = new \App\Models\UserPreferenceModel();
+            $pref = $prefModel->where('user_id', $userID)->first();
+            $preferenceId = $pref['preference_id'] ?? null;
+
+            $itModel = new \App\Models\ItineraryModel();
+            $spotModel = new \App\Models\TouristSpotModel();
+
+            $created = [];
+            $errors = [];
+
+            // Insert each selected spot as a row; days are assigned sequentially
+            $day = 1;
+            foreach ($spots as $s) {
+                // Try to resolve spot_id by name (best-effort)
+                $spotId = null;
+                if (!empty($s['spot_id'])) $spotId = (int)$s['spot_id'];
+                if (!$spotId && !empty($s['name'])) {
+                    $found = $spotModel->like('spot_name', $s['name'])->first();
+                    if ($found) $spotId = $found['spot_id'] ?? null;
+                }
+
+                if (!$spotId) {
+                    // skip unresolved spots but record error
+                    $errors[] = ['spot' => $s, 'error' => 'Could not resolve spot by name'];
+                    // still increment day so UI ordering remains predictable
+                    $day++;
+                    continue;
+                }
+
+                $row = [
+                    'preference_id' => $preferenceId,
+                    'spot_id' => $spotId,
+                    'description' => $s['description'] ?? null,
+                    'day' => $day,
+                    'budget' => $input['budget'] ?? null,
+                    'adults' => $adults,
+                    'children' => $children,
+                    'seniors' => $seniors,
+                    'trip_title' => $title,
+                    'start_date' => $start,
+                    'end_date' => $end,
+                    'created_at' => date('Y-m-d H:i:s')
+                ];
+
+                $insertId = $itModel->insert($row);
+                if ($insertId === false) {
+                    $errors[] = ['spot' => $s, 'error' => 'Failed to insert'];
+                } else {
+                    $created[] = $insertId;
+                }
+
+                $day++;
+            }
+
+            return $this->response->setJSON(['success' => true, 'created' => $created, 'errors' => $errors]);
+        } catch (\Throwable $e) {
+            return $this->response->setJSON(['error' => 'Server error: ' . $e->getMessage()], 500);
+        }
+    }
+
+
     // Toggle favorite for current tourist (adds/removes entry)
     public function toggleFavorite()
     {
@@ -616,6 +921,71 @@ public function listUserTrips()
         return $this->response->setJSON(['error' => 'Favorites not supported on this installation'], 400);
     }
 
+    /**
+     * Return JSON list of favorite spots for the current user.
+     * Used by dashboard JS: GET /tourist/getFavorites
+     */
+    public function getFavorites()
+    {
+        $session = session();
+        $userID = $session->get('UserID');
+        if (!$userID) {
+            return $this->response->setJSON([], 200);
+        }
+
+        $db = \Config\Database::connect();
+        $out = [];
+        try {
+            $spotModel = new \App\Models\TouristSpotModel();
+            $ids = [];
+
+            if ($db->tableExists('spot_fav_by_customer')) {
+                $rows = $db->table('spot_fav_by_customer')
+                    ->select('spot_id')
+                    ->where('user_id', $userID)
+                    ->orderBy('favorited_at', 'DESC')
+                    ->get()
+                    ->getResultArray();
+                $ids = array_column($rows, 'spot_id');
+            } elseif ($db->tableExists('user_favorites')) {
+                $rows = $db->table('user_favorites')
+                    ->select('spot_id')
+                    ->where('user_id', $userID)
+                    ->orderBy('created_at', 'DESC')
+                    ->get()
+                    ->getResultArray();
+                $ids = array_column($rows, 'spot_id');
+            } elseif ($db->tableExists('favorites')) {
+                $rows = $db->table('favorites')
+                    ->select('spot_id')
+                    ->where('user_id', $userID)
+                    ->orderBy('created_at', 'DESC')
+                    ->get()
+                    ->getResultArray();
+                $ids = array_column($rows, 'spot_id');
+            }
+
+            if (!empty($ids)) {
+                // keep original order: fetch records and map by id
+                $spots = $spotModel->whereIn('spot_id', $ids)->findAll();
+                foreach ($spots as $s) {
+                    $out[] = [
+                        'id' => $s['spot_id'] ?? null,
+                        'spot_name' => $s['spot_name'] ?? ($s['name'] ?? ''),
+                        'primary_image' => $s['primary_image'] ?? '', // filename only; client concatenates base_url
+                        'category' => $s['category'] ?? '',
+                        'rating' => $s['rating'] ?? null,
+                    ];
+                }
+            }
+
+            return $this->response->setJSON($out);
+        } catch (\Throwable $e) {
+            log_message('error', 'getFavorites error: ' . $e->getMessage());
+            return $this->response->setJSON([], 200);
+        }
+    }
+
 
     // Create a booking (called from tourist booking modal)
     public function createBooking()
@@ -635,6 +1005,8 @@ public function listUserTrips()
 
         $spotId = $input['spot_id'] ?? null;
         $visitDate = $input['visit_date'] ?? null;
+        // allow bulk itinerary payloads
+        $itinerary = $input['itinerary'] ?? null;
         $visitTime = $input['visit_time'] ?? null;
         $numAdults = isset($input['num_adults']) ? (int)$input['num_adults'] : 0;
         $numChildren = isset($input['num_children']) ? (int)$input['num_children'] : 0;
@@ -642,12 +1014,89 @@ public function listUserTrips()
         $specialRequests = $input['special_requests'] ?? null;
         $totalPrice = isset($input['total_price']) ? $input['total_price'] : 0;
 
-        if (!$spotId || !$visitDate) {
+        // If not booking via itinerary array, require spot_id and visit_date
+        if (empty($itinerary) && (!$spotId || !$visitDate)) {
             return $this->response->setJSON(['error' => 'Missing required fields'], 400);
         }
 
         try {
             $bookingModel = new \App\Models\BookingModel();
+            $spotModel = new \App\Models\TouristSpotModel();
+
+            // Support bulk itinerary payloads: { itinerary: [ { day_number, date, activities: [ ... ] }, ... ] }
+            $itinerary = $input['itinerary'] ?? null;
+            if (is_array($itinerary) && count($itinerary) > 0) {
+                $created = [];
+                $errors = [];
+
+                foreach ($itinerary as $dayEntry) {
+                    $dateRaw = $dayEntry['date'] ?? null;
+                    $visitDateForDay = $dateRaw ? date('Y-m-d', strtotime($dateRaw)) : null;
+                    $activities = $dayEntry['activities'] ?? $dayEntry['spots'] ?? [];
+
+                    foreach ($activities as $act) {
+                        // Resolve spot id
+                        $spotIdAct = null;
+                        if (isset($act['id']) && is_numeric($act['id']) && (int)$act['id'] > 0) {
+                            $spotIdAct = (int)$act['id'];
+                        }
+                        if (!$spotIdAct && !empty($act['title'])) {
+                            $found = $spotModel->like('spot_name', $act['title'])->first();
+                            if ($found) $spotIdAct = $found['spot_id'] ?? null;
+                        }
+
+                        if (!$spotIdAct) {
+                            $errors[] = ['activity' => $act, 'error' => 'No spot_id resolved'];
+                            continue;
+                        }
+
+                        $visit_date_to_use = $visitDateForDay ?: ($act['date'] ?? date('Y-m-d'));
+                        $visit_time = $act['time'] ?? $act['visit_time'] ?? null;
+
+                        $numAdultsAct = isset($act['num_adults']) ? (int)$act['num_adults'] : $numAdults;
+                        $numChildrenAct = isset($act['num_children']) ? (int)$act['num_children'] : $numChildren;
+                        $numSeniorsAct = isset($act['num_seniors']) ? (int)$act['num_seniors'] : $numSeniors;
+                        $totalGuestsAct = $numAdultsAct + $numChildrenAct + $numSeniorsAct;
+
+                        $totalPriceAct = isset($act['total_price']) ? $act['total_price'] : 0;
+                        if (!$totalPriceAct) {
+                            $s = $spotModel->find($spotIdAct);
+                            $pp = isset($s['price_per_person']) ? (float)$s['price_per_person'] : 0;
+                            $totalPriceAct = $pp * max(1, $totalGuestsAct);
+                        }
+
+                        $data = [
+                            'spot_id' => $spotIdAct,
+                            'customer_id' => $userID,
+                            'booking_date' => date('Y-m-d'),
+                            'visit_date' => $visit_date_to_use,
+                            'visit_time' => $visit_time,
+                            'num_adults' => $numAdultsAct,
+                            'num_children' => $numChildrenAct,
+                            'num_seniors' => $numSeniorsAct,
+                            'total_guests' => $totalGuestsAct,
+                            'price_per_person' => $totalGuestsAct ? round($totalPriceAct / $totalGuestsAct, 2) : null,
+                            'subtotal' => $totalPriceAct,
+                            'total_price' => $totalPriceAct,
+                            'booking_status' => 'Pending',
+                            'payment_status' => 'Unpaid',
+                            'special_requests' => $act['notes'] ?? $input['special_requests'] ?? null,
+                            'created_at' => date('Y-m-d H:i:s')
+                        ];
+
+                        $insertId = $bookingModel->insert($data);
+                        if ($insertId === false) {
+                            $errors[] = ['activity' => $act, 'error' => 'Failed to create booking'];
+                        } else {
+                            $created[] = $insertId;
+                        }
+                    }
+                }
+
+                return $this->response->setJSON(['success' => true, 'created' => $created, 'errors' => $errors]);
+            }
+
+            // Legacy single booking path
             $totalGuests = $numAdults + $numChildren + $numSeniors;
             $data = [
                 'spot_id' => $spotId,
@@ -735,95 +1184,86 @@ return $this->response->setJSON(['success' => true, 'booking_id' => $insertId]);
             'spot' => $spot
         ]);
     }
- public function generateCheckinToken($booking_id)
-{
-    $session = session();
-    $userID = $session->get('UserID');
-    if (!$userID) {
-        return $this->response->setJSON(['error' => 'Not logged in'], 401);
-    }
 
-    $bookingModel = new \App\Models\BookingModel();
-    $booking = $bookingModel->find((int)$booking_id);
-    if (!$booking) {
-        return $this->response->setJSON(['error' => 'Booking not found'], 404);
-    }
-
-    // Only allow token generation for confirmed bookings
-    $status = strtolower($booking['booking_status'] ?? '');
-    if ($status !== 'confirmed') {
-        return $this->response->setJSON(['error' => 'Token can be generated only for confirmed bookings'], 403);
-    }
-
-    // Verify ownership: booking.customer_id matches session user (or via CustomerModel)
-    $bookingOwnerId = $booking['customer_id'] ?? null;
-    $isOwner = false;
-    if ($bookingOwnerId !== null && (string)$bookingOwnerId === (string)$userID) {
-        $isOwner = true;
-    } else {
-        try {
-            $customerModel = new \App\Models\CustomerModel();
-            $customerRow = $customerModel->where('user_id', $userID)->first();
-            $customerIdForUser = $customerRow['customer_id'] ?? null;
-            if ($customerIdForUser !== null && (string)$bookingOwnerId === (string)$customerIdForUser) {
-                $isOwner = true;
-            }
-        } catch (\Throwable $e) {
-            // ignore if no CustomerModel
+    /**
+     * Generate a short-lived checkin token for a booking (URL-safe payload + HMAC)
+     * Accepts: booking id as argument in URL segment
+     */
+    public function generateCheckinToken($booking_id)
+    {
+        $session = session();
+        $userID = $session->get('UserID');
+        if (!$userID) {
+            return $this->response->setJSON(['error' => 'Not logged in'], 401);
         }
-    }
 
-    if (!$isOwner) {
-        return $this->response->setJSON(['error' => 'Forbidden: you do not own this booking'], 403);
-    }
+        $bookingModel = new \App\Models\BookingModel();
+        $booking = $bookingModel->find((int)$booking_id);
+        if (!$booking) {
+            return $this->response->setJSON(['error' => 'Booking not found'], 404);
+        }
 
-    // Normalize visit_date to Y-m-d (try visit_date, booking_date, date)
-    $visit_date_raw = $booking['visit_date'] ?? $booking['booking_date'] ?? $booking['date'] ?? null;
-    $visit_date = $visit_date_raw ? date('Y-m-d', strtotime($visit_date_raw)) : null;
+        // Only allow token generation for confirmed bookings
+        $status = strtolower($booking['booking_status'] ?? '');
+        if ($status !== 'confirmed') {
+            return $this->response->setJSON(['error' => 'Token can be generated only for confirmed bookings'], 403);
+        }
 
-    // Optional: require token generation only for same-day bookings
-    // if ($visit_date !== date('Y-m-d')) {
-    //     return $this->response->setJSON(['error' => 'Token can only be generated on the booking date'])->setStatusCode(400);
-    // }
+        // Verify ownership: booking.customer_id matches session user (or via CustomerModel)
+        $bookingOwnerId = $booking['customer_id'] ?? null;
+        $isOwner = false;
+        if ($bookingOwnerId !== null && (string)$bookingOwnerId === (string)$userID) {
+            $isOwner = true;
+        } else {
+            try {
+                $customerModel = new \App\Models\CustomerModel();
+                $customerRow = $customerModel->where('user_id', $userID)->first();
+                $customerIdForUser = $customerRow['customer_id'] ?? null;
+                if ($customerIdForUser !== null && (string)$bookingOwnerId === (string)$customerIdForUser) {
+                    $isOwner = true;
+                }
+            } catch (\Throwable $e) {
+                // ignore if no CustomerModel
+            }
+        }
 
-    // Build payload
-    try {
-        $jti = bin2hex(random_bytes(8));
-    } catch (\Throwable $e) {
-        $jti = uniqid('', true);
-    }
+        if (!$isOwner) {
+            return $this->response->setJSON(['error' => 'Forbidden: you do not own this booking'], 403);
+        }
 
-    $payload = [
-        'type'        => 'checkin_token',                      // consistent type
-        'booking_id'  => (int) $booking_id,
-        'customer_id' => isset($booking['customer_id']) ? (int)$booking['customer_id'] : null,
-        'spot_id'     => isset($booking['spot_id']) ? (int)$booking['spot_id'] : null,
-        // include visit_date (canonical) and booking_date for backward compatibility
-        'visit_date'  => $visit_date,                          // normalized Y-m-d
-        'booking_date'=> $visit_date,                          // alias for older clients (optional)
-        'iat'         => time(),
-        'exp'         => time() + 60 * 60 * 24,                // 24h expiry (adjust if needed)
-        'jti'         => $jti
-    ];
+        // Normalize visit_date to Y-m-d
+        $visit_date_raw = $booking['visit_date'] ?? $booking['booking_date'] ?? $booking['date'] ?? null;
+        $visit_date = $visit_date_raw ? date('Y-m-d', strtotime($visit_date_raw)) : null;
 
-    $payloadJson = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-    if ($payloadJson === false) {
-        return $this->response->setJSON(['error' => 'Failed to create token payload'], 500);
-    }
+        try {
+            $jti = bin2hex(random_bytes(8));
+        } catch (\Throwable $e) {
+            $jti = uniqid('', true);
+        }
 
-    // URL-safe base64 encode
-    $b64 = rtrim(strtr(base64_encode($payloadJson), '+/', '-_'), '=');
+        $payload = [
+            'type' => 'checkin_token',
+            'booking_id' => (int)$booking_id,
+            'customer_id' => isset($booking['customer_id']) ? (int)$booking['customer_id'] : null,
+            'spot_id' => isset($booking['spot_id']) ? (int)$booking['spot_id'] : null,
+            'visit_date' => $visit_date,
+            'booking_date' => $visit_date,
+            'iat' => time(),
+            'exp' => time() + 60 * 60 * 24,
+            'jti' => $jti
+        ];
 
-    $secret = getenv('VOUCHER_SECRET') ?: (getenv('app.secret') ?: 'change_this_secret');
-    $signature = hash_hmac('sha256', $b64, $secret);
+        $payloadJson = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        if ($payloadJson === false) {
+            return $this->response->setJSON(['error' => 'Failed to create token payload'], 500);
+        }
 
-    // token format: <base64url(payload)>.<hex-hmac>
-    $token = $b64 . '.' . $signature;
+        $b64 = rtrim(strtr(base64_encode($payloadJson), '+/', '-_'), '=');
+        $secret = getenv('VOUCHER_SECRET') ?: (getenv('app.secret') ?: 'change_this_secret');
+        $signature = hash_hmac('sha256', $b64, $secret);
+        $token = $b64 . '.' . $signature;
 
-    return $this->response->setJSON([
-        'token' => $token,
-        'expires_at' => date('c', $payload['exp'])
-    ]);
+        return $this->response->setJSON(['token' => $token, 'expires_at' => date('c', $payload['exp'])]);
 }
 // Replace verifyCheckinToken with this implementation.
 

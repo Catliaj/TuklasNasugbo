@@ -276,6 +276,10 @@
                                         <i class="bi bi-geo-alt-fill"></i>
                                         <span><?= esc($spot['location'] ?? '') ?></span>
                                     </div>
+                                    <div class="gallery-views" title="Total views">
+                                        <i class="bi bi-eye-fill"></i>
+                                        <span class="views-count"><?= esc($spot['views'] ?? 0) ?></span>
+                                    </div>
                                 </div>
                             </div>
                         <?php endforeach; ?>
@@ -302,37 +306,39 @@
                     <i class="bi bi-heart-fill" style="color:#ff5d5d;"></i> Your Favorites
                 </h3>
                 
-                <?php if (!empty($favoriteSpots) && count($favoriteSpots) > 0): ?>
-                    <?php foreach (array_slice($favoriteSpots, 0, 4) as $spot): ?>
-                        <?php 
-                            $imagePath = 'uploads/spots/' . $spot['primary_image'];
-                            if (!is_file(FCPATH . $imagePath)) { 
-                                $imagePath = 'uploads/spots/Spot-No-Image.png';
-                            }
-                        ?>
-                        <div class="activity-item" style="cursor:pointer;" onclick="window.location.href='/tourist/exploreSpots'">
-                            <div class="activity-icon" style="background-image:url('<?= base_url($imagePath) ?>');background-size:cover;background-position:center;width:48px;height:48px;border-radius:8px;">
+                <div id="favoritesList">
+                    <?php if (!empty($favoriteSpots) && count($favoriteSpots) > 0): ?>
+                        <?php foreach (array_slice($favoriteSpots, 0, 4) as $spot): ?>
+                            <?php 
+                                $imagePath = 'uploads/spots/' . ($spot['primary_image'] ?? '');
+                                if (empty($spot['primary_image']) || !is_file(FCPATH . $imagePath)) { 
+                                    $imagePath = 'uploads/spots/Spot-No-Image.png';
+                                }
+                            ?>
+                            <div class="activity-item favorite-card" data-spot-id="<?= esc($spot['id'] ?? $spot['spot_id'] ?? '') ?>" style="cursor:pointer;" onclick="window.location.href='/tourist/exploreSpots'">
+                                <div class="activity-icon" style="background-image:url('<?= base_url($imagePath) ?>');background-size:cover;background-position:center;width:48px;height:48px;border-radius:8px;">
+                                </div>
+                                <div class="activity-content">
+                                    <h6><?= esc($spot['spot_name'] ?? $spot['name'] ?? '') ?></h6>
+                                    <p><?= esc($spot['category'] ?? '') ?> • ⭐ <?= esc($spot['rating'] ?? '4.5') ?></p>
+                                </div>
+                                <div class="activity-time">
+                                    <i class="bi bi-heart-fill text-danger"></i>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <div class="activity-item" id="noFavoritesPlaceholder">
+                            <div class="activity-icon">
+                                <i class="bi bi-heart"></i>
                             </div>
                             <div class="activity-content">
-                                <h6><?= esc($spot['spot_name']) ?></h6>
-                                <p><?= esc($spot['category']) ?> • ⭐ <?= esc($spot['rating'] ?? '4.5') ?></p>
-                            </div>
-                            <div class="activity-time">
-                                <i class="bi bi-heart-fill text-danger"></i>
+                                <h6>No Favorites Yet</h6>
+                                <p>Start exploring and add your favorite spots!</p>
                             </div>
                         </div>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <div class="activity-item">
-                        <div class="activity-icon">
-                            <i class="bi bi-heart"></i>
-                        </div>
-                        <div class="activity-content">
-                            <h6>No Favorites Yet</h6>
-                            <p>Start exploring and add your favorite spots!</p>
-                        </div>
-                    </div>
-                <?php endif; ?>
+                    <?php endif; ?>
+                </div>
             </div>
         </main>
     </div>
@@ -719,6 +725,94 @@
                 });
             });
         });
+
+        // ===== Favorites dynamic update =====
+        // Fetches favorites from the server and re-renders the favorites cards.
+        async function refreshFavorites() {
+            try {
+                const url = '<?= esc(base_url('/tourist/getFavorites')) ?>';
+                const res = await fetch(url, { credentials: 'same-origin' });
+                if (!res.ok) {
+                    console.warn('Failed to fetch favorites', res.status);
+                    return;
+                }
+                const data = await res.json();
+                const container = document.getElementById('favoritesList');
+                if (!container) return;
+                if (!Array.isArray(data) || data.length === 0) {
+                    container.innerHTML = `
+                        <div class="activity-item" id="noFavoritesPlaceholder">
+                            <div class="activity-icon">
+                                <i class="bi bi-heart"></i>
+                            </div>
+                            <div class="activity-content">
+                                <h6>No Favorites Yet</h6>
+                                <p>Start exploring and add your favorite spots!</p>
+                            </div>
+                        </div>`;
+                    return;
+                }
+
+                const items = data.slice(0,4).map(spot => {
+                    const img = spot.primary_image ? ('<?= esc(base_url('uploads/spots/')) ?>' + spot.primary_image) : '<?= esc(base_url('uploads/spots/Spot-No-Image.png')) ?>';
+                    const name = spot.spot_name || spot.name || 'Spot';
+                    const category = spot.category || '';
+                    const rating = spot.rating || '4.5';
+                    const spotId = spot.id || spot.spot_id || '';
+                    return `
+                        <div class="activity-item favorite-card" data-spot-id="${escapeHtml(spotId)}" style="cursor:pointer;" onclick="window.location.href='/tourist/exploreSpots'">
+                            <div class="activity-icon" style="background-image:url('${escapeHtml(img)}');background-size:cover;background-position:center;width:48px;height:48px;border-radius:8px;"></div>
+                            <div class="activity-content">
+                                <h6>${escapeHtml(name)}</h6>
+                                <p>${escapeHtml(category)} • ⭐ ${escapeHtml(rating)}</p>
+                            </div>
+                            <div class="activity-time">
+                                <i class="bi bi-heart-fill text-danger"></i>
+                            </div>
+                        </div>`;
+                }).join('');
+
+                container.innerHTML = items;
+            } catch (err) {
+                console.error('refreshFavorites error', err);
+            }
+        }
+
+        // Toggle favorite on the server and refresh UI.
+        async function toggleFavorite(spotId) {
+            try {
+                const url = '<?= esc(base_url('/tourist/toggleFavorite')) ?>';
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ spot_id: spotId }),
+                    credentials: 'same-origin'
+                });
+                if (!res.ok) throw new Error('Favorite toggle failed');
+                const json = await res.json();
+                // Refresh favorites after toggling
+                refreshFavorites();
+                return json;
+            } catch (err) {
+                console.error(err);
+                showToast('Error', 'Unable to update favorites.');
+            }
+        }
+
+        // Public helper: call when a favorite is added/removed elsewhere
+        window.onFavoriteAdded = async function(spotId) {
+            await toggleFavorite(spotId);
+        };
+
+        // Basic HTML escape helper for insertion into the DOM
+        function escapeHtml(str) {
+            return String(str === undefined || str === null ? '' : str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
     </script>
 </body>
 </html>

@@ -641,7 +641,7 @@ public function getMonthlyRevenueData()
             INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
             WHERE ts.business_id = ?
                 AND b.booking_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
-                AND b.booking_status IN ('Confirmed', 'Completed', 'Checked-in', 'Checked-out')
+                AND b.booking_status IN ('Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out')
                 AND b.payment_status = 'Paid'
             GROUP BY DATE_FORMAT(b.booking_date, '%Y-%m')
             ORDER BY month ASC
@@ -696,7 +696,7 @@ public function getWeeklyRevenueData()
             INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
             WHERE ts.business_id = ?
                 AND b.booking_date >= DATE_SUB(CURDATE(), INTERVAL 8 WEEK)
-                AND b.booking_status IN ('Confirmed', 'Completed', 'Checked-in', 'Checked-out')
+                AND b.booking_status IN ('Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out')
                 AND b.payment_status = 'Paid'
             GROUP BY DATE_FORMAT(b.booking_date, '%Y-%u')
             ORDER BY week ASC
@@ -807,7 +807,7 @@ public function getDashboardAnalytics()
             ->join('tourist_spots ts', 'b.spot_id = ts.spot_id')
             ->where('ts.business_id', $businessId)
             ->where('DATE_FORMAT(b.booking_date, "%Y-%m")', $currentMonth)
-            ->whereIn('b.booking_status', ['Confirmed', 'Completed', 'Checked-in', 'Checked-out'])
+            ->whereIn('b.booking_status', ['Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out'])
             ->countAllResults();
         
         // Get total revenue (this month)
@@ -816,7 +816,7 @@ public function getDashboardAnalytics()
             ->join('tourist_spots ts', 'b.spot_id = ts.spot_id')
             ->where('ts.business_id', $businessId)
             ->where('DATE_FORMAT(b.booking_date, "%Y-%m")', $currentMonth)
-            ->whereIn('b.booking_status', ['Confirmed', 'Completed', 'Checked-in', 'Checked-out'])
+            ->whereIn('b.booking_status', ['Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out'])
             ->where('b.payment_status', 'Paid')
             ->get()
             ->getRow();
@@ -879,14 +879,14 @@ public function getSpotAnalytics($spotId)
         // Get bookings count
         $bookings = $db->table('bookings')
             ->where('spot_id', $spotId)
-            ->whereIn('booking_status', ['Confirmed', 'Completed', 'Checked-in', 'Checked-out'])
+            ->whereIn('booking_status', ['Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out'])
             ->countAllResults();
         
         // Get revenue
         $revenueQuery = $db->table('bookings')
             ->select('SUM(total_price) as revenue')
             ->where('spot_id', $spotId)
-            ->whereIn('booking_status', ['Confirmed', 'Completed', 'Checked-in', 'Checked-out'])
+            ->whereIn('booking_status', ['Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out'])
             ->where('payment_status', 'Paid')
             ->get()
             ->getRow();
@@ -897,7 +897,7 @@ public function getSpotAnalytics($spotId)
         $visitorsQuery = $db->table('bookings')
             ->select('SUM(total_guests) as visitors')
             ->where('spot_id', $spotId)
-            ->whereIn('booking_status', ['Completed', 'Checked-out'])
+            ->whereIn('booking_status', ['Completed', 'Checked-out', 'Checked-Out'])
             ->get()
             ->getRow();
         

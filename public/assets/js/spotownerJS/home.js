@@ -94,7 +94,9 @@ function renderHomePage() {
                                 <p class="custom-card-description">Monthly revenue comparison across all spots</p>
                             </div>
                             <div class="custom-card-body">
-                                <canvas id="revenueTrendChart" height="100"></canvas>
+                                <div class="chart-container">
+                                    <canvas id="revenueTrendChart" class="chart-canvas" height="320"></canvas>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -106,7 +108,9 @@ function renderHomePage() {
                                 <p class="custom-card-description">6-month booking comparison</p>
                             </div>
                             <div class="custom-card-body">
-                                <canvas id="bookingTrendChart" height="100"></canvas>
+                                <div class="chart-container">
+                                    <canvas id="bookingTrendChart" class="chart-canvas" height="320"></canvas>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -278,37 +282,60 @@ async function initHomePage() {
 }
 
 function updateOverviewStats() {
-    if (!window.sharedTouristSpots || window.sharedTouristSpots.length === 0) {
-        console.log('⚠️ No data to update stats');
-        return;
-    }
+    // Prefer server-side analytics for accuracy. Fallback to client-side aggregation only if server fails.
+    (async () => {
+        try {
+            const res = await fetch('/spotowner/api/dashboard-analytics', { credentials: 'same-origin' });
+            if (!res.ok) throw new Error('Server analytics fetch failed');
+            const data = await res.json();
 
-    const spots = window.sharedTouristSpots;
+            // Update stat cards using the server values
+            const totalSpots = data.totalSpots ?? 0;
+            const totalBookings = data.totalBookings ?? 0;
+            const totalRevenue = data.totalRevenue ?? 0;
+            const averageRating = (data.averageRating !== undefined) ? data.averageRating : 0;
 
-    // Calculate totals
-    const totalSpots = spots.length;
-    const totalBookings = spots.reduce((sum, spot) => sum + (spot.bookings || 0), 0);
-    const totalRevenue = spots.reduce((sum, spot) => sum + (spot.revenue || 0), 0);
-    const averageRating = spots.length > 0 ?
-        (spots.reduce((sum, spot) => sum + (spot.rating || 0), 0) / spots.length).toFixed(1) :
-        0;
+            const totalSpotsEl = document.getElementById('stat-total-spots');
+            const totalBookingsEl = document.getElementById('stat-total-bookings');
+            const totalRevenueEl = document.getElementById('stat-total-revenue');
+            const avgRatingEl = document.getElementById('stat-avg-rating');
 
-    // Update the stat cards
-    const statCards = document.querySelectorAll('.stat-card .stat-value');
-    if (statCards.length >= 4) {
-        statCards[0].textContent = totalSpots;
-        statCards[1].textContent = totalBookings;
-        statCards[2].textContent = `₱${totalRevenue.toLocaleString()}`;
-        statCards[3].textContent = averageRating;
-    }
+            if (totalSpotsEl) totalSpotsEl.textContent = totalSpots;
+            if (totalBookingsEl) totalBookingsEl.textContent = totalBookings;
+            if (totalRevenueEl) totalRevenueEl.textContent = `₱${(totalRevenue || 0).toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+            if (avgRatingEl) avgRatingEl.textContent = averageRating;
 
-    console.log('✅ Overview stats updated:', {
-        totalSpots,
-        totalBookings,
-        totalRevenue,
-        averageRating
-    });
+            console.log('✅ Overview stats updated from server:', { totalSpots, totalBookings, totalRevenue, averageRating });
+        } catch (err) {
+            console.warn('⚠️ Falling back to client aggregation for overview stats:', err);
+
+            // Fallback: compute from sharedTouristSpots
+            const spots = window.sharedTouristSpots || [];
+            const totalSpots = spots.length;
+            const totalBookings = spots.reduce((sum, spot) => sum + (spot.bookings || 0), 0);
+            const totalRevenue = spots.reduce((sum, spot) => sum + (spot.revenue || 0), 0);
+            const averageRating = spots.length > 0 ?
+                (spots.reduce((sum, spot) => sum + (spot.rating || 0), 0) / spots.length).toFixed(1) :
+                0;
+
+            const totalSpotsEl = document.getElementById('stat-total-spots');
+            const totalBookingsEl = document.getElementById('stat-total-bookings');
+            const totalRevenueEl = document.getElementById('stat-total-revenue');
+            const avgRatingEl = document.getElementById('stat-avg-rating');
+
+            if (totalSpotsEl) totalSpotsEl.textContent = totalSpots;
+            if (totalBookingsEl) totalBookingsEl.textContent = totalBookings;
+            if (totalRevenueEl) totalRevenueEl.textContent = `₱${(totalRevenue || 0).toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+            if (avgRatingEl) avgRatingEl.textContent = averageRating;
+
+            console.log('✅ Overview stats updated from client aggregation:', { totalSpots, totalBookings, totalRevenue, averageRating });
+        }
+    })();
 }
+
+// NOTE: periodic refresh is handled by the page-level `refreshInterval` logic
+// in the view (visibilitychange + 30s interval). Avoid duplicating intervals
+// here to prevent overlapping repeated updates.
 
 function initializeCharts() {
     // Guard: Chart must be loaded
@@ -1135,15 +1162,7 @@ console.log('home.js loaded successfully');
 console.log('Available functions:', {
     renderHomePage: typeof renderHomePage,
     initHomePage: typeof initHomePage,
-    fetchTouristSpots: typeof fetchTouristSpots, // Add this line
-    loadTouristSpotsGrid: typeof loadTouristSpotsGrid,
-    initializeCharts: typeof initializeCharts
-});
-
-console.log('home.js loaded successfully');
-console.log('Available functions:', {
-    renderHomePage: typeof renderHomePage,
-    initHomePage: typeof initHomePage,
+    fetchTouristSpots: typeof fetchTouristSpots,
     loadTouristSpotsGrid: typeof loadTouristSpotsGrid,
     initializeCharts: typeof initializeCharts
 });

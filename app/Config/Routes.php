@@ -7,9 +7,9 @@ use CodeIgniter\Router\RouteCollection;
  * @var RouteCollection $routes
  */
 
-//Auth Routes
 $routes->get('/under-development', 'Home::index'); 
 $routes->get('/', 'AuthController::login'); 
+$routes->get('/users/login', 'AuthController::login');
 $routes->get('/signup', 'AuthController::signup'); 
 $routes->post('/users/login', 'AuthController::Handlelogin');
 $routes->post('signup/submit', 'AuthController::handleSignup');
@@ -100,6 +100,8 @@ $routes->get('/tourist/exploreSpots', 'TouristController::exploreSpots');
 $routes->get('/tourist/myBookings', 'TouristController::myBookings');
 $routes->get('/tourist/profile', 'TouristController::touristProfile');
 $routes->get('/tourist/itinerary', 'TouristController::touristIternary');
+// Recommended spots for Add Activity modal
+$routes->get('/tourist/recommendedSpots', 'TouristController::recommendedSpots');
 $routes->get('/tourist/reviews', 'TouristController::touristReviews');
 $routes->get('/tourist/visits', 'TouristController::touristVisits');
 $routes->get('/tourist/budget', 'TouristController::touristBudget');
@@ -109,6 +111,10 @@ $routes->get('/tourist/favorites', 'TouristController::touristFavorites');
 $routes->post('/tourist/createBooking', 'TouristController::createBooking');
 $routes->post('/tourist/toggleFavorite', 'TouristController::toggleFavorite');
 $routes->get('tourist/visited/ajax', 'TouristController::getVisitedPlacesAjax');
+// Favorites API for dashboard AJAX
+$routes->get('/tourist/getFavorites', 'TouristController::getFavorites');
+// Dashboard live stats (AJAX)
+$routes->get('/tourist/dashboardStats', 'TouristController::dashboardStats');
 
 //TEST API ROUTE
 $routes->get('/test-api/key', 'TestApi::testKey');
@@ -117,6 +123,10 @@ $routes->get('/test-api/key', 'TestApi::testKey');
 
 $routes->get('itinerary/list', 'TouristController::listUserTrips');
 $routes->get('itinerary/get', 'TouristController::getTrip');
+// Create itinerary (from UI modal)
+$routes->post('itinerary/create', 'TouristController::createItinerary');
+// API aliases for frontend
+$routes->get('api/tourist-spots', 'TouristController::recommendedSpots');
 
 // Route for tourist spot details page (view)
 $routes->get('/tourist/spot/(:num)', 'TouristController::viewSpotDetails/$1');
@@ -139,3 +149,8 @@ $routes->post('spotowner/recordCheckin', 'SpotOwnerController::recordCheckin');
 $routes->post('spotowner/confirmBooking/(:num)', 'SpotOwnerController::confirmBooking/$1');
 $routes->get('api/attractions/top/(:num)?', 'AttractionsController::topSpotsAjax/$1');
 $routes->post('api/attractions/view', 'AttractionsController::logViewAjax');
+
+// SpotOwner API endpoints for charts
+$routes->get('spotowner/api/monthly-revenue', 'SpotOwner\Api::monthlyRevenue');
+$routes->get('spotowner/api/weekly-revenue',  'SpotOwner\Api::weeklyRevenue');
+$routes->get('spotowner/api/booking-trends',  'SpotOwner\Api::bookingTrends');

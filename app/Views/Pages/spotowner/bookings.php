@@ -576,12 +576,6 @@ async function onQrScanned(decodedText) {
   const infoEl = document.getElementById('qrPayloadInfo');
   if (infoEl) {
     infoEl.innerHTML = `
-      <div><strong>Booking ID:</strong> ${escHtml(result.booking_id)}</div>
-      <div><strong>Customer ID:</strong> ${escHtml(result.customer_id)}</div>
-      <div><strong>Visit Date:</strong> ${escHtml(bookingDateDisplay)}</div>
-      <div><strong>Spot ID:</strong> ${escHtml(result.spot_id)}</div>
-      <div><strong>Issued:</strong> ${escHtml(issued)}</div>
-      <div><strong>Expires:</strong> ${escHtml(expires)}</div>
     `;
   }
   const resEl = document.getElementById('qrScanResult'); if (resEl) resEl.style.display = 'block';

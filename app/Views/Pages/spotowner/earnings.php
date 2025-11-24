@@ -356,7 +356,6 @@
     <script src="<?= base_url('assets/js/sidebar.js')?>"></script>
 
     <!-- 5. Page-specific scripts -->
-    <script src="<?= base_url('assets/js/spotownerJS/shared-data.js')?>"></script>
     <script src="<?= base_url('assets/js/spotownerJS/earnings.js')?>"></script>
     
     <!-- Notification System -->

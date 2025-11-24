@@ -14,6 +14,25 @@
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="<?= base_url("assets/css/main.css")?>">
+    
+    <!-- Inline styles to prevent Chart.js canvases from auto-stretching -->
+    <style>
+        .chart-container {
+            width: 100%;
+            max-width: 100%;
+            height: 320px;
+            display: block;
+        }
+        canvas.chart-canvas {
+            width: 100% !important;
+            height: 320px !important;
+            display: block;
+            max-width: 100%;
+        }
+        @media (max-width: 767px) {
+            .chart-container, canvas.chart-canvas { height: 240px !important; }
+        }
+    </style>
 </head>
 
 <body>
@@ -182,6 +201,14 @@
     <script>
     // Wait for DOM to be ready and then render the page
 document.addEventListener('DOMContentLoaded', async function() {
+    // Prevent double initialization when scripts are loaded multiple times
+    if (!window._home) window._home = { initialized: false, refreshing: false };
+    if (window._home.initialized) {
+        console.log('Home page already initialized — skipping duplicate DOMContentLoaded handler');
+        return;
+    }
+
+    window._home.initialized = true;
     console.log('DOM loaded, initializing home page...');
     
     // Get the main content area
@@ -211,15 +238,28 @@ document.addEventListener('DOMContentLoaded', async function() {
 <script>
 // Function to refresh home page data
 window.refreshHomeData = async function() {
+    if (!window._home) window._home = { initialized: false, refreshing: false };
+    if (window._home.refreshing) {
+        console.log('Refresh already in progress — skipping');
+        return;
+    }
+
+    window._home.refreshing = true;
     console.log('🔄 Refreshing home page data...');
-    if (typeof fetchTouristSpots === 'function') {
-        await fetchTouristSpots();
-        if (typeof loadTouristSpotsGrid === 'function') {
-            loadTouristSpotsGrid();
+    try {
+        if (typeof fetchTouristSpots === 'function') {
+            await fetchTouristSpots();
+            if (typeof loadTouristSpotsGrid === 'function') {
+                loadTouristSpotsGrid();
+            }
+            if (typeof updateOverviewStats === 'function') {
+                updateOverviewStats();
+            }
         }
-        if (typeof updateOverviewStats === 'function') {
-            updateOverviewStats();
-        }
+    } catch (e) {
+        console.error('Error during refreshHomeData:', e);
+    } finally {
+        window._home.refreshing = false;
     }
 };
 

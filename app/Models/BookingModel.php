@@ -58,7 +58,7 @@ public function getTotalRevenueAllTime($businessID)
         FROM bookings b
         INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
         WHERE ts.business_id = ?
-            AND b.booking_status IN ('Confirmed', 'Completed', 'Checked-in', 'Checked-out')
+            AND b.booking_status IN ('Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out')
             AND b.payment_status = 'Paid'
     ", [$businessID]);
     
@@ -80,7 +80,7 @@ public function getMonthlyRevenue($businessID)
         INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
         WHERE ts.business_id = ?
             AND DATE_FORMAT(b.booking_date, '%Y-%m') = ?
-            AND b.booking_status IN ('Confirmed', 'Completed', 'Checked-in', 'Checked-out')
+            AND b.booking_status IN ('Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out')
             AND b.payment_status = 'Paid'
     ", [$businessID, $currentMonth]);
     
@@ -94,23 +94,27 @@ public function getMonthlyRevenue($businessID)
 public function getAverageRevenuePerBooking($businessID)
 {
     $db = \Config\Database::connect();
-    
-    $query = $db->query("
-        SELECT 
+    $query = $db->query(
+        "SELECT 
             COUNT(b.booking_id) as total_bookings,
             COALESCE(AVG(b.total_price), 0) as average_revenue
         FROM bookings b
         INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
         WHERE ts.business_id = ?
-            AND b.booking_status IN ('Confirmed', 'Completed', 'Checked-in', 'Checked-out')
-            AND b.payment_status = 'Paid'
-    ", [$businessID]);
+            AND b.booking_status IN ('Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out')
+            AND b.payment_status = 'Paid'",
+        [$businessID]
+    );
     
     $result = $query->getRow();
-    return [
-        'total_bookings' => $result ? (int)$result->total_bookings : 0,
-        'average' => $result ? (float)$result->average_revenue : 0
-    ];
+    if ($result) {
+        return [
+            'average' => (float)$result->average_revenue,
+            'total_bookings' => (int)$result->total_bookings
+        ];
+    }
+
+    return ['average' => 0.0, 'total_bookings' => 0];
 }
 
 /**
@@ -200,18 +204,18 @@ public function getRecentTransactionsByBusiness($businessID, $limit = 5)
     
     $query = $db->query("
         SELECT 
-            b.booking_id,
-            b.booking_date,
-            b.total_price,
-            b.booking_status,
-            CONCAT(u.FirstName, ' ', u.LastName) as customer_name
-        FROM bookings b
-        INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
-        INNER JOIN customers c ON b.customer_id = c.customer_id
-        INNER JOIN users u ON c.user_id = u.UserID
-        WHERE ts.business_id = ?
-        ORDER BY b.booking_date DESC
-        LIMIT ?
+    b.booking_id,
+    b.booking_date,
+    b.total_price,
+    b.booking_status,
+    CONCAT(u.FirstName, ' ', u.LastName) AS customer_name
+    FROM bookings b
+    INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
+    INNER JOIN users u ON b.customer_id = u.UserID
+    WHERE ts.business_id = ?
+    ORDER BY b.booking_date DESC
+    LIMIT ?
+
     ", [$businessID, $limit]);
     
     return $query->getResultArray();
