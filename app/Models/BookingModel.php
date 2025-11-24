@@ -228,14 +228,16 @@ public function getTopPerformingDays($businessID, $limit = 5)
 {
     $db = \Config\Database::connect();
     $currentMonth = date('Y-m');
-    
-    $query = $db->query("
+
+    // Some DB drivers don't allow binding LIMIT as a parameter.
+    // If you run into errors, use intval($limit) and interpolate it into the SQL.
+    $sql = "
         SELECT 
-            DATE(b.booking_date) as booking_date,
-            DAYNAME(b.booking_date) as day_name,
-            DATE_FORMAT(b.booking_date, '%b %d') as formatted_date,
-            COUNT(b.booking_id) as bookings,
-            SUM(b.total_price) as revenue
+            DATE(b.booking_date) AS booking_date,
+            ANY_VALUE(DAYNAME(b.booking_date)) AS day_name,
+            ANY_VALUE(DATE_FORMAT(DATE(b.booking_date), '%b %d')) AS formatted_date,
+            COUNT(b.booking_id) AS bookings,
+            SUM(b.total_price) AS revenue
         FROM bookings b
         INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
         WHERE ts.business_id = ?
@@ -245,8 +247,10 @@ public function getTopPerformingDays($businessID, $limit = 5)
         GROUP BY DATE(b.booking_date)
         ORDER BY revenue DESC
         LIMIT ?
-    ", [$businessID, $currentMonth, $limit]);
-    
+    ";
+
+    $query = $db->query($sql, [$businessID, $currentMonth, $limit]);
+
     return $query->getResultArray();
 }
     //Total Bookings this months
