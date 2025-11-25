@@ -116,6 +116,9 @@ $routes->get('/tourist/getFavorites', 'TouristController::getFavorites');
 // Dashboard live stats (AJAX)
 $routes->get('/tourist/dashboardStats', 'TouristController::dashboardStats');
 
+// Save user category preferences
+$routes->post('/tourist/savePreferences', 'TouristController::savePreferences');
+
 // Save review (AJAX)
 $routes->post('/tourist/saveReview', 'TouristController::saveReview');
 

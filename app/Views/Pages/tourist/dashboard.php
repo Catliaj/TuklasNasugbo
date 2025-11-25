@@ -1,3 +1,24 @@
+<?php
+// --- Top PHP block (replace the existing session code near the top) ---
+$session = session();
+$userFirstName = $session->get('FirstName') ?? '';
+$userLastName  = $session->get('LastName') ?? '';
+$userEmail     = $session->get('Email') ?? '';
+$userInitials  = strtoupper(substr($userFirstName,0,1) . substr($userLastName,0,1));
+
+// Ensure FullName variable is defined (avoid undefined var usage)
+$FullName = trim(($userFirstName ?: '') . ' ' . ($userLastName ?: ''));
+// Role and preference helpers (used by the preference modal)
+$roleVal = $session->get('Role') ?? $session->get('role') ?? $session->get('user_role') ?? '';
+$isTourist = strcasecmp($roleVal, 'tourist') === 0;
+$userPreference = $userPreference ?? null;
+$hasPref = !empty($userPreference);
+?>
+...
+
+
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -202,6 +223,7 @@ $userInitials = strtoupper(substr($userFirstName,0,1) . substr($userLastName,0,1
                             <div class="stat-value"><span class="count-up" data-target="<?= esc($TotalSaveItineray ?? 0) ?>">0</span></div>
                             <div class="stat-label">Saved Itineraries</div>
                         </div>
+                        <!-- preference modal moved to end-of-body for correct positioning -->
                         <div class="stat-icon blue">
                             <i class="bi bi-calendar-check"></i>
                         </div>
@@ -369,6 +391,38 @@ $userInitials = strtoupper(substr($userFirstName,0,1) . substr($userLastName,0,1
     </div>
 
     <!-- Create Itinerary Modal -->
+        <!-- Category preference modal (moved here so Bootstrap can center it correctly) -->
+        <?php if ($isTourist && !$hasPref): ?>
+        <div class="modal fade" id="prefModal" tabindex="-1" aria-labelledby="prefModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="prefModalLabel">Choose up to 5 categories</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Select up to five categories to personalize recommendations.</p>
+                        <div id="prefList" class="d-flex flex-wrap gap-2">
+                            <?php
+                                $categories = ['Historical', 'Cultural', 'Natural', 'Recreational', 'Religious', 'Adventure', 'Ecotourism', 'Urban', 'Rural' ,'Beach' ,'Mountain' ,'Resort', 'Park', 'Restaurant'];
+                                foreach ($categories as $cat):
+                            ?>
+                                <div class="form-check me-3 mb-2">
+                                    <input class="form-check-input pref-checkbox" type="checkbox" value="<?= esc($cat) ?>" id="pref_<?= esc($cat) ?>">
+                                    <label class="form-check-label" for="pref_<?= esc($cat) ?>"><?= esc($cat) ?></label>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                        <div id="prefError" class="text-danger mt-2" style="display:none;"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Skip</button>
+                        <button type="button" id="savePrefsBtn" class="btn btn-primary" disabled>Save Preferences</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
     <div class="modal fade" id="itineraryModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -823,5 +877,94 @@ $userInitials = strtoupper(substr($userFirstName,0,1) . substr($userLastName,0,1
                 .replace(/'/g, '&#039;');
         }
     </script>
+    <script>
+(function(){
+    var isTourist = <?= $isTourist ? 'true' : 'false' ?>;
+    var hasPref = <?= $hasPref ? 'true' : 'false' ?>;
+    if (!isTourist || hasPref) return;
+
+    var prefModalEl = document.getElementById('prefModal');
+    if (!prefModalEl) return;
+    var prefModal = new bootstrap.Modal(prefModalEl);
+    var checkboxes = document.querySelectorAll('.pref-checkbox');
+    var saveBtn = document.getElementById('savePrefsBtn');
+    var errorEl = document.getElementById('prefError');
+
+    function updateState() {
+        var checked = Array.from(checkboxes).filter(function(ch){ return ch.checked; });
+        saveBtn.disabled = checked.length === 0 || checked.length > 5;
+        if (checked.length > 5) {
+            errorEl.style.display = 'block';
+            errorEl.textContent = 'You can select up to 5 categories only.';
+        } else {
+            errorEl.style.display = 'none';
+        }
+    }
+
+    checkboxes.forEach(function(ch){ ch.addEventListener('change', updateState); });
+    updateState();
+
+    saveBtn.addEventListener('click', function(){
+        var selected = Array.from(checkboxes).filter(function(c){ return c.checked; }).map(function(c){ return c.value; });
+        if (selected.length === 0) return;
+        if (selected.length > 5) {
+            errorEl.style.display = 'block';
+            errorEl.textContent = 'You can select up to 5 categories only.';
+            return;
+        }
+
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+
+        // Fetch CSRF token from meta tag if your app exposes it (recommended).
+        // Example: <meta name="X-CSRF-TOKEN" content="<?= csrf_hash() ?>">
+        var headers = { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' };
+        var csrfMeta = document.querySelector('meta[name="X-CSRF-TOKEN"]');
+        if (csrfMeta && csrfMeta.content) headers['X-CSRF-TOKEN'] = csrfMeta.content;
+
+        fetch('<?= esc(base_url('/tourist/savePreferences')) ?>', {
+            method: 'POST',
+            headers: headers,
+            credentials: 'same-origin',
+            body: JSON.stringify({ categories: selected })
+        }).then(function(res){ return res.json(); }).then(function(json){
+            if (json && json.success) {
+                window.userPreference = (json.categories || []).join(',');
+                prefModal.hide();
+                location.reload();
+            } else {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save Preferences';
+                errorEl.style.display = 'block';
+                errorEl.textContent = json.message || 'Failed to save preferences';
+            }
+        }).catch(function(err){
+            console.error('savePreferences error', err);
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save Preferences';
+            errorEl.style.display = 'block';
+            errorEl.textContent = 'Network error';
+        });
+    });
+
+    setTimeout(function(){ prefModal.show(); }, 250);
+})();
+</script>
+
+<!-- JS: guard profile link selector -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const profileLink = document.querySelector('a[href="profile.html"]');
+    if (profileLink) {
+        profileLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            const pd = document.getElementById('userDropdown');
+            if (pd) pd.classList.remove('show');
+            const profileModal = document.getElementById('profileModal');
+            if (profileModal) new bootstrap.Modal(profileModal).show();
+        });
+    }
+});
+</script>
 </body>
 </html>
