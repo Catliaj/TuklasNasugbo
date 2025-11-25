@@ -170,14 +170,32 @@ class TouristSpotModel extends Model
                 return ['status' => 'error', 'message' => 'Spot not found'];
             }
 
-            // Get gallery images
+            // Get gallery images and normalize URLs
             $spotGalleryModel = new \App\Models\SpotGalleryModel();
             $gallery = $spotGalleryModel->where('spot_id', $spotID)->findAll();
-            // Add image_url for each gallery image
-            foreach ($gallery as &$img) {
-                $img['image_url'] = '/uploads/spots/gallery/' . $img['image'];
+            $normalizedGallery = [];
+            if (!empty($gallery) && is_array($gallery)) {
+                foreach ($gallery as $img) {
+                    $filename = $img['image'] ?? null;
+                    if ($filename) {
+                        $normalizedGallery[] = [
+                            'image' => $filename,
+                            'image_url' => base_url('uploads/spots/gallery/' . $filename)
+                        ];
+                    }
+                }
             }
-            $spot['gallery'] = $gallery;
+
+            // If no gallery images, provide an empty array (frontend may use primary image instead)
+            $spot['gallery'] = $normalizedGallery;
+
+            // Normalize primary image URL: use uploads/spots/<filename> or fallback
+            $primary = $spot['primary_image'] ?? null;
+            if (!empty($primary)) {
+                $spot['primary_image'] = base_url('uploads/spots/' . $primary);
+            } else {
+                $spot['primary_image'] = base_url('uploads/spots/Spot-No-Image.png');
+            }
 
             return ['status' => 'success', 'data' => $spot];
 

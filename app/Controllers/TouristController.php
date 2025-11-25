@@ -306,18 +306,19 @@ public function touristDashboard()
     unset($ps);
 
     // --- Finally render view with data ---
-    return view('Pages/tourist/dashboard', [
-        'userID'            => $userID,
-        'preferenceID'      => $preference['preference_id'] ?? null,
-        'FullName'          => $session->get('FirstName') . ' ' . $session->get('LastName'),
-        'email'             => $session->get('Email'),
-        'TotalSaveItineray' => $TotalSaveItineray,
-        'placesVisited'     => $placesVisited,
-        'favoriteCount'     => $favoriteCount,
+        return view('Pages/tourist/dashboard', [
+            'userID'            => $userID,
+            'preferenceID'      => $preference['preference_id'] ?? null,
+            'userPreference'    => $preference['category'] ?? null,
+            'FullName'          => $session->get('FirstName') . ' ' . $session->get('LastName'),
+            'email'             => $session->get('Email'),
+            'TotalSaveItineray' => $TotalSaveItineray,
+            'placesVisited'     => $placesVisited,
+            'favoriteCount'     => $favoriteCount,
             'favoriteSpots'     => $favoriteSpots,
-        'upcomingBookings'  => $upcomingBookings,
-        'popularSpots'      => $popularSpots,
-    ]);
+            'upcomingBookings'  => $upcomingBookings,
+            'popularSpots'      => $popularSpots,
+        ]);
 }
 
     /**
@@ -454,11 +455,11 @@ public function touristDashboard()
         if ($customerID) {
             $bookingModel = new \App\Models\BookingModel();
             $bookings = $bookingModel
-                 ->select('bookings.*, ts.spot_name, ts.category')
-                ->join('tourist_spots ts', 'bookings.spot_id = ts.spot_id', 'left')
-                ->where('bookings.customer_id', $userID)
-                ->orderBy('bookings.booking_date', 'DESC')
-                ->findAll();
+             ->select('bookings.*, ts.spot_name, ts.category')
+            ->join('tourist_spots ts', 'bookings.spot_id = ts.spot_id', 'left')
+            ->where('bookings.customer_id', $customerID)
+            ->orderBy('bookings.booking_date', 'DESC')
+            ->findAll();
         }
 
         return view('Pages/tourist/bookings', [
@@ -494,6 +495,77 @@ public function touristDashboard()
             'email'      => session()->get('Email'),
             'categories' => $categories,
         ]);
+    }
+
+    /**
+     * Save user category preferences (AJAX endpoint)
+     * Accepts JSON or form post: { categories: ['Historical','Natural', ...] }
+     * Stores as CSV in user_preferences.category (upserts single row per user)
+     */
+    public function savePreferences()
+    {
+        $session = session();
+        $userID = $session->get('UserID');
+        if (!$userID) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Not authenticated'])->setStatusCode(401);
+        }
+
+        $input = $this->request->getJSON(true) ?: $this->request->getPost();
+        $cats = $input['categories'] ?? ($input['categories_csv'] ?? null);
+
+        // Accept CSV string or array
+        if (is_string($cats)) {
+            $catsArr = array_filter(array_map('trim', explode(',', $cats)));
+        } elseif (is_array($cats)) {
+            $catsArr = array_map('trim', $cats);
+        } else {
+            return $this->response->setJSON(['success' => false, 'message' => 'Missing categories'], 422);
+        }
+
+        // Allowed categories (source of truth)
+        $allowed = ['Historical', 'Cultural', 'Natural', 'Recreational', 'Religious', 'Adventure', 'Ecotourism', 'Urban', 'Rural', 'Beach', 'Mountain', 'Resort', 'Park', 'Restaurant'];
+
+        // Normalize and filter
+        $selected = [];
+        foreach ($catsArr as $c) {
+            $c = trim($c);
+            if ($c === '') continue;
+            // Accept case-insensitive match to allowed list
+            foreach ($allowed as $a) {
+                if (strcasecmp($a, $c) === 0) {
+                    $selected[] = $a; // push canonical casing
+                    break;
+                }
+            }
+        }
+
+        $selected = array_values(array_unique($selected));
+
+        if (empty($selected)) {
+            return $this->response->setJSON(['success' => false, 'message' => 'No valid categories selected'], 422);
+        }
+
+        // Enforce maximum of 5 picks
+        if (count($selected) > 5) {
+            return $this->response->setJSON(['success' => false, 'message' => 'You may select up to 5 categories only'], 422);
+        }
+
+        $csv = implode(',', $selected);
+
+        try {
+            $prefModel = new \App\Models\UserPreferenceModel();
+            $existing = $prefModel->where('user_id', $userID)->first();
+            $now = date('Y-m-d H:i:s');
+            if ($existing) {
+                $prefModel->where('user_id', $userID)->set(['category' => $csv, 'updated_at' => $now])->update();
+            } else {
+                $prefModel->insert(['user_id' => $userID, 'category' => $csv, 'created_at' => $now]);
+            }
+            return $this->response->setJSON(['success' => true, 'categories' => $selected]);
+        } catch (\Throwable $e) {
+            log_message('error', 'savePreferences error: ' . $e->getMessage());
+            return $this->response->setJSON(['success' => false, 'message' => 'Server error while saving preferences'], 500);
+        }
     }
 
 
@@ -1206,6 +1278,43 @@ public function listUserTrips()
         try {
             $bookingModel = new \App\Models\BookingModel();
             $spotModel = new \App\Models\TouristSpotModel();
+            $db = \Config\Database::connect();
+
+            // Determine whether bookings table expects customer_id (FK) or user_id
+            $bookingFields = [];
+            try {
+                if ($db->tableExists('bookings')) {
+                    $bookingFields = $db->getFieldNames('bookings');
+                }
+            } catch (\Throwable $e) {
+                $bookingFields = [];
+            }
+
+            $customerRefField = null; // 'customer_id' or 'user_id'
+            $customerRefValue = null;
+            if (!empty($bookingFields) && in_array('customer_id', $bookingFields, true)) {
+                // bookings.customer_id exists and is FK -> resolve customers.customer_id for this user
+                $customerRefField = 'customer_id';
+                try {
+                    $customerModel = new \App\Models\CustomerModel();
+                    $cust = $customerModel->where('user_id', $userID)->first();
+                    if ($cust && !empty($cust['customer_id'])) {
+                        $customerRefValue = $cust['customer_id'];
+                    } else {
+                        // create a minimal customer record so FK will accept it
+                        $now = date('Y-m-d H:i:s');
+                        $ins = $customerModel->insert(['user_id' => $userID, 'created_at' => $now]);
+                        $customerRefValue = $customerModel->getInsertID() ?: ($ins ?: null);
+                    }
+                } catch (\Throwable $e) {
+                    // If we cannot resolve/create customer, leave null and let DB return FK error which will be logged
+                    $customerRefValue = null;
+                }
+            } elseif (!empty($bookingFields) && in_array('user_id', $bookingFields, true)) {
+                // bookings table stores user_id directly
+                $customerRefField = 'user_id';
+                $customerRefValue = $userID;
+            }
 
             // Support bulk itinerary payloads: { itinerary: [ { day_number, date, activities: [ ... ] }, ... ] }
             $itinerary = $input['itinerary'] ?? null;
@@ -1251,7 +1360,6 @@ public function listUserTrips()
 
                         $data = [
                             'spot_id' => $spotIdAct,
-                            'customer_id' => $userID,
                             'booking_date' => date('Y-m-d'),
                             'visit_date' => $visit_date_to_use,
                             'visit_time' => $visit_time,
@@ -1267,6 +1375,9 @@ public function listUserTrips()
                             'special_requests' => $act['notes'] ?? $input['special_requests'] ?? null,
                             'created_at' => date('Y-m-d H:i:s')
                         ];
+                        if ($customerRefField && $customerRefValue !== null) {
+                            $data[$customerRefField] = $customerRefValue;
+                        }
 
                         $insertId = $bookingModel->insert($data);
                         if ($insertId === false) {
@@ -1282,9 +1393,8 @@ public function listUserTrips()
 
             // Legacy single booking path
             $totalGuests = $numAdults + $numChildren + $numSeniors;
-            $data = [
+                        $data = [
                 'spot_id' => $spotId,
-                'customer_id' => $userID,
                 'booking_date' => date('Y-m-d'),
                 'visit_date' => $visitDate,
                 'visit_time' => $visitTime,
@@ -1300,6 +1410,9 @@ public function listUserTrips()
                 'special_requests' => $specialRequests,
                 'created_at' => date('Y-m-d H:i:s')
             ];
+            if ($customerRefField && $customerRefValue !== null) {
+                $data[$customerRefField] = $customerRefValue;
+            }
 
             $insertId = $bookingModel->insert($data);
 if ($insertId === false) {
