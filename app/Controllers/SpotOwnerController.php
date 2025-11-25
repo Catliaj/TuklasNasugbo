@@ -603,7 +603,7 @@ public function updateSpot($id)
         $businessID = $businessData['business_id'];
 
         // Get bookings related to this business
-        $bookings = $bookingModel->getBookingsByBusinessID($businessID);
+        $bookings = $bookingModel->getBookingsByBusinessID($userID);
 
         return $this->response->setJSON($bookings);
     }
@@ -630,8 +630,6 @@ public function updateSpot($id)
         $model->update($id, ['booking_status' => 'Rejected']);
         return $this->response->setJSON(['success' => true]);
     }
-
-
 
 /**
  * API: Get monthly revenue data for chart
