@@ -234,8 +234,8 @@ public function getTopPerformingDays($businessID, $limit = 5)
     $sql = "
         SELECT 
             DATE(b.booking_date) AS booking_date,
-            ANY_VALUE(DAYNAME(b.booking_date)) AS day_name,
-            ANY_VALUE(DATE_FORMAT(DATE(b.booking_date), '%b %d')) AS formatted_date,
+            DAYNAME(MIN(b.booking_date)) AS day_name,
+            DATE_FORMAT(MIN(DATE(b.booking_date)), '%b %d') AS formatted_date,
             COUNT(b.booking_id) AS bookings,
             SUM(b.total_price) AS revenue
         FROM bookings b
@@ -345,17 +345,16 @@ public function getTopPerformingDays($businessID, $limit = 5)
 
     //will get the name of the customer total_guestfrom users table by joining bookings.customer_id = users.user_id and get the booking by business id
     public function getBookingsByBusinessID($businessID)
-{
-    $builder = $this->db->table('bookings b');
-    $builder->select('b.*, CONCAT(u.FirstName, " ", u.LastName) as customer_name, u.email, c.phone as phone');
-    $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
-    $builder->join('users u', 'b.customer_id = u.UserID', 'left');
-    $builder->join('customers c', 'b.customer_id = c.customer_id', 'left');
-    $builder->where('ts.business_id', $businessID);
-
-    // No GROUP BY needed — booking_id is unique, b.* is safe without grouping
-    return $builder->get()->getResultArray();
-}
+    {
+        $builder = $this->db->table('bookings b');
+        $builder->select('b.*, CONCAT(u.FirstName, " ", u.LastName) as customer_name, u.email, c.phone as phone');
+        $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
+        $builder->join('users u', 'b.customer_id = u.UserID', 'left');
+        $builder->join('customers c', 'b.customer_id = c.customer_id', 'left');
+        $builder->where('ts.business_id', $businessID);
+        // No GROUP BY needed — booking_id is unique, b.* is safe without grouping
+        return $builder->get()->getResultArray();
+    }
 
     //will get the name of the customer total_guestfrom users table by joining bookings.customer_id = users.user_id and get the booking by spot id email and phone number 
     public function getBookingDetails($bookingID)
