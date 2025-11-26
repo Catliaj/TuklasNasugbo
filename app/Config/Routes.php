@@ -70,10 +70,10 @@ $routes->get('spotowner/notifications/list', 'SpotOwnerController::getNotificati
 $routes->post('spotowner/notifications/mark-read/(:num)', 'SpotOwnerController::markNotificationAsRead/$1');
 $routes->post('spotowner/notifications/mark-all-read', 'SpotOwnerController::markAllNotificationsAsRead');
 
-//spot owner earnings API routes - ADD THESE THREE LINES
-$routes->get('spotowner/api/monthly-revenue', 'SpotOwnerController::getMonthlyRevenueData');
-$routes->get('spotowner/api/weekly-revenue', 'SpotOwnerController::getWeeklyRevenueData');
-$routes->get('spotowner/api/booking-trends', 'SpotOwnerController::getBookingTrendsData');
+//spot owner earnings API routes - point chart endpoints to SpotOwner\Api controller
+$routes->get('spotowner/api/monthly-revenue', 'SpotOwner\Api::monthlyRevenue');
+$routes->get('spotowner/api/weekly-revenue', 'SpotOwner\Api::weeklyRevenue');
+$routes->get('spotowner/api/booking-trends', 'SpotOwner\Api::bookingTrends');
 $routes->get('spotowner/api/dashboard-analytics', 'SpotOwnerController::getDashboardAnalytics');
 $routes->get('spotowner/api/spot-analytics/(:num)', 'SpotOwnerController::getSpotAnalytics/$1');
 
@@ -160,7 +160,4 @@ $routes->post('spotowner/confirmBooking/(:num)', 'SpotOwnerController::confirmBo
 $routes->get('api/attractions/top/(:num)?', 'AttractionsController::topSpotsAjax/$1');
 $routes->post('api/attractions/view', 'AttractionsController::logViewAjax');
 
-// SpotOwner API endpoints for charts
-$routes->get('spotowner/api/monthly-revenue', 'SpotOwner\Api::monthlyRevenue');
-$routes->get('spotowner/api/weekly-revenue',  'SpotOwner\Api::weeklyRevenue');
-$routes->get('spotowner/api/booking-trends',  'SpotOwner\Api::bookingTrends');
+// SpotOwner API endpoints for charts (defined above)
