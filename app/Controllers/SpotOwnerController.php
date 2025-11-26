@@ -660,23 +660,18 @@ public function getMonthlyRevenueData()
         
         $businessID = $business->business_id;
         
-        // Get last 6 months revenue with proper month names
-        $query = $db->query("\
-                SELECT 
-                    DATE_FORMAT(b.booking_date, '%Y-%m') as month,
-                    MIN(DATE_FORMAT(b.booking_date, '%b %Y')) as month_name,
-                    SUM(b.total_price) as revenue,
-                    COUNT(b.booking_id) as bookings
-            FROM bookings b
-            INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
-            WHERE ts.business_id = ?
-                AND b.booking_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
-                AND b.booking_status IN ('Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out')
-                AND b.payment_status = 'Paid'
-            GROUP BY DATE_FORMAT(b.booking_date, '%Y-%m')
-            ORDER BY month ASC
-        ", [$businessID]);
-        
+        // Get last 6 months revenue with proper month names (use Query Builder to avoid raw string escaping issues)
+        $builder = $db->table('bookings b')
+            ->select("DATE_FORMAT(b.booking_date, '%Y-%m') as month, MIN(DATE_FORMAT(b.booking_date, '%b %Y')) as month_name, SUM(b.total_price) as revenue, COUNT(b.booking_id) as bookings", false)
+            ->join('tourist_spots ts', 'b.spot_id = ts.spot_id')
+            ->where('ts.business_id', $businessID)
+            ->where("b.booking_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)")
+            ->whereIn('b.booking_status', ['Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out'])
+            ->where('b.payment_status', 'Paid')
+            ->groupBy("DATE_FORMAT(b.booking_date, '%Y-%m')")
+            ->orderBy('month', 'ASC');
+
+        $query = $builder->get();
         $results = $query->getResultArray();
 
         // Compute previous-month comparison (prev_revenue and change_percent) for each month row
@@ -800,21 +795,16 @@ public function getBookingTrendsData()
         
         $businessID = $business->business_id;
         
-        // Get last 6 months booking trends
-        $query = $db->query("\
-                SELECT 
-                    DATE_FORMAT(b.booking_date, '%Y-%m') as month,
-                    MIN(DATE_FORMAT(b.booking_date, '%b %Y')) as month_name,
-                    b.booking_status,
-                    COUNT(b.booking_id) as count
-            FROM bookings b
-            INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
-            WHERE ts.business_id = ?
-                AND b.booking_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
-            GROUP BY DATE_FORMAT(b.booking_date, '%Y-%m'), b.booking_status
-            ORDER BY month ASC
-        ", [$businessID]);
+        // Get last 6 months booking trends (use Query Builder to avoid raw string escaping issues)
+        $builder = $db->table('bookings b')
+            ->select("DATE_FORMAT(b.booking_date, '%Y-%m') as month, MIN(DATE_FORMAT(b.booking_date, '%b %Y')) as month_name, b.booking_status, COUNT(b.booking_id) as count", false)
+            ->join('tourist_spots ts', 'b.spot_id = ts.spot_id')
+            ->where('ts.business_id', $businessID)
+            ->where("b.booking_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)")
+            ->groupBy(["DATE_FORMAT(b.booking_date, '%Y-%m')", 'b.booking_status'])
+            ->orderBy('month', 'ASC');
 
+        $query = $builder->get();
         $results = $query->getResultArray();
 
         // Compute month totals (sum across statuses) and prev-month comparisons
