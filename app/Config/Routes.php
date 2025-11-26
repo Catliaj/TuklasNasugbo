@@ -119,6 +119,9 @@ $routes->get('/tourist/dashboardStats', 'TouristController::dashboardStats');
 // Save user category preferences
 $routes->post('/tourist/savePreferences', 'TouristController::savePreferences');
 
+// Cancel booking (tourist) - accepts optional POST body { reason: '...' }
+$routes->post('/tourist/cancelBooking/(:num)', 'TouristController::cancelBooking/$1');
+
 // Save review (AJAX)
 $routes->post('/tourist/saveReview', 'TouristController::saveReview');
 

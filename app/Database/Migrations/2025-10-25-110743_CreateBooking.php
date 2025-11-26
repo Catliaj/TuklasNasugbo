@@ -87,7 +87,7 @@ class CreateBooking extends Migration
             ],
             'booking_status' => [
                 'type'       => 'ENUM',
-                'constraint' => ['Pending', 'Confirmed', 'Cancelled', 'Completed', 'Checked-In', 'Checked-Out'],
+                'constraint' => ['Pending', 'Confirmed', 'Cancelled', 'Completed', 'Checked-In', 'Checked-Out', 'Rejected'],
                 'null'       => true,
             ],
             'payment_status' => [

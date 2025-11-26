@@ -208,10 +208,13 @@ public function getRecentTransactionsByBusiness($businessID, $limit = 5)
     b.booking_date,
     b.total_price,
     b.booking_status,
-    CONCAT(u.FirstName, ' ', u.LastName) AS customer_name
+    CONCAT(COALESCE(u.FirstName, ''), ' ', COALESCE(u.LastName, '')) AS customer_name,
+    u.email AS email,
+    c.phone AS phone
     FROM bookings b
     INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
-    INNER JOIN users u ON b.customer_id = u.UserID
+    LEFT JOIN customers c ON b.customer_id = c.customer_id
+    LEFT JOIN users u ON u.UserID = COALESCE(c.user_id, b.customer_id)
     WHERE ts.business_id = ?
     ORDER BY b.booking_date DESC
     LIMIT ?
@@ -347,10 +350,12 @@ public function getTopPerformingDays($businessID, $limit = 5)
     public function getBookingsByBusinessID($businessID)
     {
         $builder = $this->db->table('bookings b');
-        $builder->select('b.*, CONCAT(u.FirstName, " ", u.LastName) as customer_name, u.email, c.phone as phone');
+        // Join customers first (customer_id refers to customers.customer_id)
+        // Then join users using customers.user_id when present, otherwise fallback to bookings.customer_id
+        $builder->select('b.*, CONCAT(COALESCE(u.FirstName, ""), " ", COALESCE(u.LastName, "")) as customer_name, u.email as email, c.phone as phone');
         $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
-        $builder->join('users u', 'b.customer_id = u.UserID', 'left');
         $builder->join('customers c', 'b.customer_id = c.customer_id', 'left');
+        $builder->join('users u', 'u.UserID = COALESCE(c.user_id, b.customer_id)', 'left');
         $builder->where('ts.business_id', $businessID);
         // No GROUP BY needed — booking_id is unique, b.* is safe without grouping
         return $builder->get()->getResultArray();
@@ -360,9 +365,9 @@ public function getTopPerformingDays($businessID, $limit = 5)
     public function getBookingDetails($bookingID)
 {
     $builder = $this->db->table('bookings b');
-    $builder->select('b.*, CONCAT(u.FirstName, " ", u.LastName) as customer_name, u.email as email, c.phone as phone');
-    $builder->join('users u', 'b.customer_id = u.UserID', 'left');
-    $builder->join('customers c', 'b.customer_id = c.customer_id', 'left');
+        $builder->select('b.*, CONCAT(COALESCE(u.FirstName, ""), " ", COALESCE(u.LastName, "")) as customer_name, u.email as email, c.phone as phone');
+        $builder->join('customers c', 'b.customer_id = c.customer_id', 'left');
+        $builder->join('users u', 'u.UserID = COALESCE(c.user_id, b.customer_id)', 'left');
     $builder->where('b.booking_id', $bookingID);
 
     return $builder->get()->getRowArray();

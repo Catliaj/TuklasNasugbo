@@ -603,7 +603,7 @@ public function updateSpot($id)
         $businessID = $businessData['business_id'];
 
         // Get bookings related to this business
-        $bookings = $bookingModel->getBookingsByBusinessID($userID);
+        $bookings = $bookingModel->getBookingsByBusinessID($businessID);
 
         return $this->response->setJSON($bookings);
     }
