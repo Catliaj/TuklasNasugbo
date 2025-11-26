@@ -373,6 +373,29 @@
         // Use relative paths to avoid origin/subfolder mismatches on shared hosts
         const base = '';
 
+        let _authBannerShown = false;
+        function showAuthExpiredBanner(bodyText){
+            if(_authBannerShown) return;
+            _authBannerShown = true;
+            try{
+                const banner = document.createElement('div');
+                banner.id = 'authExpiredBanner';
+                banner.className = 'alert alert-warning text-center';
+                banner.style.position = 'fixed';
+                banner.style.top = '0';
+                banner.style.left = '0';
+                banner.style.right = '0';
+                banner.style.zIndex = '1050';
+                banner.style.margin = '0';
+                banner.style.borderRadius = '0';
+                banner.innerHTML = `<strong>Session expired</strong> — you will be redirected to the login page. ${bodyText ? '<small class="d-block">' + escapeHtml(bodyText).slice(0,200) + '...</small>' : ''} <button class="btn btn-sm btn-link" id="authNowBtn">Sign in now</button>`;
+                document.body.appendChild(banner);
+                document.getElementById('authNowBtn').addEventListener('click', function(){ window.location.href = '/users/login'; });
+                // Auto-redirect after 3s
+                setTimeout(()=> { window.location.href = '/users/login'; }, 3000);
+            }catch(e){ console.warn('Failed to show auth banner', e); window.location.href = '/users/login'; }
+        }
+
         async function fetchJson(url){
             const r = await fetch(url, {credentials: 'same-origin'});
             if(!r.ok){
@@ -380,6 +403,10 @@
                 let body = null;
                 try{ body = await r.text(); }catch(e){ body = '<unable to read body>'; }
                 console.error(`fetchJson: ${url} returned ${r.status} ${r.statusText}:`, body);
+                // If unauthorized, show friendly banner and redirect
+                if(r.status === 401){
+                    showAuthExpiredBanner(body);
+                }
                 // surface a clearer error for callers
                 const err = new Error('HTTP ' + r.status + ' ' + r.statusText);
                 err.status = r.status;
