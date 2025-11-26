@@ -1468,6 +1468,95 @@ return $this->response->setJSON(['success' => true, 'booking_id' => $insertId]);
         
     }
 
+    /**
+     * Cancel a booking owned by the current tourist.
+     * POST /tourist/cancelBooking/{bookingId}
+     * Accepts JSON or form post: { reason: 'optional text' }
+     */
+    public function cancelBooking($bookingId)
+    {
+        $session = session();
+        $userID = $session->get('UserID');
+        if (!$userID) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Not logged in'])->setStatusCode(401);
+        }
+
+        $bookingId = (int) $bookingId;
+        if ($bookingId <= 0) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Invalid booking id'])->setStatusCode(400);
+        }
+
+        try {
+            $db = \Config\Database::connect();
+            $bookingModel = new \App\Models\BookingModel();
+            $booking = $bookingModel->find($bookingId);
+            if (!$booking) {
+                return $this->response->setJSON(['success' => false, 'message' => 'Booking not found'])->setStatusCode(404);
+            }
+
+            // Determine ownership: bookings may reference customers.customer_id or users.UserID
+            $fields = [];
+            try {
+                $fields = $db->getFieldNames('bookings');
+            } catch (\Throwable $e) {
+                $fields = [];
+            }
+
+            $isOwner = false;
+            // If bookings has customer_id column, resolve customer's customer_id for this user
+            if (!empty($fields) && in_array('customer_id', $fields, true)) {
+                try {
+                    $customerModel = new \App\Models\CustomerModel();
+                    $cust = $customerModel->where('user_id', $userID)->first();
+                    $customerID = $cust['customer_id'] ?? null;
+                    if ($customerID !== null && (string)$booking['customer_id'] === (string)$customerID) {
+                        $isOwner = true;
+                    }
+                } catch (\Throwable $e) {
+                    // ignore
+                }
+            }
+
+            // Fallback: if bookings has user_id column, compare directly
+            if (!$isOwner && !empty($fields) && in_array('user_id', $fields, true)) {
+                if ((string)($booking['user_id'] ?? '') === (string)$userID) $isOwner = true;
+            }
+
+            // Final fallback: some installs store booking.customer_id directly as users.UserID
+            if (!$isOwner) {
+                if (isset($booking['customer_id']) && (string)$booking['customer_id'] === (string)$userID) {
+                    $isOwner = true;
+                }
+            }
+
+            if (!$isOwner) {
+                return $this->response->setJSON(['success' => false, 'message' => 'Forbidden: you do not own this booking'])->setStatusCode(403);
+            }
+
+            // Read cancellation reason from JSON or form
+            $input = $this->request->getJSON(true) ?: $this->request->getPost();
+            $reason = $input['reason'] ?? $input['cancellation_reason'] ?? $this->request->getPost('reason') ?? null;
+
+            // Build update payload; only include optional columns if they exist in table
+            $update = ['booking_status' => 'cancelled', 'updated_at' => date('Y-m-d H:i:s')];
+            if (!empty($fields) && in_array('cancellation_reason', $fields, true)) {
+                $update['cancellation_reason'] = $reason;
+            } elseif (!empty($fields) && in_array('cancel_reason', $fields, true)) {
+                $update['cancel_reason'] = $reason;
+            }
+            if (!empty($fields) && in_array('cancelled_at', $fields, true)) {
+                $update['cancelled_at'] = date('Y-m-d H:i:s');
+            }
+
+            $bookingModel->update($bookingId, $update);
+
+            return $this->response->setJSON(['success' => true, 'message' => 'Booking cancelled']);
+        } catch (\Throwable $e) {
+            log_message('error', 'cancelBooking error: ' . $e->getMessage());
+            return $this->response->setJSON(['success' => false, 'message' => 'Server error while cancelling booking'])->setStatusCode(500);
+        }
+    }
+
     public function viewSpotDetails($spot_id)
     {
         $spotModel = new TouristSpotModel();
