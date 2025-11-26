@@ -72,15 +72,25 @@ function loadMonthlyRevenueChart() {
         .then(data => {
             console.log('Monthly Revenue Data:', data);
 
-            if (!data || data.length === 0) {
+            // Support two API shapes:
+            // 1) Legacy: API returns an array of rows
+            // 2) New: API returns an object { months: [...], monthly: [...], by_spot: [...] }
+            let rows = [];
+            if (!data) rows = [];
+            else if (Array.isArray(data)) rows = data;
+            else if (Array.isArray(data.monthly)) rows = data.monthly;
+            else if (Array.isArray(data.data)) rows = data.data; // defensive
+            else rows = [];
+
+            if (!rows || rows.length === 0) {
                 console.warn('No data returned from API');
                 showChartError('No data available for the selected period');
                 return;
             }
 
-            const labels = data.map(item => item.month_name || 'Unknown');
-            const revenues = data.map(item => parseFloat(item.revenue) || 0);
-            const bookings = data.map(item => parseInt(item.bookings) || 0);
+            const labels = rows.map(item => item.month_name || item.month || 'Unknown');
+            const revenues = rows.map(item => parseFloat(item.revenue) || 0);
+            const bookings = rows.map(item => parseInt(item.bookings) || 0);
 
             // Calculate totals
             const totalRevenue = revenues.reduce((a, b) => a + b, 0);
