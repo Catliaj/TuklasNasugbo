@@ -136,7 +136,7 @@
             <div class="d-flex justify-content-between align-items-start">
                 <div>
                     <div class="stat-label">Total Revenue</div>
-                    <div class="stat-value">₱<?= number_format($totalRevenue ?? 0, 2) ?></div>
+                    <div class="stat-value" id="statTotalRevenue">₱<?= number_format($totalRevenue ?? 0, 2) ?></div>
                     <div class="stat-description">All time</div>
                 </div>
                 <div class="stat-icon">
@@ -151,7 +151,7 @@
             <div class="d-flex justify-content-between align-items-start">
                 <div>
                     <div class="stat-label">This Month</div>
-                    <div class="stat-value">₱<?= number_format($monthlyRevenue ?? 0, 2) ?></div>
+                    <div class="stat-value" id="statMonthlyRevenue">₱<?= number_format($monthlyRevenue ?? 0, 2) ?></div>
                     <div class="stat-description">
                         <?php if(isset($comparison) && $comparison['change'] != 0): ?>
                             <span class="<?= $comparison['direction'] == 'up' ? 'text-success' : 'text-danger' ?>">
@@ -175,8 +175,8 @@
             <div class="d-flex justify-content-between align-items-start">
                 <div>
                     <div class="stat-label">Avg. Per Booking</div>
-                    <div class="stat-value">₱<?= number_format($averageRevenue ?? 0, 2) ?></div>
-                    <div class="stat-description">Based on <?= $totalBookings ?? 0 ?> bookings</div>
+                    <div class="stat-value" id="statAverageRevenue">₱<?= number_format($averageRevenue ?? 0, 2) ?></div>
+                    <div class="stat-description">Based on <span id="statBookingsCount"><?= $totalBookings ?? 0 ?></span> bookings</div>
                 </div>
                 <div class="stat-icon">
                     <i class="bi bi-receipt"></i>
@@ -190,7 +190,7 @@
             <div class="d-flex justify-content-between align-items-start">
                 <div>
                     <div class="stat-label">Pending</div>
-                    <div class="stat-value">₱<?= number_format($pendingRevenue ?? 0, 2) ?></div>
+                    <div class="stat-value" id="statPendingRevenue">₱<?= number_format($pendingRevenue ?? 0, 2) ?></div>
                     <div class="stat-description">From pending bookings</div>
                 </div>
                 <div class="stat-icon">
@@ -258,31 +258,37 @@
                                     <p class="custom-card-description">Latest payment activities</p>
                                 </div>
                                 <div class="custom-card-body">
-                                    <?php if (!empty($recentTransactions)): ?>
-                                        <div class="list-group list-group-flush">
-                                            <?php foreach ($recentTransactions as $transaction): ?>
-                                                <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
-                                                    <div>
-                                                        <div class="fw-medium"><?= esc($transaction['customer_name']) ?></div>
-                                                        <small class="text-muted-custom">
-                                                            <?= date('M d, Y', strtotime($transaction['booking_date'])) ?>
-                                                            <?php if ($transaction['booking_status'] == 'Pending'): ?>
-                                                                (Pending)
-                                                            <?php endif; ?>
-                                                        </small>
+                                    <div id="recentTransactionsList">
+                                        <?php if (!empty($recentTransactions)): ?>
+                                            <div class="list-group list-group-flush">
+                                                <?php foreach ($recentTransactions as $transaction): ?>
+                                                    <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                                                        <div>
+                                                            <div class="fw-medium"><?= esc($transaction['customer_name']) ?></div>
+                                                            <small class="text-muted-custom">
+                                                                <?= date('M d, Y', strtotime($transaction['booking_date'])) ?>
+                                                                <?php if ($transaction['booking_status'] == 'Pending'): ?>
+                                                                    <span class="badge bg-warning text-dark ms-2">Pending</span>
+                                                                <?php elseif(in_array($transaction['booking_status'], ['Confirmed','Checked-in','Checked-out','Completed'])): ?>
+                                                                    <span class="badge bg-success ms-2"><?= esc($transaction['booking_status']) ?></span>
+                                                                <?php else: ?>
+                                                                    <span class="badge bg-secondary ms-2"><?= esc($transaction['booking_status']) ?></span>
+                                                                <?php endif; ?>
+                                                            </small>
+                                                        </div>
+                                                        <span class="fw-medium <?= $transaction['booking_status'] == 'Confirmed' ? 'text-success' : 'text-muted' ?>">
+                                                            <?= $transaction['booking_status'] == 'Confirmed' ? '+' : '' ?>₱<?= number_format($transaction['total_price'], 2) ?>
+                                                        </span>
                                                     </div>
-                                                    <span class="fw-medium <?= $transaction['booking_status'] == 'Confirmed' ? 'text-success' : 'text-warning' ?>">
-                                                        <?= $transaction['booking_status'] == 'Confirmed' ? '+' : '' ?>₱<?= number_format($transaction['total_price'], 2) ?>
-                                                    </span>
-                                                </div>
-                                            <?php endforeach; ?>
-                                        </div>
-                                    <?php else: ?>
-                                        <div class="text-center py-4 text-muted-custom">
-                                            <i class="bi bi-inbox fs-1"></i>
-                                            <p class="mb-0 mt-2">No recent transactions</p>
-                                        </div>
-                                    <?php endif; ?>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        <?php else: ?>
+                                            <div class="text-center py-4 text-muted-custom">
+                                                <i class="bi bi-inbox fs-1"></i>
+                                                <p class="mb-0 mt-2">No recent transactions</p>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -360,6 +366,151 @@
     
     <!-- Notification System -->
     <script src="<?= base_url('assets/js/spotownerJS/notifications.js') ?>"></script>
+    
+    <!-- Inline: dynamic earnings summary & recent transactions updater -->
+    <script>
+    (function(){
+        const base = window.location.origin;
+
+        async function fetchJson(url){
+            const r = await fetch(url, {credentials: 'same-origin'});
+            if(!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        }
+
+        // Update summary cards: monthly revenue, avg per booking, pending revenue
+        async function updateEarningsSummary(){
+            try{
+                const monthly = await fetchJson(base + '/spotowner/api/monthly-revenue');
+                const bookings = await fetchJson(base + '/spotowner/getBookings');
+
+                // Determine current month key YYYY-MM
+                const now = new Date();
+                const curKey = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+
+                let thisMonthRow = monthly.find(m => m.month === curKey) || null;
+                let thisMonthRevenue = thisMonthRow ? parseFloat(thisMonthRow.revenue) : 0;
+                let thisMonthBookings = thisMonthRow ? parseInt(thisMonthRow.bookings || 0) : 0;
+
+                // Fallback: compute from bookings list if API did not return current month
+                if(thisMonthBookings === 0){
+                    const filtered = bookings.filter(b => {
+                        const d = new Date(b.booking_date);
+                        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+                    });
+                    thisMonthBookings = filtered.length;
+                    thisMonthRevenue = filtered.reduce((s,b) => s + (parseFloat(b.total_price)||0), 0);
+                }
+
+                // Pending revenue: sum unpaid/pending bookings in current month
+                const pending = bookings.reduce((s,b) => {
+                    const d = new Date(b.booking_date);
+                    if(d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth()){
+                        const pay = (b.payment_status || '').toLowerCase();
+                        if(pay !== 'paid') return s + (parseFloat(b.total_price)||0);
+                    }
+                    return s;
+                }, 0);
+
+                // Average per booking for this month
+                const avg = thisMonthBookings > 0 ? (thisMonthRevenue / thisMonthBookings) : 0;
+
+                // Update DOM
+                const toCurrency = v => '₱' + Number(v || 0).toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2});
+                const elMonthly = document.getElementById('statMonthlyRevenue');
+                if(elMonthly) elMonthly.textContent = toCurrency(thisMonthRevenue);
+
+                const elAvg = document.getElementById('statAverageRevenue');
+                if(elAvg) elAvg.textContent = toCurrency(avg);
+
+                const elPending = document.getElementById('statPendingRevenue');
+                if(elPending) elPending.textContent = toCurrency(pending);
+
+                const elBookings = document.getElementById('statBookingsCount');
+                if(elBookings) elBookings.textContent = thisMonthBookings;
+
+                // Set total revenue (sum of returned months) if present
+                try{
+                    const totalRevenue = Array.isArray(monthly) ? monthly.reduce((s,m)=> s + (parseFloat(m.revenue)||0), 0) : 0;
+                    const elTotal = document.getElementById('statTotalRevenue');
+                    if(elTotal) elTotal.textContent = toCurrency(totalRevenue);
+                }catch(e){}
+
+                // Also warm-up weekly and booking-trends endpoints so charts can use cached responses
+                try{
+                    fetchJson(base + '/spotowner/api/weekly-revenue').catch(()=>{});
+                    fetchJson(base + '/spotowner/api/booking-trends').catch(()=>{});
+                }catch(e){}
+
+            }catch(err){
+                console.warn('updateEarningsSummary failed', err);
+            }
+        }
+
+        // Render recent transactions: use /spotowner/getBookings and pick latest 5
+        async function updateRecentTransactions(){
+            try{
+                const bookings = await fetchJson(base + '/spotowner/getBookings');
+                if(!Array.isArray(bookings)) return;
+
+                bookings.sort((a,b)=> new Date(b.booking_date) - new Date(a.booking_date));
+                const recent = bookings.slice(0,5);
+
+                const container = document.getElementById('recentTransactionsList');
+                if(!container) return;
+
+                if(recent.length===0){
+                    container.innerHTML = `<div class="text-center py-4 text-muted-custom"><i class="bi bi-inbox fs-1"></i><p class="mb-0 mt-2">No recent transactions</p></div>`;
+                    return;
+                }
+
+                const rows = recent.map(tr => {
+                    const name = tr.customer_name || tr.customer || 'Unknown';
+                    const date = new Date(tr.booking_date);
+                    const dateStr = date.toLocaleString(undefined, {month:'short', day:'2-digit', year:'numeric'});
+                    const status = (tr.booking_status || '').toLowerCase();
+                    let badgeClass = 'bg-secondary text-white';
+                    if(['confirmed','checked-in','checked-in','checked-out','completed'].includes(status)) badgeClass = 'bg-success text-white';
+                    else if(status === 'pending') badgeClass = 'bg-warning text-dark';
+                    else if(['rejected','cancelled','canceled'].includes(status)) badgeClass = 'bg-danger text-white';
+
+                    const price = Number(tr.total_price||0).toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2});
+
+                    return `
+                        <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-medium">${escapeHtml(name)}</div>
+                                <small class="text-muted-custom">${dateStr} <span class="badge ${badgeClass} ms-2">${escapeHtml(tr.booking_status||'')}</span></small>
+                            </div>
+                            <span class="fw-medium ${status==='confirmed' ? 'text-success' : 'text-muted'}">${status==='confirmed' ? '+' : ''}₱${price}</span>
+                        </div>
+                    `;
+                }).join('');
+
+                container.innerHTML = `<div class="list-group list-group-flush">${rows}</div>`;
+
+            }catch(err){
+                console.warn('updateRecentTransactions failed', err);
+            }
+        }
+
+        function escapeHtml(s){
+            if(!s) return '';
+            return String(s).replace(/[&"'<>]/g, function(m){ return ({'&':'&amp;','"':'&quot;','\'':'&#39;','<':'&lt;','>':'&gt;'}[m]); });
+        }
+
+        // Initialize on page load (after other scripts)
+        document.addEventListener('DOMContentLoaded', function(){
+            updateEarningsSummary();
+            updateRecentTransactions();
+
+            // Refresh periodically (optional)
+            setInterval(updateEarningsSummary, 1000 * 60 * 2); // every 2 minutes
+            setInterval(updateRecentTransactions, 1000 * 60 * 2);
+        });
+
+    })();
+    </script>
 </body>
 
 </html>
