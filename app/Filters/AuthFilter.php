@@ -19,23 +19,51 @@ class AuthFilter implements FilterInterface
      */
     public function before(RequestInterface $request, $arguments = null)
     {
+        // Detect if request expects JSON (AJAX or Accept header)
+        $isAjax = false;
+        if (method_exists($request, 'isAJAX') && $request->isAJAX()) {
+            $isAjax = true;
+        }
+        $accept = '';
+        if (method_exists($request, 'getHeaderLine')) {
+            $accept = $request->getHeaderLine('Accept');
+        }
+        if (!$isAjax && stripos($accept, 'application/json') !== false) {
+            $isAjax = true;
+        }
+
         // 1. Check if the 'isLoggedIn' session variable exists and is true.
-        if (!session()->get('isLoggedIn')) {
-            // If the user is not logged in, redirect them to the main login page.
-            // We also send a flash message with an error.
+        if (! session()->get('isLoggedIn')) {
+            if ($isAjax) {
+                return service('response')
+                    ->setStatusCode(401)
+                    ->setJSON(['error' => 'Unauthorized', 'message' => 'You must be logged in to access this resource.']);
+            }
+
             return redirect()->to(base_url('/'))->with('error', 'You must be logged in to access this page.');
         }
 
-        // 2. If they are logged in, check if their role is 'Admin'.
-        // This is crucial for protecting the admin-specific pages.
-        if (session()->get('Role') !== 'Admin') {
-            // If the user is logged in but does not have the 'Admin' role,
-            // they are forbidden from accessing the page.
-            // We redirect them away with an error message.
-            return redirect()->to(base_url('/'))->with('error', 'Access Denied. You do not have permission to view this page.');
+        // If role arguments are provided in the filter usage, treat them as allowed roles.
+        // Example in Filters config: ['auth' => ['Admin','SpotOwner']]
+        $allowedRoles = [];
+        if (! empty($arguments)) {
+            $allowedRoles = is_array($arguments) ? $arguments : [$arguments];
         }
 
-        // If both checks pass, the filter does nothing and allows the request to continue to the controller.
+        if (! empty($allowedRoles)) {
+            $role = session()->get('Role');
+            if (! in_array($role, $allowedRoles)) {
+                if ($isAjax) {
+                    return service('response')
+                        ->setStatusCode(403)
+                        ->setJSON(['error' => 'Forbidden', 'message' => 'You do not have permission to access this resource.']);
+                }
+
+                return redirect()->to(base_url('/'))->with('error', 'Access Denied. You do not have permission to view this page.');
+            }
+        }
+
+        // If no allowed roles specified, any logged-in user is permitted to continue.
     }
 
     /**
