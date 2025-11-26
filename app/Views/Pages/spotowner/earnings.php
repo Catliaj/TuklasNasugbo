@@ -370,11 +370,22 @@
     <!-- Inline: dynamic earnings summary & recent transactions updater -->
     <script>
     (function(){
-        const base = window.location.origin;
+        // Use relative paths to avoid origin/subfolder mismatches on shared hosts
+        const base = '';
 
         async function fetchJson(url){
             const r = await fetch(url, {credentials: 'same-origin'});
-            if(!r.ok) throw new Error('HTTP ' + r.status);
+            if(!r.ok){
+                // try to read response body for more details
+                let body = null;
+                try{ body = await r.text(); }catch(e){ body = '<unable to read body>'; }
+                console.error(`fetchJson: ${url} returned ${r.status} ${r.statusText}:`, body);
+                // surface a clearer error for callers
+                const err = new Error('HTTP ' + r.status + ' ' + r.statusText);
+                err.status = r.status;
+                err.body = body;
+                throw err;
+            }
             return r.json();
         }
 
