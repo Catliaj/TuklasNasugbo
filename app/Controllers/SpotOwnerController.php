@@ -661,7 +661,7 @@ public function getMonthlyRevenueData()
         $businessID = $business->business_id;
         
         // Get last 6 months revenue with proper month names
-        $query = $db->query("
+        $query = $db->query("\
                 SELECT 
                     DATE_FORMAT(b.booking_date, '%Y-%m') as month,
                     MIN(DATE_FORMAT(b.booking_date, '%b %Y')) as month_name,
@@ -678,7 +678,38 @@ public function getMonthlyRevenueData()
         ", [$businessID]);
         
         $results = $query->getResultArray();
-        
+
+        // Compute previous-month comparison (prev_revenue and change_percent) for each month row
+        // Build a map of month => revenue
+        $monthMap = [];
+        foreach ($results as $row) {
+            $monthMap[$row['month']] = (float)$row['revenue'];
+        }
+
+        // Sort months to ensure chronological prev lookup (keys are YYYY-MM so string sort works)
+        $months = array_keys($monthMap);
+        sort($months, SORT_STRING);
+
+        $prevMap = [];
+        for ($i = 0; $i < count($months); $i++) {
+            $m = $months[$i];
+            $prev = $i > 0 ? $monthMap[$months[$i - 1]] : 0.0;
+            $prevMap[$m] = $prev;
+        }
+
+        // Attach comparison fields to results (preserve original ordering)
+        foreach ($results as &$row) {
+            $m = $row['month'];
+            $prev = $prevMap[$m] ?? 0.0;
+            $curr = (float)$row['revenue'];
+            $row['prev_revenue'] = $prev;
+            if ($prev > 0.0) {
+                $row['change_percent'] = round((($curr - $prev) / $prev) * 100, 1);
+            } else {
+                $row['change_percent'] = $prev == 0.0 && $curr > 0.0 ? 100.0 : 0.0;
+            }
+        }
+
         return $this->response->setJSON($results);
         
     } catch (\Exception $e) {
@@ -770,21 +801,51 @@ public function getBookingTrendsData()
         $businessID = $business->business_id;
         
         // Get last 6 months booking trends
-        $query = $db->query("
+        $query = $db->query("\
                 SELECT 
                     DATE_FORMAT(b.booking_date, '%Y-%m') as month,
                     MIN(DATE_FORMAT(b.booking_date, '%b %Y')) as month_name,
-                    COUNT(b.booking_id) as bookings
+                    b.booking_status,
+                    COUNT(b.booking_id) as count
             FROM bookings b
             INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
             WHERE ts.business_id = ?
                 AND b.booking_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
-            GROUP BY DATE_FORMAT(b.booking_date, '%Y-%m')
+            GROUP BY DATE_FORMAT(b.booking_date, '%Y-%m'), b.booking_status
             ORDER BY month ASC
         ", [$businessID]);
-        
+
         $results = $query->getResultArray();
-        
+
+        // Compute month totals (sum across statuses) and prev-month comparisons
+        $monthTotals = [];
+        foreach ($results as $r) {
+            $m = $r['month'];
+            $monthTotals[$m] = ($monthTotals[$m] ?? 0) + (int)$r['count'];
+        }
+
+        $months = array_keys($monthTotals);
+        sort($months, SORT_STRING);
+
+        $prevTotals = [];
+        for ($i = 0; $i < count($months); $i++) {
+            $m = $months[$i];
+            $prevTotals[$m] = $i > 0 ? $monthTotals[$months[$i - 1]] : 0;
+        }
+
+        // Attach month_total and change_percent to each row (JS will ignore unknown fields but they are useful)
+        foreach ($results as &$row) {
+            $m = $row['month'];
+            $monthTotal = $monthTotals[$m] ?? 0;
+            $prev = $prevTotals[$m] ?? 0;
+            $row['month_total'] = $monthTotal;
+            if ($prev > 0) {
+                $row['change_percent'] = round((($monthTotal - $prev) / $prev) * 100, 1);
+            } else {
+                $row['change_percent'] = $prev == 0 && $monthTotal > 0 ? 100.0 : 0.0;
+            }
+        }
+
         return $this->response->setJSON($results);
         
     } catch (\Exception $e) {
