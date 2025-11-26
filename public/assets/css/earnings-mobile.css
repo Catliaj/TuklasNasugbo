@@ -1,0 +1,11 @@
+/* Fallback mobile styles for earnings page - keeps compatibility with main.css
+   Created to avoid 404 on deployments where this file was referenced
+*/
+@import url('main.css');
+
+/* Small mobile-specific tweaks (override as needed) */
+@media (max-width: 767px) {
+  .stat-card { padding: 0.75rem; }
+  .custom-card { padding: 0.75rem; }
+  #chartContainer { min-height: 320px; }
+}

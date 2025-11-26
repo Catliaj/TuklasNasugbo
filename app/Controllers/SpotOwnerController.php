@@ -662,11 +662,11 @@ public function getMonthlyRevenueData()
         
         // Get last 6 months revenue with proper month names
         $query = $db->query("
-            SELECT 
-                DATE_FORMAT(b.booking_date, '%Y-%m') as month,
-                DATE_FORMAT(b.booking_date, '%b %Y') as month_name,
-                SUM(b.total_price) as revenue,
-                COUNT(b.booking_id) as bookings
+                SELECT 
+                    DATE_FORMAT(b.booking_date, '%Y-%m') as month,
+                    MIN(DATE_FORMAT(b.booking_date, '%b %Y')) as month_name,
+                    SUM(b.total_price) as revenue,
+                    COUNT(b.booking_id) as bookings
             FROM bookings b
             INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
             WHERE ts.business_id = ?
@@ -716,12 +716,12 @@ public function getWeeklyRevenueData()
         
         // Get last 8 weeks revenue
         $query = $db->query("
-            SELECT 
-                DATE_FORMAT(b.booking_date, '%Y-%u') as week,
-                DATE_FORMAT(DATE_SUB(b.booking_date, INTERVAL WEEKDAY(b.booking_date) DAY), '%b %d') as week_start,
-                DATE_FORMAT(DATE_ADD(DATE_SUB(b.booking_date, INTERVAL WEEKDAY(b.booking_date) DAY), INTERVAL 6 DAY), '%b %d') as week_end,
-                SUM(b.total_price) as revenue,
-                COUNT(b.booking_id) as bookings
+                SELECT 
+                    DATE_FORMAT(b.booking_date, '%Y-%u') as week,
+                    MIN(DATE_FORMAT(DATE_SUB(b.booking_date, INTERVAL WEEKDAY(b.booking_date) DAY), '%b %d')) as week_start,
+                    MAX(DATE_FORMAT(DATE_ADD(DATE_SUB(b.booking_date, INTERVAL WEEKDAY(b.booking_date) DAY), INTERVAL 6 DAY), '%b %d')) as week_end,
+                    SUM(b.total_price) as revenue,
+                    COUNT(b.booking_id) as bookings
             FROM bookings b
             INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
             WHERE ts.business_id = ?
@@ -771,10 +771,10 @@ public function getBookingTrendsData()
         
         // Get last 6 months booking trends
         $query = $db->query("
-            SELECT 
-                DATE_FORMAT(b.booking_date, '%Y-%m') as month,
-                DATE_FORMAT(b.booking_date, '%b %Y') as month_name,
-                COUNT(b.booking_id) as bookings
+                SELECT 
+                    DATE_FORMAT(b.booking_date, '%Y-%m') as month,
+                    MIN(DATE_FORMAT(b.booking_date, '%b %Y')) as month_name,
+                    COUNT(b.booking_id) as bookings
             FROM bookings b
             INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
             WHERE ts.business_id = ?

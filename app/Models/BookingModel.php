@@ -200,28 +200,25 @@ public function getMonthOverMonthComparison($businessID)
  */
 public function getRecentTransactionsByBusiness($businessID, $limit = 5)
 {
-    $db = \Config\Database::connect();
-    
-    $query = $db->query("
-        SELECT 
-    b.booking_id,
-    b.booking_date,
-    b.total_price,
-    b.booking_status,
-    CONCAT(COALESCE(u.FirstName, ''), ' ', COALESCE(u.LastName, '')) AS customer_name,
-    u.email AS email,
-    c.phone AS phone
-    FROM bookings b
-    INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
-    LEFT JOIN customers c ON b.customer_id = c.customer_id
-    LEFT JOIN users u ON u.UserID = COALESCE(c.user_id, b.customer_id)
-    WHERE ts.business_id = ?
-    ORDER BY b.booking_date DESC
-    LIMIT ?
+    // Use Query Builder to avoid multiline SQL escaping issues
+    $builder = $this->db->table('bookings b');
+    $builder->select([
+        'b.booking_id',
+        'b.booking_date',
+        'b.total_price',
+        'b.booking_status',
+        "CONCAT(COALESCE(u.FirstName, ''), ' ', COALESCE(u.LastName, '')) AS customer_name",
+        'u.email as email',
+        'c.phone as phone'
+    ]);
+    $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
+    $builder->join('customers c', 'b.customer_id = c.customer_id', 'left');
+    $builder->join('users u', 'u.UserID = COALESCE(c.user_id, b.customer_id)', 'left');
+    $builder->where('ts.business_id', $businessID);
+    $builder->orderBy('b.booking_date', 'DESC');
+    $builder->limit((int)$limit);
 
-    ", [$businessID, $limit]);
-    
-    return $query->getResultArray();
+    return $builder->get()->getResultArray();
 }
 
 /**
