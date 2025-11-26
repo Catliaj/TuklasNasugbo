@@ -60,7 +60,7 @@ class Api extends BaseController
         $months = 6;
         $rows = $this->bookingModel->getMonthlyRevenueByBusiness($businessId, $months);
 
-        // Normalize and compute prev-month comparison fields for frontend
+        // Normalize rows and ensure month ordering
         $normalized = array_map(function($r) {
             return [
                 'month'      => $r['month'] ?? null,
@@ -70,32 +70,102 @@ class Api extends BaseController
             ];
         }, $rows ?: []);
 
+        // Determine month keys (ensure last $months months even if some are empty)
+        $monthsKeys = [];
+        if (!empty($normalized)) {
+            foreach ($normalized as $r) if (!empty($r['month'])) $monthsKeys[] = $r['month'];
+            $monthsKeys = array_values(array_unique($monthsKeys));
+            sort($monthsKeys, SORT_STRING);
+        } else {
+            // generate last N month keys
+            for ($i = $months - 1; $i >= 0; $i--) {
+                $monthsKeys[] = date('Y-m', strtotime("-{$i} months"));
+            }
+        }
+
         // Build month => revenue map for prev comparison
         $monthMap = [];
         foreach ($normalized as $row) {
             if (!empty($row['month'])) $monthMap[$row['month']] = (float)$row['revenue'];
         }
-        $monthsKeys = array_keys($monthMap);
-        sort($monthsKeys, SORT_STRING);
+
         $prevMap = [];
         for ($i = 0; $i < count($monthsKeys); $i++) {
             $m = $monthsKeys[$i];
-            $prevMap[$m] = $i > 0 ? $monthMap[$monthsKeys[$i-1]] : 0.0;
+            $prevMap[$m] = $i > 0 ? ($monthMap[$monthsKeys[$i-1]] ?? 0.0) : 0.0;
         }
 
-        foreach ($normalized as &$r) {
-            $m = $r['month'];
+        // Compose ordered normalized output (include prev and change percent)
+        $out = [];
+        foreach ($monthsKeys as $m) {
+            $curr = (float) ($monthMap[$m] ?? 0);
             $prev = $prevMap[$m] ?? 0.0;
-            $curr = (float)$r['revenue'];
-            $r['prev_revenue'] = $prev;
+            $change = 0.0;
             if ($prev > 0.0) {
-                $r['change_percent'] = round((($curr - $prev) / $prev) * 100, 1);
+                $change = round((($curr - $prev) / $prev) * 100, 1);
             } else {
-                $r['change_percent'] = $prev == 0.0 && $curr > 0.0 ? 100.0 : 0.0;
+                $change = ($prev == 0.0 && $curr > 0.0) ? 100.0 : 0.0;
             }
+            $out[] = [
+                'month' => $m,
+                'month_name' => date('M', strtotime($m . '-01')),
+                'revenue' => $curr,
+                'bookings' => (int)($normalized[array_search($m, array_column($normalized, 'month'))]['bookings'] ?? 0),
+                'prev_revenue' => $prev,
+                'change_percent' => $change
+            ];
         }
 
-        return $this->response->setJSON($normalized);
+        // Additionally provide per-spot monthly series for top spots (for multi-line revenue comparison)
+        $db = \Config\Database::connect();
+        $startDate = date('Y-m-d', strtotime('-' . ($months) . ' months'));
+        $endDate = date('Y-m-d');
+        // Use model helper to get top spots by revenue in range (if available)
+        $topSpots = [];
+        if (method_exists($this->bookingModel, 'getTopSpotsPerformanceMetrics')) {
+            $topSpots = $this->bookingModel->getTopSpotsPerformanceMetrics($startDate, $endDate, 3);
+        }
+
+        $by_spot = [];
+        foreach ($topSpots as $spot) {
+            $spotId = $spot['spot_id'] ?? $spot['spotId'] ?? null;
+            $spotName = $spot['spot_name'] ?? $spot['spotName'] ?? ('Spot ' . ($spotId ?? ''));
+            if (!$spotId) continue;
+
+            $bld = $db->table('bookings b')
+                ->select("DATE_FORMAT(b.booking_date, '%Y-%m') as month, SUM(b.total_price) as revenue", false)
+                ->join('tourist_spots ts', 'b.spot_id = ts.spot_id')
+                ->where('ts.business_id', $businessId)
+                ->where('ts.spot_id', $spotId)
+                ->where("b.booking_date >= DATE_SUB(CURDATE(), INTERVAL {$months} MONTH)")
+                ->where('b.payment_status', 'Paid')
+                ->groupBy("DATE_FORMAT(b.booking_date, '%Y-%m')")
+                ->orderBy('month', 'ASC');
+
+            $spotRows = $bld->get()->getResultArray();
+            $spotMap = [];
+            foreach ($spotRows as $sr) {
+                $spotMap[$sr['month']] = (float)$sr['revenue'];
+            }
+
+            // Build series aligned with $monthsKeys
+            $series = [];
+            foreach ($monthsKeys as $mk) {
+                $series[] = $spotMap[$mk] ?? 0.0;
+            }
+
+            $by_spot[] = [
+                'spot_id' => $spotId,
+                'spot_name' => $spotName,
+                'series' => $series
+            ];
+        }
+
+        return $this->response->setJSON([
+            'months' => $monthsKeys,
+            'monthly' => $out,
+            'by_spot' => $by_spot
+        ]);
     }
 
     /**
