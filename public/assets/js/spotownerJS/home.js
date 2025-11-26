@@ -378,43 +378,74 @@ function initializeCharts() {
         fetch('/spotowner/api/monthly-revenue')
             .then(res => res.json())
             .then(data => {
-                if (data && Array.isArray(data) && data.length > 0) {
-                    const labels = data.map(item => item.month);
-                    const revenueData = data.map(item => parseFloat(item.revenue) || 0);
-
-                    new Chart(revenueTrendCtx, {
-                        type: 'line',
-                        data: {
-                            labels: labels,
-                            datasets: [{
-                                label: 'Monthly Revenue',
-                                data: revenueData,
-                                borderColor: colors.primary,
-                                backgroundColor: colors.gradient1,
+                try {
+                    // New API shape: { months: [...], monthly: [...], by_spot: [{spot_id, spot_name, series: [...]}, ...] }
+                    if (data && typeof data === 'object') {
+                        // Prefer per-spot multi-line series if available
+                        if (Array.isArray(data.by_spot) && data.by_spot.length > 0 && Array.isArray(data.months)) {
+                            const labels = data.months;
+                            const datasets = data.by_spot.map((spot, idx) => ({
+                                label: spot.spot_name || `Spot ${spot.spot_id || idx+1}`,
+                                data: (Array.isArray(spot.series) ? spot.series : []),
+                                borderColor: spotColors[idx % spotColors.length],
+                                backgroundColor: spotGradients[idx % spotGradients.length],
                                 tension: 0.4,
                                 fill: true,
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: true,
-                            plugins: {
-                                legend: { position: 'bottom' },
-                            },
-                            scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    ticks: {
-                                        callback: function(value) {
-                                            return '₱' + value.toLocaleString();
-                                        },
-                                    },
+                            }));
+
+                            new Chart(revenueTrendCtx, {
+                                type: 'line',
+                                data: { labels, datasets },
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: true,
+                                    plugins: { legend: { position: 'bottom' } },
+                                    scales: {
+                                        y: {
+                                            beginAtZero: true,
+                                            ticks: { callback: function(value) { return '₱' + value.toLocaleString(); } }
+                                        }
+                                    }
+                                }
+                            });
+                            return;
+                        }
+
+                        // Fallback to single monthly array (legacy shape)
+                        if (Array.isArray(data.monthly) && data.monthly.length > 0) {
+                            const labels = data.monthly.map(item => item.month);
+                            const revenueData = data.monthly.map(item => parseFloat(item.revenue) || 0);
+
+                            new Chart(revenueTrendCtx, {
+                                type: 'line',
+                                data: {
+                                    labels: labels,
+                                    datasets: [{
+                                        label: 'Monthly Revenue',
+                                        data: revenueData,
+                                        borderColor: colors.primary,
+                                        backgroundColor: colors.gradient1,
+                                        tension: 0.4,
+                                        fill: true,
+                                    }]
                                 },
-                            },
-                        },
-                    });
-                } else {
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: true,
+                                    plugins: { legend: { position: 'bottom' } },
+                                    scales: {
+                                        y: { beginAtZero: true, ticks: { callback: function(value) { return '₱' + value.toLocaleString(); } } }
+                                    }
+                                },
+                            });
+                            return;
+                        }
+                    }
+
                     // Fallback: use spot revenue data
+                    createRevenueChartFromSpots(revenueTrendCtx, spots, spotColors, spotGradients, colors);
+                } catch (e) {
+                    console.error('Error processing revenue data:', e);
                     createRevenueChartFromSpots(revenueTrendCtx, spots, spotColors, spotGradients, colors);
                 }
             })
