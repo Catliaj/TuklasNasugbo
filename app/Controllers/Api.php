@@ -60,8 +60,8 @@ class Api extends BaseController
         $months = 6;
         $rows = $this->bookingModel->getMonthlyRevenueByBusiness($businessId, $months);
 
-        // Ensure consistent response shape for frontend
-        $out = array_map(function($r) {
+        // Normalize and compute prev-month comparison fields for frontend
+        $normalized = array_map(function($r) {
             return [
                 'month'      => $r['month'] ?? null,
                 'month_name' => $r['month_name'] ?? (date('M', strtotime(($r['month'] ?? date('Y-m-01'))))),
@@ -70,7 +70,32 @@ class Api extends BaseController
             ];
         }, $rows ?: []);
 
-        return $this->response->setJSON($out);
+        // Build month => revenue map for prev comparison
+        $monthMap = [];
+        foreach ($normalized as $row) {
+            if (!empty($row['month'])) $monthMap[$row['month']] = (float)$row['revenue'];
+        }
+        $monthsKeys = array_keys($monthMap);
+        sort($monthsKeys, SORT_STRING);
+        $prevMap = [];
+        for ($i = 0; $i < count($monthsKeys); $i++) {
+            $m = $monthsKeys[$i];
+            $prevMap[$m] = $i > 0 ? $monthMap[$monthsKeys[$i-1]] : 0.0;
+        }
+
+        foreach ($normalized as &$r) {
+            $m = $r['month'];
+            $prev = $prevMap[$m] ?? 0.0;
+            $curr = (float)$r['revenue'];
+            $r['prev_revenue'] = $prev;
+            if ($prev > 0.0) {
+                $r['change_percent'] = round((($curr - $prev) / $prev) * 100, 1);
+            } else {
+                $r['change_percent'] = $prev == 0.0 && $curr > 0.0 ? 100.0 : 0.0;
+            }
+        }
+
+        return $this->response->setJSON($normalized);
     }
 
     /**
@@ -114,15 +139,25 @@ class Api extends BaseController
         $months = 6;
         $rows = $this->bookingModel->getBookingTrendsByBusiness($businessId, $months);
 
-        // Normalize keys to what's expected by your chart code
-        $out = array_map(function($r) {
-            return [
-                'month'        => $r['month'] ?? null,
-                'month_name'   => $r['month_name'] ?? null,
-                'booking_status' => $r['booking_status'] ?? ($r['booking_status'] ?? null),
-                'count'        => (int) ($r['count'] ?? 0)
+        // Aggregate counts per month (sum across statuses) so frontend receives monthly totals
+        $monthTotals = [];
+        foreach ($rows as $r) {
+            $m = $r['month'] ?? null;
+            if (!$m) continue;
+            $monthTotals[$m] = ($monthTotals[$m] ?? 0) + (int)($r['count'] ?? 0);
+        }
+
+        // Build ordered result array
+        $keys = array_keys($monthTotals);
+        sort($keys, SORT_STRING);
+
+        $out = [];
+        foreach ($keys as $k) {
+            $out[] = [
+                'month' => $k,
+                'bookings' => $monthTotals[$k]
             ];
-        }, $rows ?: []);
+        }
 
         return $this->response->setJSON($out);
     }
