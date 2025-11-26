@@ -20,15 +20,15 @@ class Api extends BaseController
     protected function resolveBusinessId()
     {
         $session = session();
-        // Try common session keys first
-        $businessId = $session->get('business_id') ?? $session->get('owner_business_id') ?? null;
+        // Try common session keys first. Accept multiple naming conventions (uppercase/lowercase).
+        $businessId = $session->get('business_id') ?? $session->get('owner_business_id') ?? $session->get('BusinessID') ?? $session->get('BusinessId') ?? null;
 
         if ($businessId) {
             return (int) $businessId;
         }
 
-        // Fallback: if user_id is owner id, try to fetch business_id from tourist_spots table
-        $userId = $session->get('user_id') ?? $session->get('owner_id') ?? null;
+        // Fallback: if user id exists under common keys, try to fetch business_id from tourist_spots table
+        $userId = $session->get('user_id') ?? $session->get('owner_id') ?? $session->get('UserID') ?? $session->get('userId') ?? null;
         if ($userId) {
             $db = \Config\Database::connect();
             $row = $db->table('tourist_spots')
