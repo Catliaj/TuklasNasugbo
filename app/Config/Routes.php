@@ -110,6 +110,10 @@ $routes->get('/tourist/favorites', 'TouristController::touristFavorites');
 // Ajax endpoints for tourist actions
 $routes->post('/tourist/createBooking', 'TouristController::createBooking');
 $routes->post('/tourist/toggleFavorite', 'TouristController::toggleFavorite');
+// Create payment intent and return checkout URL
+$routes->post('/tourist/createPaymentIntent', 'TouristController::createPaymentIntent');
+// Check payment status for a booking (used by client to detect if already paid)
+$routes->get('/tourist/checkPayment/(:num)', 'TouristController::checkBookingPayment/$1');
 $routes->get('tourist/visited/ajax', 'TouristController::getVisitedPlacesAjax');
 // Favorites API for dashboard AJAX
 $routes->get('/tourist/getFavorites', 'TouristController::getFavorites');
@@ -154,7 +158,13 @@ $routes->post('spotowner/confirmBooking/(:num)', 'SpotOwnerController::confirmBo
 $routes->get('api/attractions/top/(:num)?', 'AttractionsController::topSpotsAjax/$1');
 $routes->post('api/attractions/view', 'AttractionsController::logViewAjax');
 
+<<<<<<< Updated upstream
 // SpotOwner API endpoints for charts
 $routes->get('spotowner/api/monthly-revenue', 'SpotOwner\Api::monthlyRevenue');
 $routes->get('spotowner/api/weekly-revenue',  'SpotOwner\Api::weeklyRevenue');
 $routes->get('spotowner/api/booking-trends',  'SpotOwner\Api::bookingTrends');
+=======
+$routes->post('/webhook', 'TouristController::paymentWebhook');
+
+// SpotOwner API endpoints for charts (defined above)
+>>>>>>> Stashed changes

@@ -27,7 +27,7 @@ class CreateUserPreference extends Migration
                 'constraint' => '150',
                 'null'       => true,
                 'default'    => null,
-                'comment'    => 'Comma-separated categories or single category (example: "nature,culture")',
+                'comment'    => 'Comma-separated categories or single category (example: "Natural,Cultural")',
             ],
             'created_at' => [
                 'type'       => 'DATETIME',

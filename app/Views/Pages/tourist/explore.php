@@ -121,6 +121,10 @@
 <body>
     <!-- Flatpickr JS -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+        // Runtime flag: server configured for hosted PayMongo checkout?
+        window.PAYMONGO_HOSTED = <?= (getenv('PAYMONGO_SECRET_KEY') || getenv('PAYMONGO_SECRET')) ? 'true' : 'false' ?>;
+    </script>
     <div class="dashboard-wrapper">
         <!-- Sidebar -->
         <aside class="tourist-sidebar" id="sidebar">
@@ -308,11 +312,12 @@
                     
                     <div class="filter-tags">
                         <button class="filter-tag active" data-filter="all">All</button>
-                        <button class="filter-tag" data-filter="beach">Beach</button>
-                        <button class="filter-tag" data-filter="mountain">Mountain</button>
-                        <button class="filter-tag" data-filter="island">Island</button>
-                        <button class="filter-tag" data-filter="landmark">Landmark</button>
-                        <button class="filter-tag" data-filter="resort">Resort</button>
+                        <?php
+                        $uiCategories = ['Historical','Cultural','Natural','Recreational','Religious','Adventure','Ecotourism','Urban','Rural','Beach','Mountain','Resort','Park','Restaurant'];
+                        foreach ($uiCategories as $uc):
+                        ?>
+                            <button class="filter-tag" data-filter="<?= strtolower($uc) ?>"><?= esc($uc) ?></button>
+                        <?php endforeach; ?>
                     </div>
                 </div>
                 
@@ -916,22 +921,18 @@
                 // Update active state for filter buttons
                 document.querySelectorAll('.filter-tag').forEach(t => t.classList.remove('active'));
                 this.classList.add('active');
-                
+
                 const filter = this.getAttribute('data-filter');
                 const spots = document.querySelectorAll('.spot-card');
-                
+
                 spots.forEach(spot => {
                     // Skip recommended cards (always visible at top)
                     if (spot.classList.contains('recommended-card')) return;
-                    if (filter === 'all') {
+                    const cat = (spot.getAttribute('data-category') || '').toLowerCase();
+                    if (filter === 'all' || cat === filter) {
                         spot.style.display = 'block';
                     } else {
-                        const category = spot.getAttribute('data-category');
-                        if (category.includes(filter)) {
-                            spot.style.display = 'block';
-                        } else {
-                            spot.style.display = 'none';
-                        }
+                        spot.style.display = 'none';
                     }
                 });
             });
@@ -1003,7 +1004,31 @@
                 const data = await res.json();
                 if (!res.ok) throw new Error(data?.error || 'Booking failed');
                 bootstrap.Modal.getOrCreateInstance(document.getElementById('bookingModal')).hide();
-                showToast('Reservation Confirmed', spotName + ' reserved from ' + startDate + (endDate ? (' to ' + endDate) : '') + '!');
+                // Booking records are created with status 'Pending' until payment is completed
+                showToast('Reservation Pending', spotName + ' reservation created and is pending payment.' + (endDate ? (' (from ' + startDate + ' to ' + endDate + ')') : (' (on ' + startDate + ')')) );
+
+                // If server is configured for hosted checkout, start the hosted flow immediately
+                if (window.PAYMONGO_HOSTED) {
+                    try {
+                        const piResp = await fetch('/tourist/createPaymentIntent', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ booking_id: data.booking_id, amount: payload.total_price, method: 'hosted' })
+                        });
+                        const piData = await piResp.json();
+                        if (piResp.ok && piData.checkout_url) {
+                            // Redirect user to provider-hosted checkout
+                            window.location.href = piData.checkout_url;
+                            return;
+                        } else {
+                            console.warn('createPaymentIntent failed', piData);
+                            showToast('Payment', 'Unable to start hosted checkout. You can complete payment from My Bookings.');
+                        }
+                    } catch (err) {
+                        console.error('Hosted checkout error', err);
+                        showToast('Payment', 'Hosted checkout failed to start. Please try again or pay from My Bookings.');
+                    }
+                }
             } catch (err) {
                 console.error(err);
                 alert('Reservation failed: ' + (err.message || 'unknown error'));
