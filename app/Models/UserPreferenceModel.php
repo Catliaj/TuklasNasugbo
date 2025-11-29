@@ -54,7 +54,7 @@ class UserPreferenceModel extends Model
 
     /**
      * Get distribution of user preferences for the Dashboard Pie Chart.
-     * Returns: [{'category': 'Nature', 'total': 15}, ...]
+    * Returns: [{'category': 'Natural', 'total': 15}, ...]
      */
     public function getUserPreferenceDistribution()
     {

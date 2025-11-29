@@ -240,8 +240,13 @@
                     <div class="summary-sidebar">
                         <!-- Map Card -->
                         <div class="summary-card ocean-card map-card">
-                          <h3 class="summary-card-title"><i class="bi bi-map"></i> Map View</h3>
-                          <div class="map-container">
+                          <div class="summary-card-header d-flex align-items-center justify-content-between">
+                            <h3 class="summary-card-title mb-0"><i class="bi bi-map"></i> Map View</h3>
+                            <button id="itineraryMapExpandBtn" type="button" class="map-expand-header-btn" title="Expand map" style="margin-left:8px;">
+                              <span class="map-btn-inner"><i class="bi bi-arrows-fullscreen" style="font-size:16px;color:#fff"></i></span>
+                            </button>
+                          </div>
+                          <div class="map-container" style="margin-top:18px; position:relative;">
                             <div id="itineraryMap" class="map-placeholder" aria-hidden="false">Map placeholder</div>
                           </div>
                         </div>
@@ -1094,6 +1099,9 @@
               node.setAttribute('data-id', card.dataset.id || ('tmp-' + Date.now() + Math.floor(Math.random()*1000)));
               node.setAttribute('data-title', title);
               node.setAttribute('data-location', location);
+              // Preserve coordinates from the suggested card if present
+              if (card.dataset.lat) node.setAttribute('data-lat', card.dataset.lat);
+              if (card.dataset.lng) node.setAttribute('data-lng', card.dataset.lng);
               if (card.dataset.lat) node.setAttribute('data-lat', card.dataset.lat);
               if (card.dataset.lng) node.setAttribute('data-lng', card.dataset.lng);
               node.innerHTML = `
@@ -1466,16 +1474,42 @@
           if (window.itineraryRoute) { try { window.itineraryMap.removeLayer(window.itineraryRoute); } catch(e){} window.itineraryRoute = null; }
           if (window.__routeDistanceMarkers && Array.isArray(window.__routeDistanceMarkers)) { window.__routeDistanceMarkers.forEach(m => { try { window.itineraryMap.removeLayer(m); } catch(e){} }); window.__routeDistanceMarkers = []; }
 
-          // Build orderedPoints based on filter
+          // Build orderedPoints based on filter (be permissive with day types and coordinate formats)
           const orderedPoints = [];
+          const normalizeNum = v => {
+            if (v === undefined || v === null) return '';
+            const s = String(v).trim();
+            const digits = s.replace(/[^0-9\-]/g, '');
+            return digits;
+          };
+          const filterNorm = (dayFilter === 'all') ? '' : normalizeNum(dayFilter);
+
           (itinerary || []).forEach((dayData, idx) => {
             const day = dayData.day ?? dayData.day_number ?? (dayData.index ?? (idx+1));
             const spots = dayData.spots || dayData.places || dayData.activities || [];
+            const dayNorm = normalizeNum(day);
+
             spots.forEach(s => {
-              const lat = Number(s.lat || s.latitude || 0) || null;
-              const lng = Number(s.lng || s.longitude || s.lon || 0) || null;
-              if (!lat || !lng) return;
-              if (dayFilter !== 'all' && Number(dayFilter) !== Number(day)) return;
+              // Accept lat/lng from different property names and formats (strings with commas, etc.)
+              const rawLat = s.lat ?? s.latitude ?? s.lat_deg ?? s.latitude_deg ?? s.y ?? '';
+              const rawLng = s.lng ?? s.longitude ?? s.lon ?? s.lng_deg ?? s.longitude_deg ?? s.x ?? '';
+              const parseCoord = v => {
+                if (v === undefined || v === null) return NaN;
+                const str = String(v).trim().replace(/,/g, '.');
+                const num = parseFloat(str);
+                return Number.isFinite(num) ? num : NaN;
+              };
+              const lat = parseCoord(rawLat);
+              const lng = parseCoord(rawLng);
+
+              if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+              // If a specific day is requested, compare normalized forms; otherwise include all
+              if (filterNorm) {
+                if (!dayNorm) return; // cannot match
+                if (filterNorm !== dayNorm) return;
+              }
+
               orderedPoints.push({ lat, lng, meta: s, day });
             });
           });
@@ -1559,6 +1593,33 @@
           const selected = document.getElementById('mapDayFilter')?.value || 'all';
           if (typeof window.__updateMapMarkers === 'function') window.__updateMapMarkers(window.currentItinerary, selected);
         } catch(e){ console.warn('rebuildItinerary failed', e); }
+      };
+
+      // Refresh or create the map day filter controls and attach onchange handler
+      window.__updateMapControls = function(){
+        try {
+          const mapCard = document.querySelector('.summary-card.map-card');
+          if (!mapCard) return;
+          let controls = mapCard.querySelector('.map-controls');
+          if (!controls) {
+            controls = document.createElement('div');
+            controls.className = 'map-controls d-flex align-items-center gap-2 mb-2';
+            controls.style.justifyContent = 'flex-end';
+            controls.innerHTML = `<label class="small text-muted mb-0">Show:</label><select id="mapDayFilter" class="form-select form-select-sm" style="width:auto"><option value="all">All days</option></select>`;
+            const container = mapCard.querySelector('.map-container');
+            if (container) mapCard.insertBefore(controls, container);
+            else mapCard.appendChild(controls);
+          }
+          const select = controls.querySelector('#mapDayFilter');
+          if (select) {
+            // compute number of days from DOM
+            const dayCards = document.querySelectorAll('.day-card');
+            const numDays = Math.max(dayCards.length || 0, 0);
+            select.innerHTML = '<option value="all">All days</option>';
+            for (let i=1;i<=numDays;i++) select.insertAdjacentHTML('beforeend', `<option value="${i}">Day ${i}</option>`);
+            select.onchange = function(){ try { if (typeof window.__updateMapMarkers === 'function') window.__updateMapMarkers(window.currentItinerary || [], select.value); } catch(e){} };
+          }
+        } catch (err) { console.warn('updateMapControls failed', err); }
       };
 
       // --------------------------
@@ -1791,8 +1852,9 @@
             });
             const json = await resp.json().catch(()=>({ success: resp.ok }));
             if (resp.ok && json && (json.success === true || json.success === 'true')) {
-              showAlert('Itinerary booked successfully!', 'success');
-              // Optionally redirect to bookings page
+              // Bookings are created with status 'Pending' until payment is completed
+              showAlert('Itinerary booking created (Pending Payment)!', 'success');
+              // Optionally redirect to bookings page so user can proceed to payment
               setTimeout(()=>{ window.location.href = '/tourist/myBookings'; }, 900);
             } else {
               console.error('Booking failed', json);
@@ -1886,6 +1948,60 @@
 
         // Make activities sortable (drag & drop between days)
         window.currentItinerary = itinerary; // keep in-memory copy
+
+        // Global function to open itinerary map in centered modal (header expand button uses this)
+        window.openItineraryMapViewer = function(){
+          const mapEl = document.getElementById('itineraryMap');
+          if (!mapEl) return;
+
+          function createViewerModal() {
+            if (document.getElementById('itineraryMapViewerModal')) return document.getElementById('itineraryMapViewerModal');
+            const html = `
+            <div class="modal fade" id="itineraryMapViewerModal" tabindex="-1" aria-hidden="true">
+              <div class="modal-dialog modal-xl modal-dialog-centered">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title">Map View</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body p-0" style="height:80vh;">
+                    <!-- map element will be moved here -->
+                  </div>
+                </div>
+              </div>
+            </div>`;
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = html;
+            document.body.appendChild(wrapper.firstElementChild);
+            return document.getElementById('itineraryMapViewerModal');
+          }
+
+          const viewerModalEl = createViewerModal();
+          const viewerModal = new bootstrap.Modal(viewerModalEl, { keyboard: true });
+          const originalParent = mapEl.parentElement;
+          const nextSibling = mapEl.nextSibling;
+          const originalHeight = mapEl.style.height || '';
+
+          const body = viewerModalEl.querySelector('.modal-body');
+          body.appendChild(mapEl);
+          mapEl.style.height = '100%';
+          viewerModal.show();
+          setTimeout(()=>{ try { if (window.itineraryMap && typeof window.itineraryMap.invalidateSize === 'function') window.itineraryMap.invalidateSize(); } catch(e){} }, 250);
+
+          // one-time restore on close
+          viewerModalEl.addEventListener('hidden.bs.modal', function(){
+            if (nextSibling) originalParent.insertBefore(mapEl, nextSibling);
+            else originalParent.appendChild(mapEl);
+            mapEl.style.height = originalHeight || '320px';
+            setTimeout(()=>{ try { if (window.itineraryMap && typeof window.itineraryMap.invalidateSize === 'function') window.itineraryMap.invalidateSize(); } catch(e){} }, 80);
+          }, { once: true });
+        };
+
+        // Hook header expand button (if present)
+        try {
+          const hdrBtn = document.getElementById('itineraryMapExpandBtn');
+          if (hdrBtn) hdrBtn.addEventListener('click', function(e){ e.stopPropagation(); window.openItineraryMapViewer(); });
+        } catch(e){}
         try {
           const activityLists = timelineSection.querySelectorAll('.activities-list');
           activityLists.forEach(list => {
@@ -1922,6 +2038,117 @@
             if (item && confirm('Delete this activity?')) {
               item.remove();
             }
+
+            // Map viewer modal helper — open itinerary map inside centered modal for better navigation
+            (function(){
+              const mapEl = document.getElementById('itineraryMap');
+              if (!mapEl) return;
+
+              function createViewerModal() {
+                if (document.getElementById('itineraryMapViewerModal')) return document.getElementById('itineraryMapViewerModal');
+                const html = `
+                <div class="modal fade" id="itineraryMapViewerModal" tabindex="-1" aria-hidden="true">
+                  <div class="modal-dialog modal-xl modal-dialog-centered">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title">Map View</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                      </div>
+                      <div class="modal-body p-0" style="height:80vh;">
+                        <!-- map element will be moved here -->
+                      </div>
+                    </div>
+                  </div>
+                </div>`;
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = html;
+                document.body.appendChild(wrapper.firstElementChild);
+                return document.getElementById('itineraryMapViewerModal');
+              }
+
+              const viewerModalEl = createViewerModal();
+              const viewerModal = new bootstrap.Modal(viewerModalEl, { keyboard: true });
+
+              // Remember original parent and next sibling to restore later
+              const originalParent = mapEl.parentElement;
+              const nextSibling = mapEl.nextSibling;
+              const originalHeight = mapEl.style.height || '';
+
+              mapEl.style.cursor = 'pointer';
+              if (!mapEl.style.position) mapEl.style.position = 'relative';
+
+              // open viewer function (reusable for map click and expand button)
+              function openViewer(e){
+                if (e && e.stopPropagation) e.stopPropagation();
+                // avoid opening modal when clicking controls inside map (if any)
+                if (e && e.target && e.target.closest && e.target.closest('.leaflet-control')) return;
+                const body = viewerModalEl.querySelector('.modal-body');
+                body.appendChild(mapEl);
+                // make map fill modal body
+                mapEl.style.height = '100%';
+                viewerModal.show();
+                setTimeout(()=>{ try { if (window.itineraryMap && typeof window.itineraryMap.invalidateSize === 'function') window.itineraryMap.invalidateSize(); } catch(err){} }, 250);
+              }
+
+              mapEl.addEventListener('click', openViewer);
+
+              // Add an explicit expand button overlay so users can expand the map reliably
+              (function addExpandButton(){
+                // if header-level expand button exists, skip overlay button to avoid overlap
+                if (document.getElementById('itineraryMapExpandBtn')) return;
+                // avoid duplicating button
+                if (mapEl.querySelector('.map-expand-btn')) return;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'map-expand-btn';
+                btn.title = 'Expand map';
+                btn.innerHTML = '<i class="bi bi-arrows-fullscreen" style="color:#fff"></i>';
+                // positioning will be handled by positionMapExpandButton
+                mapEl.appendChild(btn);
+
+                // helper to compute and set position
+                function positionMapExpandButton() {
+                  try {
+                    const mapContainer = mapEl.closest('.map-container') || mapEl.parentElement;
+                    if (!mapContainer) return;
+                    // responsive fallback
+                    if (window.innerWidth <= 640) {
+                      btn.style.top = '';
+                      btn.style.bottom = '12px';
+                      btn.style.right = '12px';
+                      return;
+                    }
+                    // if header-level button exists, position below it
+                    const headerBtn = document.getElementById('itineraryMapExpandBtn');
+                    if (headerBtn) {
+                      const headerRect = headerBtn.getBoundingClientRect();
+                      const containerRect = mapContainer.getBoundingClientRect();
+                      let top = Math.round(headerRect.bottom - containerRect.top + 8);
+                      top = Math.max(top, 8);
+                      btn.style.top = top + 'px';
+                      btn.style.bottom = '';
+                      btn.style.right = '12px';
+                      return;
+                    }
+                    // fallback: place under map container padding
+                    btn.style.top = '16px';
+                    btn.style.right = '12px';
+                    btn.style.bottom = '';
+                  } catch (err) { console.warn('positionMapExpandButton error', err); }
+                }
+
+                positionMapExpandButton();
+                window.addEventListener('resize', positionMapExpandButton);
+              })();
+
+              viewerModalEl.addEventListener('hidden.bs.modal', function(){
+                // move back the map element to its original place
+                if (nextSibling) originalParent.insertBefore(mapEl, nextSibling);
+                else originalParent.appendChild(mapEl);
+                mapEl.style.height = originalHeight || '320px';
+                setTimeout(()=>{ try { if (window.itineraryMap && typeof window.itineraryMap.invalidateSize === 'function') window.itineraryMap.invalidateSize(); } catch(err){} }, 80);
+              });
+            })();
           } else if (editBtn) {
             const item = editBtn.closest('.activity-item');
             if (item) openEditActivityModal(item);
@@ -2176,6 +2403,15 @@
                     try { const bounds = window.itineraryMarkers.getBounds(); if (bounds.isValid && bounds.isValid()) window.itineraryMap.fitBounds(bounds.pad(0.25)); } catch(e){}
                   }
                 } catch(e){ console.warn('Could not add suggested marker to map', e); }
+                // Rebuild current itinerary and refresh numbered markers/route
+                try {
+                  if (typeof window.__rebuildCurrentItinerary === 'function') {
+                    // small delay to ensure DOM insertion is complete before rebuild
+                    setTimeout(() => { window.__rebuildCurrentItinerary(); }, 50);
+                  }
+                  // ensure map controls updated (day count may not change here but safe to call)
+                  if (typeof window.__updateMapControls === 'function') window.__updateMapControls();
+                } catch(e) { console.warn('post-add suggested refresh failed', e); }
               } else {
                 alert('Could not find the target day list to add activity.');
               }
@@ -2935,6 +3171,11 @@
             window.currentItinerary = window.currentItinerary || [];
             window.currentItinerary = window.currentItinerary.concat(newDays);
             console.log('Added days', newDays.map(d=>d.day), window.currentItinerary);
+            // Update map controls (day selector) and refresh markers/route immediately
+            try {
+              if (typeof window.__updateMapControls === 'function') window.__updateMapControls();
+              if (typeof window.__updateMapMarkers === 'function') window.__updateMapMarkers(window.currentItinerary, document.getElementById('mapDayFilter')?.value || 'all');
+            } catch(e) { console.warn('map refresh after add days failed', e); }
           } catch (err) {
             console.error('Failed to add day(s)', err);
             alert('Could not add day(s): ' + (err && err.message));

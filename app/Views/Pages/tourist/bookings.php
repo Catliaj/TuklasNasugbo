@@ -446,6 +446,20 @@
             };
         }
 
+        // If PayMongo server-side session is configured, expose flag and hide local payment options
+        <?php if (getenv('PAYMONGO_SECRET_KEY') || getenv('PAYMONGO_SECRET')): ?>
+        (function(){
+            try {
+                document.documentElement.classList.add('paymongo-hosted');
+                window.PAYMONGO_HOSTED = true;
+                // Hide local payment method buttons
+                try { document.querySelectorAll('.payment-method').forEach(m=>m.style.display='none'); } catch(e) {}
+            } catch (e) {}
+        })();
+        <?php else: ?>
+        window.PAYMONGO_HOSTED = false;
+        <?php endif; ?>
+
         // Format ISO expiry to user-friendly local string and relative time
         function formatExpiryInfo(isoString) {
             try {
@@ -899,14 +913,41 @@
 
                 if(confirmPayBtn){
                     confirmPayBtn.onclick = ()=>{
-                        const methodEl = panel.querySelector('.payment-method.active');
-                        if(!methodEl){return alert('Select a payment method first.');}
-                        const method = methodEl.dataset.method;
+                        // If PayMongo hosted flow is enabled on server, we don't require selection of local payment method
+                        let method = 'hosted';
+                        if (!window.PAYMONGO_HOSTED) {
+                            const methodEl = panel.querySelector('.payment-method.active');
+                            if(!methodEl){return alert('Select a payment method first.');}
+                            method = methodEl.dataset.method;
+                        }
                         const notes = document.getElementById('paymentNotesRight')?.value.trim() || '';
-                        showToast('Payment', 'Payment processed with method: '+method);
-                        // Close panel after confirmation
-                        panel.classList.remove('show');
-                        paymentPanelActive = false;
+
+                        // Call server to create a payment intent and get back a checkout URL
+                        (async function(){
+                            try {
+                                const bookingId = data.booking_id;
+                                const totalDisplay = document.getElementById('paymentTotalRight')?.textContent || '';
+                                let amount = totalDisplay.replace(/[^0-9\.\-]/g, '') || '';
+                                const payload = { booking_id: bookingId, amount: amount, method: method };
+                                const res = await fetch('/tourist/createPaymentIntent', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(payload),
+                                    credentials: 'same-origin'
+                                });
+                                const json = await res.json().catch(()=>null);
+                                if (!res.ok || !json || !json.success || !json.checkout_url) {
+                                    console.error('createPaymentIntent failed', json);
+                                    alert('Failed to create payment. Please try again.');
+                                    return;
+                                }
+                                showToast('Redirecting to payment', 'Opening payment checkout...');
+                                window.location.href = json.checkout_url;
+                            } catch (err) {
+                                console.error('Payment start failed', err);
+                                alert('Failed to start payment.');
+                            }
+                        })();
                     };
                 }
 
@@ -981,6 +1022,30 @@
                 dd.classList.toggle('show');
             }
         }
+
+        // On page load, probe pending bookings to detect payments processed externally
+        document.addEventListener('DOMContentLoaded', function(){
+            const cards = document.querySelectorAll('.booking-card');
+            if(!cards || cards.length === 0) return;
+            cards.forEach(card=>{
+                const bookingId = card.dataset.bookingId;
+                const status = (card.dataset.status || '').toLowerCase();
+                if(!bookingId) return;
+                // Only probe if booking appears unpaid/pending
+                if(status === 'pending' || status === 'unpaid'){
+                    // Fire-and-forget check to server to see if payment was completed
+                    fetch(`/tourist/checkPayment/${bookingId}`, { method: 'GET', credentials: 'same-origin' })
+                        .then(r=>r.json().catch(()=>null))
+                        .then(json=>{
+                            if(json && json.success && json.paid){
+                                // Simple UX: show toast and refresh to pick up updated state
+                                if(typeof showToast === 'function') showToast('Payment detected', `Booking #${bookingId} marked as paid.`);
+                                setTimeout(()=> location.reload(), 900);
+                            }
+                        }).catch(()=>{});
+                }
+            });
+        });
         if (typeof toggleUserDropdown === 'undefined') {
             function toggleUserDropdown() {
                 const dd = document.getElementById('userDropdown');

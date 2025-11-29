@@ -126,14 +126,21 @@
                         <div class="col-md-3">
                             <select class="form-select" id="filterCategory">
                                 <option value="">All Categories</option>
-                                <!-- Database categories: Eateries, Beaches, Events, Islands, Heritage, Adventure, Waterfalls -->
-                                <option value="Eateries">Eateries</option>
-                                <option value="Beaches">Beaches</option>
-                                <option value="Events">Events</option>
-                                <option value="Islands">Islands</option>
-                                <option value="Heritage">Heritage</option>
+                                <!-- Canonical categories: Historical, Cultural, Natural, Recreational, Religious, Adventure, Ecotourism, Urban, Rural, Beach, Mountain, Resort, Park, Restaurant -->
+                                <option value="Historical">Historical</option>
+                                <option value="Cultural">Cultural</option>
+                                <option value="Natural">Natural</option>
+                                <option value="Recreational">Recreational</option>
+                                <option value="Religious">Religious</option>
                                 <option value="Adventure">Adventure</option>
-                                <option value="Waterfalls">Waterfalls</option>
+                                <option value="Ecotourism">Ecotourism</option>
+                                <option value="Urban">Urban</option>
+                                <option value="Rural">Rural</option>
+                                <option value="Beach">Beach</option>
+                                <option value="Mountain">Mountain</option>
+                                <option value="Resort">Resort</option>
+                                <option value="Park">Park</option>
+                                <option value="Restaurant">Restaurant</option>
                             </select>
                         </div>
                         <div class="col-md-3">
