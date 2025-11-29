@@ -1694,3 +1694,143 @@ html {
         font-size: 1.5rem;
     }
 }
+
+/* Map expand button styles */
+.map-expand-btn {
+    position: absolute;
+    z-index: 1100;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    padding: 6px;
+    background: #083b55;
+    color: #fff;
+    border: none;
+    box-shadow: 0 6px 18px rgba(8,59,85,0.18);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    outline: none;
+}
+
+.map-expand-header-btn {
+    background: transparent;
+    border: none;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* inner element that visually matches the map view icon */
+.map-btn-inner {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: #083b55;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 18px rgba(8,59,85,0.18);
+}
+
+.map-expand-btn:hover,
+.map-expand-header-btn:hover {
+    transform: translateY(-1px);
+}
+
+/* Responsive: on small screens place overlay at bottom-right inside map */
+@media (max-width: 640px) {
+    .map-expand-btn {
+        top: auto !important;
+        bottom: 12px !important;
+        right: 12px !important;
+    }
+}
+
+/* Specific override for itinerary header button so other map buttons stay unchanged */
+#itineraryMapExpandBtn .map-btn-inner {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: transparent;
+    color: #2f5566;
+    border: 1px solid rgba(47,85,102,0.08);
+    box-shadow: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Map expand controls - styled to match primary action buttons used across the site */
+.map-expand-btn {
+    position: absolute;
+    z-index: 1100;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg,#0b4b78,#003a6e); /* deep primary blue */
+    color: #ffffff;
+    border: none;
+    box-shadow: 0 10px 30px rgba(3,57,86,0.20);
+    cursor: pointer;
+    transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+}
+
+.map-expand-btn i, .map-expand-btn svg { font-size: 18px; line-height:1; }
+
+.map-expand-btn:hover { transform: translateY(-3px); box-shadow: 0 14px 36px rgba(3,57,86,0.26); }
+
+.map-expand-header-btn {
+    background: transparent;
+    border: none;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.map-expand-header-btn .map-btn-inner {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    background: linear-gradient(135deg,#004b8d,#002e55); /* primary gradient */
+    color: #ffffff; /* white icon */
+    border: none;
+    box-shadow: 0 6px 18px rgba(0,46,85,0.14);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Slightly larger pill variant for prominent placement (optional) */
+.map-expand-header-btn.pill .map-btn-inner {
+    width: 56px;
+    height: 36px;
+    border-radius: 18px;
+    padding: 0 12px;
+}
+
+/* Explicitly target the small expand control placed beside the Map View header */
+.summary-card.map-card .summary-card-header #itineraryMapExpandBtn .map-btn-inner,
+.map-card .map-expand-header-btn .map-btn-inner {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: #f7f9fa; /* slightly lighter to match the small square in the design */
+    color: #2f5566;
+    border: 1px solid rgba(47,85,102,0.06);
+    box-shadow: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Responsive fallback: place overlay button bottom-right on small screens */
+@media (max-width: 640px) {
+    .map-expand-btn { bottom: 12px !important; right: 12px !important; top: auto !important; }
+}

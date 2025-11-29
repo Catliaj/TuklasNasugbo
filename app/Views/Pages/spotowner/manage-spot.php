@@ -760,6 +760,111 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('addNewSpotModal').addEventListener('shown.bs.modal', function () {
       
         initMap();
+
+        // Map viewer modal helper — open map inside a centered modal for better navigation
+        (function(){
+            const mapEl = document.getElementById('map');
+            if (!mapEl) return;
+
+            // Ensure Bootstrap's Modal is available
+            function createViewerModal() {
+                if (document.getElementById('mapViewerModal')) return document.getElementById('mapViewerModal');
+                const html = `
+                <div class="modal fade" id="mapViewerModal" tabindex="-1" aria-hidden="true">
+                  <div class="modal-dialog modal-xl modal-dialog-centered">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title">Map View</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                      </div>
+                      <div class="modal-body p-0" style="height:80vh;">
+                        <!-- map element will be moved here -->
+                      </div>
+                    </div>
+                  </div>
+                </div>`;
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = html;
+                document.body.appendChild(wrapper.firstElementChild);
+                return document.getElementById('mapViewerModal');
+            }
+
+            const viewerModalEl = createViewerModal();
+            const viewerModal = new bootstrap.Modal(viewerModalEl, { keyboard: true });
+
+            // Remember original parent and next sibling to restore later
+            const originalParent = mapEl.parentElement;
+            const nextSibling = mapEl.nextSibling;
+            const originalHeight = mapEl.style.height || '';
+
+            mapEl.style.cursor = 'pointer';
+            if (!mapEl.style.position) mapEl.style.position = 'relative';
+
+            // open viewer function (reusable)
+            function openViewer(e){
+                if (e && e.stopPropagation) e.stopPropagation();
+                if (e && e.target && e.target.closest && e.target.closest('.leaflet-control')) return;
+                const body = viewerModalEl.querySelector('.modal-body');
+                body.appendChild(mapEl);
+                // make map fill modal body
+                mapEl.style.height = '100%';
+                viewerModal.show();
+                setTimeout(()=>{ try { if (window.map && typeof window.map.invalidateSize === 'function') window.map.invalidateSize(); } catch(err){} }, 250);
+            }
+
+            mapEl.addEventListener('click', openViewer);
+
+            // Add an explicit expand button overlay so users can expand the map reliably
+            (function addExpandButton(){
+                if (mapEl.querySelector('.map-expand-btn')) return;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'map-expand-btn';
+                btn.title = 'Expand map';
+                btn.innerHTML = '<i class="bi bi-arrows-fullscreen" style="color:#fff"></i>';
+                mapEl.appendChild(btn);
+
+                function positionMapExpandButtonForSpotOwner() {
+                    try {
+                        const mapContainer = mapEl.closest('.map-container') || mapEl.parentElement;
+                        if (!mapContainer) return;
+                        if (window.innerWidth <= 640) {
+                            btn.style.top = '';
+                            btn.style.bottom = '12px';
+                            btn.style.right = '12px';
+                            return;
+                        }
+                        // try modal header if inside a modal
+                        const modalHeader = mapEl.closest('.modal-content')?.querySelector('.modal-header');
+                        if (modalHeader) {
+                            const headerRect = modalHeader.getBoundingClientRect();
+                            const containerRect = mapContainer.getBoundingClientRect();
+                            let top = Math.round(headerRect.bottom - containerRect.top + 8);
+                            top = Math.max(top, 8);
+                            btn.style.top = top + 'px';
+                            btn.style.bottom = '';
+                            btn.style.right = '12px';
+                            return;
+                        }
+                        // fallback: small offset from top
+                        btn.style.top = '16px';
+                        btn.style.right = '12px';
+                        btn.style.bottom = '';
+                    } catch (err) { console.warn('positionMapExpandButtonForSpotOwner error', err); }
+                }
+
+                positionMapExpandButtonForSpotOwner();
+                window.addEventListener('resize', positionMapExpandButtonForSpotOwner);
+            })();
+
+            viewerModalEl.addEventListener('hidden.bs.modal', function(){
+                // move back the map element to its original place
+                if (nextSibling) originalParent.insertBefore(mapEl, nextSibling);
+                else originalParent.appendChild(mapEl);
+                mapEl.style.height = originalHeight || '300px';
+                setTimeout(()=>{ try { if (window.map && typeof window.map.invalidateSize === 'function') window.map.invalidateSize(); } catch(err){} }, 80);
+            });
+        })();
          //initGeocoder();
         
         // Set up search button handler

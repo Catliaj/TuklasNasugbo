@@ -485,7 +485,7 @@ public function touristDashboard()
         $usermodel = new \App\Models\UsersModel();
         $userID = session()->get('UserID');
 
-        // Get the preference string (format: "History,Adventure")
+        // Get the preference string (format: "Historical,Adventure")
         $categories = $usermodel->getUserCategoryString($userID);
 
   
@@ -841,6 +841,24 @@ public function touristDashboard()
             }
 
             if ($limit > 0) $spots = array_slice($spots, 0, $limit);
+
+            // If we returned fewer than requested, attempt to top-up from approved spots
+            if ($limit > 0 && count($spots) < $limit) {
+                try {
+                    $existingIds = array_filter(array_map(function($s){ return $s['spot_id'] ?? ($s['id'] ?? null); }, $spots));
+                    $approvedAll = $spotModel->getApprovedTouristSpots();
+                    foreach ($approvedAll as $c) {
+                        $cid = $c['spot_id'] ?? ($c['id'] ?? null);
+                        if (!$cid) continue;
+                        if (in_array($cid, $existingIds, true)) continue;
+                        $spots[] = $c;
+                        $existingIds[] = $cid;
+                        if (count($spots) >= $limit) break;
+                    }
+                } catch (\Throwable $topErr) {
+                    log_message('warning', 'recommendedSpots top-up failed: ' . $topErr->getMessage());
+                }
+            }
 
             // Normalize output and include accessible image URL and lat/lng keys
             $out = array_map(function($s){
@@ -1388,7 +1406,8 @@ public function listUserTrips()
                     }
                 }
 
-                return $this->response->setJSON(['success' => true, 'created' => $created, 'errors' => $errors]);
+                // Bookings created via itinerary are pending payment by default
+                return $this->response->setJSON(['success' => true, 'created' => $created, 'errors' => $errors, 'booking_status' => 'Pending', 'payment_status' => 'Unpaid']);
             }
 
             // Legacy single booking path
@@ -1460,7 +1479,7 @@ try {
     log_message('error', 'Failed to create booking notification: ' . $e->getMessage());
 }
 
-return $this->response->setJSON(['success' => true, 'booking_id' => $insertId]);
+return $this->response->setJSON(['success' => true, 'booking_id' => $insertId, 'booking_status' => 'Pending', 'payment_status' => 'Unpaid']);
         } catch (\Exception $e) {
             return $this->response->setJSON(['error' => 'Database error: ' . $e->getMessage()], 500);
         }
@@ -1554,6 +1573,139 @@ return $this->response->setJSON(['success' => true, 'booking_id' => $insertId]);
         } catch (\Throwable $e) {
             log_message('error', 'cancelBooking error: ' . $e->getMessage());
             return $this->response->setJSON(['success' => false, 'message' => 'Server error while cancelling booking'])->setStatusCode(500);
+        }
+    }
+
+    /**
+     * Create a payment intent / record and return a checkout URL.
+     * POST /tourist/createPaymentIntent
+     * Body: { booking_id, amount, method }
+     */
+    public function createPaymentIntent()
+    {
+        $session = session();
+        $userID = $session->get('UserID');
+        if (!$userID) {
+            return $this->response->setJSON(['success' => false, 'error' => 'Not logged in'])->setStatusCode(401);
+        }
+
+        $input = $this->request->getJSON(true) ?: $this->request->getPost();
+        $bookingId = isset($input['booking_id']) ? (int)$input['booking_id'] : 0;
+        $amount = isset($input['amount']) ? $input['amount'] : null;
+        $method = isset($input['method']) ? $input['method'] : 'card';
+
+        if ($bookingId <= 0 || !$amount) {
+            return $this->response->setJSON(['success' => false, 'error' => 'Missing booking_id or amount'])->setStatusCode(400);
+        }
+
+        try {
+            $bookingModel = new \App\Models\BookingModel();
+            $booking = $bookingModel->find($bookingId);
+            if (!$booking) {
+                return $this->response->setJSON(['success' => false, 'error' => 'Booking not found'])->setStatusCode(404);
+            }
+
+            // Persist a payments row (pending)
+            $paymentModel = new \App\Models\PaymentModel();
+            $now = date('Y-m-d H:i:s');
+            $insertData = [
+                'booking_id' => $bookingId,
+                'amount' => (float)$amount,
+                'payment_method' => ucfirst($method),
+                'status' => 'Pending',
+                'notes' => 'Created via createPaymentIntent',
+                'created_at' => $now
+            ];
+            $ins = $paymentModel->insert($insertData);
+            $paymentId = $paymentModel->getInsertID() ?: $ins;
+
+            // Attempt to create a hosted checkout session at PayMongo and attach metadata for reconciliation.
+            // Read secret key from env; if not present, fall back to legacy hosted link construction.
+            $paymongoSecret = getenv('PAYMONGO_SECRET_KEY') ?: getenv('PAYMONGO_SECRET');
+            $checkoutUrl = null;
+            $providerSessionId = null;
+
+            if ($paymongoSecret) {
+                try {
+                    // Prepare request payload. Many providers expect amount in cents.
+                    $payload = [
+                        'data' => [
+                            'attributes' => [
+                                'amount' => (int) round(((float)$amount) * 100),
+                                'currency' => 'PHP',
+                                'metadata' => [
+                                    'booking_id' => (int)$bookingId,
+                                    'payment_id' => (int)$paymentId
+                                ],
+                                // Optional: allowed payment methods. Let provider choose if absent.
+                                'payment_method_types' => [$method]
+                            ]
+                        ]
+                    ];
+
+                    $apiUrl = getenv('PAYMONGO_API_URL') ?: 'https://api.paymongo.com/v1/links';
+
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, $apiUrl);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_POST, true);
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                        'Content-Type: application/json',
+                        'Authorization: Basic ' . base64_encode($paymongoSecret . ':'),
+                    ]);
+                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+
+                    $resp = curl_exec($ch);
+                    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    $curlErr = curl_error($ch);
+                    curl_close($ch);
+
+                    if ($resp !== false && $httpCode >= 200 && $httpCode < 300) {
+                        $json = json_decode($resp, true);
+                        // Provider response shapes vary; try multiple likely locations for a hosted URL
+                        if (!empty($json['data']['attributes']['url'])) {
+                            $checkoutUrl = $json['data']['attributes']['url'];
+                        } elseif (!empty($json['data']['attributes']['checkout_url'])) {
+                            $checkoutUrl = $json['data']['attributes']['checkout_url'];
+                        } elseif (!empty($json['data']['attributes']['hosted_url'])) {
+                            $checkoutUrl = $json['data']['attributes']['hosted_url'];
+                        } elseif (!empty($json['data']['attributes']['session_url'])) {
+                            $checkoutUrl = $json['data']['attributes']['session_url'];
+                        }
+
+                        // Capture provider session/id if available
+                        if (!empty($json['data']['id'])) {
+                            $providerSessionId = $json['data']['id'];
+                        }
+                    } else {
+                        log_message('error', 'PayMongo create session failed HTTP ' . $httpCode . ' response: ' . substr($resp ?? '', 0, 1000) . ' curlErr:' . $curlErr);
+                    }
+                } catch (\Throwable $e) {
+                    log_message('error', 'PayMongo request error: ' . $e->getMessage());
+                }
+            }
+
+            // If provider did not return a hosted URL, fall back to legacy public hosted page link
+            if (!$checkoutUrl) {
+                $checkoutBase = 'https://paymongo.page/l/tuklasnasugbu';
+                $checkoutUrl = $checkoutBase . '?booking_id=' . urlencode($bookingId) . '&amount=' . urlencode($amount) . '&payment_id=' . urlencode($paymentId);
+            }
+
+            // Persist provider session id (if any) into transaction_id for later reconciliation; also append provider url to notes
+            $update = [];
+            if ($providerSessionId) $update['transaction_id'] = $providerSessionId;
+            $update['notes'] = (isset($insertData['notes']) ? $insertData['notes'] : '') . '\nhosted_url:' . $checkoutUrl;
+            try {
+                $paymentModel->update($paymentId, $update);
+            } catch (\Throwable $e) {
+                log_message('error', 'Failed to update payment with provider info: ' . $e->getMessage());
+            }
+
+            return $this->response->setJSON(['success' => true, 'checkout_url' => $checkoutUrl, 'payment_id' => $paymentId]);
+        } catch (\Throwable $e) {
+            log_message('error', 'createPaymentIntent error: ' . $e->getMessage());
+            return $this->response->setJSON(['success' => false, 'error' => 'Server error while creating payment intent'])->setStatusCode(500);
         }
     }
 
@@ -1660,6 +1812,8 @@ public function verifyCheckinToken()
     if (!$token) {
         return $this->response->setJSON(['valid' => false, 'error' => 'Missing token'])->setStatusCode(400);
     }
+
+    
 
     // Expect token as "<b64>.<signature>"
     if (!is_string($token) || strpos($token, '.') === false) {
@@ -1796,4 +1950,284 @@ public function getVisitedPlacesAjax()
     }
 
    
+    /**
+     * Check whether a booking has been paid.
+     * GET /tourist/checkPayment/{bookingId}
+     * Returns JSON: { paid: bool, payment: null|array }
+     */
+    public function checkBookingPayment($bookingId)
+    {
+        $session = session();
+        $userID = $session->get('UserID');
+        if (!$userID) {
+            return $this->response->setJSON(['success' => false, 'error' => 'Not logged in'])->setStatusCode(401);
+        }
+
+        $bookingId = (int)$bookingId;
+        if ($bookingId <= 0) {
+            return $this->response->setJSON(['success' => false, 'error' => 'Invalid booking id'])->setStatusCode(400);
+        }
+
+        try {
+            $bookingModel = new \App\Models\BookingModel();
+            $booking = $bookingModel->find($bookingId);
+            if (!$booking) {
+                return $this->response->setJSON(['success' => false, 'error' => 'Booking not found'])->setStatusCode(404);
+            }
+
+            // Verify ownership
+            $db = \Config\Database::connect();
+            $fields = [];
+            try { $fields = $db->getFieldNames('bookings'); } catch (\Throwable $e) { $fields = []; }
+
+            $isOwner = false;
+            if (!empty($fields) && in_array('customer_id', $fields, true)) {
+                try {
+                    $customerModel = new \App\Models\CustomerModel();
+                    $cust = $customerModel->where('user_id', $userID)->first();
+                    $customerID = $cust['customer_id'] ?? null;
+                    if ($customerID !== null && (string)($booking['customer_id'] ?? '') === (string)$customerID) $isOwner = true;
+                } catch (\Throwable $e) {}
+            }
+            if (!$isOwner && !empty($fields) && in_array('user_id', $fields, true)) {
+                if ((string)($booking['user_id'] ?? '') === (string)$userID) $isOwner = true;
+            }
+            if (!$isOwner) {
+                if (isset($booking['customer_id']) && (string)$booking['customer_id'] === (string)$userID) $isOwner = true;
+            }
+            if (!$isOwner) {
+                return $this->response->setJSON(['success' => false, 'error' => 'Forbidden: you do not own this booking'])->setStatusCode(403);
+            }
+
+            $paymentModel = new \App\Models\PaymentModel();
+            $payment = $paymentModel->where('booking_id', $bookingId)->orderBy('created_at', 'DESC')->first();
+
+            // If we have a payment record that's already completed, report paid
+            if ($payment && isset($payment['status']) && in_array(strtolower($payment['status']), ['completed','paid','succeeded'], true)) {
+                if (($booking['payment_status'] ?? '') !== 'Paid') {
+                    $bookingModel->update($bookingId, ['payment_status' => 'Paid', 'booking_status' => 'Confirmed', 'updated_at' => date('Y-m-d H:i:s')]);
+                }
+                return $this->response->setJSON(['success' => true, 'paid' => true, 'payment' => $payment]);
+            }
+
+            // No completed payment found locally. If we have a provider transaction id, try to verify with PayMongo API.
+            if ($payment && !empty($payment['transaction_id'])) {
+                $secret = getenv('PAYMONGO_SECRET_KEY') ?: env('PAYMONGO_SECRET_KEY');
+                if ($secret) {
+                    $tx = $payment['transaction_id'];
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, "https://api.paymongo.com/v1/payments/" . urlencode($tx));
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_USERPWD, $secret . ":");
+                    curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+                    $resp = curl_exec($ch);
+                    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    $curlErr = curl_error($ch);
+                    curl_close($ch);
+
+                    if ($resp && $code >= 200 && $code < 300) {
+                        $body = json_decode($resp, true);
+                        $pmStatus = $body['data']['attributes']['status'] ?? null;
+                        if ($pmStatus && in_array(strtolower($pmStatus), ['succeeded','paid','captured'], true)) {
+                            $paymentModel->update($payment['payment_id'], ['status' => 'Completed', 'payment_date' => date('Y-m-d H:i:s')]);
+                            $bookingModel->update($bookingId, ['payment_status' => 'Paid', 'booking_status' => 'Confirmed', 'updated_at' => date('Y-m-d H:i:s')]);
+                            $payment['status'] = 'Completed';
+                            return $this->response->setJSON(['success' => true, 'paid' => true, 'payment' => $payment]);
+                        } else {
+                            return $this->response->setJSON(['success' => true, 'paid' => false, 'payment' => $payment, 'provider_status' => $pmStatus]);
+                        }
+                    } else {
+                        log_message('error', 'PayMongo verify failed: HTTP ' . $code . ' curl: ' . $curlErr . ' resp: ' . substr($resp ?? '',0,200));
+                        return $this->response->setJSON(['success' => true, 'paid' => false, 'payment' => $payment, 'provider_error' => 'api_error']);
+                    }
+                }
+            }
+
+            return $this->response->setJSON(['success' => true, 'paid' => false, 'payment' => $payment]);
+
+        } catch (\Throwable $e) {
+            log_message('error', 'checkBookingPayment error: ' . $e->getMessage());
+            return $this->response->setJSON(['success' => false, 'error' => 'Server error while checking payment'])->setStatusCode(500);
+        }
+    }
+
+    /**
+     * Webhook endpoint for PayMongo events.
+     * POST /webhook
+     * Verifies signature using PAYMONGO_WEBHOOK_SECRET and updates payments/bookings.
+     */
+    public function paymentWebhook()
+    {
+        // Read raw body and headers
+        $raw = $this->request->getBody();
+        $allHeaders = [];
+        foreach ($this->request->getHeaders() as $name => $headerObj) {
+            $allHeaders[$name] = $this->request->getHeaderLine($name);
+        }
+        $sigHeader = $this->request->getHeaderLine('Paymongo-Signature') ?: $this->request->getHeaderLine('Paymongo-Sig') ?: $this->request->getHeaderLine('Webhook-Signature') ?: $this->request->getHeaderLine('Signature');
+
+        // Debug: write headers + truncated payload to a debug file (safe for local debugging).
+        try {
+            $debugPath = WRITEPATH . 'logs/webhook_debug_' . date('Ymd') . '.log';
+            $logEntry = "\n[" . date('c') . "] WEBHOOK RECEIVED\n";
+            $logEntry .= "Headers: " . json_encode($allHeaders) . "\n";
+            $logEntry .= "Raw: " . (strlen($raw) > 4000 ? substr($raw,0,4000) . '... [truncated]' : $raw) . "\n";
+            @file_put_contents($debugPath, $logEntry, FILE_APPEND | LOCK_EX);
+        } catch (\Throwable $e) {
+            // swallow debug file write errors
+        }
+
+        $secret = getenv('PAYMONGO_WEBHOOK_SECRET') ?: null;
+        if (empty($secret)) {
+            log_message('error', 'paymentWebhook: PAYMONGO_WEBHOOK_SECRET not set');
+            return $this->response->setStatusCode(400)->setBody('webhook secret not configured');
+        }
+
+        // Extract signature value if header contains structured value like "t=..., v1=..."
+        $sig = null;
+        if ($sigHeader) {
+            if (preg_match('/v1=([0-9a-fA-F]+)/', $sigHeader, $m)) {
+                $sig = $m[1];
+            } elseif (preg_match('/signature=([^,\s]+)/', $sigHeader, $m)) {
+                $sig = $m[1];
+            } else {
+                // fallback to using the whole header value
+                $sig = trim($sigHeader);
+            }
+        }
+
+        if (empty($sig)) {
+            log_message('warning', 'paymentWebhook: missing signature header');
+            return $this->response->setStatusCode(400)->setBody('missing signature');
+        }
+
+        $expected = hash_hmac('sha256', $raw, $secret);
+        if (!hash_equals($expected, $sig)) {
+            log_message('warning', 'paymentWebhook: signature mismatch. expected=' . substr($expected,0,8) . ' got=' . substr($sig,0,8));
+            return $this->response->setStatusCode(400)->setBody('invalid signature');
+        }
+
+        // Parse JSON
+        $payload = json_decode($raw, true);
+        if (!is_array($payload)) {
+            log_message('warning', 'paymentWebhook: invalid json payload');
+            return $this->response->setStatusCode(400)->setBody('invalid payload');
+        }
+
+        // Determine event type (PayMongo sends top-level 'type' like 'payment.paid')
+        $eventType = $payload['type'] ?? ($payload['data']['type'] ?? null);
+
+        // Try to extract provider payment id and metadata
+        $data = $payload['data'] ?? [];
+        $providerId = $data['id'] ?? null;
+        // Some events include relationships.payment.data.id
+        if (empty($providerId) && isset($data['relationships']['payment']['data']['id'])) {
+            $providerId = $data['relationships']['payment']['data']['id'];
+        }
+
+        $attributes = $data['attributes'] ?? [];
+        $metadata = $attributes['metadata'] ?? [];
+        $metaBookingId = isset($metadata['booking_id']) ? (int)$metadata['booking_id'] : null;
+        $metaPaymentId = isset($metadata['payment_id']) ? (int)$metadata['payment_id'] : null;
+
+        try {
+            $paymentModel = new \App\Models\PaymentModel();
+            $bookingModel = new \App\Models\BookingModel();
+
+            // Try to find local payment record
+            $localPayment = null;
+            if ($providerId) {
+                $localPayment = $paymentModel->where('transaction_id', $providerId)->orderBy('created_at', 'DESC')->first();
+            }
+            if (!$localPayment && $metaPaymentId) {
+                $localPayment = $paymentModel->find($metaPaymentId);
+            }
+            if (!$localPayment && $metaBookingId) {
+                $localPayment = $paymentModel->where('booking_id', $metaBookingId)->orderBy('created_at', 'DESC')->first();
+            }
+
+            // Helper to create a payment when only booking_id present
+            if (!$localPayment && $metaBookingId && $providerId) {
+                $ins = [
+                    'booking_id' => $metaBookingId,
+                    'amount' => isset($attributes['amount']) ? $attributes['amount'] / 100 : null,
+                    'payment_method' => $attributes['payment_method'] ?? null,
+                    'payment_date' => date('Y-m-d H:i:s'),
+                    'transaction_id' => $providerId,
+                    'status' => 'Completed',
+                    'notes' => 'Created from webhook ' . ($eventType ?? ''),
+                    'created_at' => date('Y-m-d H:i:s')
+                ];
+                try {
+                    $paymentModel->insert($ins);
+                    $localPayment = $paymentModel->where('transaction_id', $providerId)->orderBy('created_at', 'DESC')->first();
+                } catch (\Throwable $e) {
+                    log_message('error', 'paymentWebhook: failed to create payment row: ' . $e->getMessage());
+                }
+            }
+
+            // Decide action based on event type
+            $now = date('Y-m-d H:i:s');
+            $handled = false;
+
+            $paidEvents = ['payment.paid', 'checkout_session.payment.paid', 'link.payment.paid'];
+            $failedEvents = ['payment.failed'];
+            $refundEvents = ['payment.refunded', 'payment.refund.updated'];
+
+            if (in_array($eventType, $paidEvents, true)) {
+                if ($localPayment) {
+                    $update = ['status' => 'Completed', 'payment_date' => $now];
+                    if ($providerId) $update['transaction_id'] = $providerId;
+                    $paymentModel->update($localPayment['payment_id'], $update);
+
+                    // Update booking status
+                    if (!empty($localPayment['booking_id'])) {
+                        $bookingModel->update($localPayment['booking_id'], ['payment_status' => 'Paid', 'booking_status' => 'Confirmed', 'updated_at' => $now]);
+                    }
+                    $handled = true;
+                } else {
+                    // If we have booking id in metadata, create/mark payment
+                    if ($metaBookingId) {
+                        try {
+                            $pm = $paymentModel->where('booking_id', $metaBookingId)->orderBy('created_at', 'DESC')->first();
+                            if ($pm) {
+                                $paymentModel->update($pm['payment_id'], ['status' => 'Completed', 'payment_date' => $now, 'transaction_id' => $providerId]);
+                            } else {
+                                $paymentModel->insert(['booking_id' => $metaBookingId, 'amount' => isset($attributes['amount']) ? $attributes['amount']/100 : null, 'transaction_id' => $providerId, 'status' => 'Completed', 'payment_date' => $now, 'created_at' => $now]);
+                            }
+                            $bookingModel->update($metaBookingId, ['payment_status' => 'Paid', 'booking_status' => 'Confirmed', 'updated_at' => $now]);
+                            $handled = true;
+                        } catch (\Throwable $e) {
+                            log_message('error', 'paymentWebhook: failed to mark booking paid: ' . $e->getMessage());
+                        }
+                    }
+                }
+            } elseif (in_array($eventType, $failedEvents, true)) {
+                if ($localPayment) {
+                    $paymentModel->update($localPayment['payment_id'], ['status' => 'Failed', 'payment_date' => $now]);
+                    if (!empty($localPayment['booking_id'])) {
+                        $bookingModel->update($localPayment['booking_id'], ['payment_status' => 'Failed', 'updated_at' => $now]);
+                    }
+                    $handled = true;
+                }
+            } elseif (in_array($eventType, $refundEvents, true)) {
+                if ($localPayment) {
+                    $paymentModel->update($localPayment['payment_id'], ['status' => 'Refunded', 'updated_at' => $now]);
+                    if (!empty($localPayment['booking_id'])) {
+                        $bookingModel->update($localPayment['booking_id'], ['payment_status' => 'Refunded', 'booking_status' => 'Refunded', 'updated_at' => $now]);
+                    }
+                    $handled = true;
+                }
+            }
+
+            // Log event for debugging
+            log_message('info', 'paymentWebhook: event=' . ($eventType ?? 'unknown') . ' provider_id=' . ($providerId ?? '') . ' meta_booking=' . ($metaBookingId ?? '') . ' handled=' . ($handled ? '1' : '0'));
+
+            return $this->response->setStatusCode(200)->setBody('ok');
+        } catch (\Throwable $e) {
+            log_message('error', 'paymentWebhook error: ' . $e->getMessage());
+            return $this->response->setStatusCode(500)->setBody('server error');
+        }
+    }
+
 }
