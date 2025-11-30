@@ -94,12 +94,7 @@
                             <span class="tourist-nav-link-text">Visited Places</span>
                         </a>
                     </li>
-                    <li class="tourist-nav-item">
-                        <a href="/tourist/reviews" class="tourist-nav-link">
-                            <i class="bi bi-star"></i>
-                            <span class="tourist-nav-link-text">My Reviews</span>
-                        </a>
-                    </li>
+                    <!-- My Reviews link removed (reviews integrated into Visited/Explore) -->
                 </ul>
             </nav>
         </aside>
@@ -111,7 +106,45 @@
                 <div class="page-header-actions">
                 <div style="position: relative;">
                   <?php $session = session(); $userFirstName = $session->get('FirstName') ?? ''; $userLastName = $session->get('LastName') ?? ''; $userEmail = $session->get('Email') ?? ''; $userInitials = strtoupper(substr($userFirstName,0,1).substr($userLastName,0,1)); ?>
-                  <div class="user-avatar" onclick="toggleUserDropdown()"><?= esc($userInitials ?: 'JD') ?></div>
+                  <div style="position:relative;display:flex;align-items:center;gap:1rem;">
+                    <button class="notification-btn" onclick="toggleNotificationDropdown()">
+                      <i class="bi bi-bell-fill"></i>
+                      <span class="notification-badge" id="notifBadge">3</span>
+                    </button>
+                    <!-- Notification Dropdown -->
+                    <div class="notification-dropdown" id="notificationDropdown">
+                        <div class="notification-header">
+                            <h6>Notifications</h6>
+                            <button class="mark-all-read" onclick="markAllAsRead()">Mark all read</button>
+                        </div>
+                        <ul class="notification-list">
+                            <li class="notification-item unread" onclick="openNotificationDetail(this)" style="cursor:pointer;">
+                                <div class="notification-content">
+                                    <div class="notification-icon info"><i class="bi bi-calendar-check"></i></div>
+                                    <div class="notification-text">
+                                        <h6>Itinerary Reminder</h6>
+                                        <p>Your Nasugbu Adventure starts tomorrow at 9:00 AM</p>
+                                        <div class="notification-time"><i class="bi bi-clock"></i> 5 hours ago</div>
+                                    </div>
+                                </div>
+                            </li>
+                            <li class="notification-item unread" onclick="openNotificationDetail(this)" style="cursor:pointer;">
+                                <div class="notification-content">
+                                    <div class="notification-icon success"><i class="bi bi-check-circle-fill"></i></div>
+                                    <div class="notification-text">
+                                        <h6>Itinerary Saved</h6>
+                                        <p>Your Beach Hopping Trip has been saved successfully</p>
+                                        <div class="notification-time"><i class="bi bi-clock"></i> 2 days ago</div>
+                                    </div>
+                                </div>
+                            </li>
+                        </ul>
+                        <div class="notification-footer">
+                            <a href="#" onclick="viewAllNotifications(event)">View all notifications</a>
+                        </div>
+                    </div>
+                    <div class="user-avatar" onclick="toggleUserDropdown()"><?= esc($userInitials ?: 'JD') ?></div>
+                  </div>
                   <div class="user-dropdown" id="userDropdown">
                     <div class="dropdown-header">
                       <h6><?= esc(($userFirstName ?: 'Juan') . ' ' . ($userLastName ?: 'Dela Cruz')) ?></h6>
@@ -968,6 +1001,19 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 
+    <style>
+      /* Visually indicate a suggested card that is disabled for the currently selected day */
+      .suggested-card.disabled-for-day {
+        opacity: 0.5;
+        filter: grayscale(60%);
+        pointer-events: auto; /* keep pointer events for selection, but add button is disabled */
+      }
+      .suggested-card .sugg-add[disabled] {
+        cursor: not-allowed;
+        opacity: 0.9;
+      }
+    </style>
+
     <!-- Minimal UI-only dropdown script -->
     <script>
       (function () {
@@ -992,10 +1038,64 @@
           e?.preventDefault();
           userDrop?.classList.remove('show');
         };
+        window.openNotificationModal = function(){
+          userDrop?.classList.remove('show');
+          const modal = document.getElementById('notificationDetailModal');
+          if(!modal) return;
+          bootstrap.Modal.getOrCreateInstance(modal).show();
+        };
+        window.toggleNotificationDropdown = function(){
+          const dd = document.getElementById('notificationDropdown');
+          userDrop?.classList.remove('show');
+          dd?.classList.toggle('show');
+        };
+        window.openNotificationDetail = function(item){
+          const title = item.querySelector('.notification-text h6')?.textContent || 'Notification';
+          const message = item.querySelector('.notification-text p')?.textContent || '';
+          const time = item.querySelector('.notification-time')?.textContent || '';
+          item.classList.remove('unread');
+          document.getElementById('notificationDropdown')?.classList.remove('show');
+          const modal = document.getElementById('notificationDetailModal');
+          if(modal){
+            document.getElementById('notifDetailTitle').textContent = title;
+            document.getElementById('notifDetailMessage').textContent = message;
+            document.getElementById('notifDetailTime').textContent = time;
+            bootstrap.Modal.getOrCreateInstance(modal).show();
+          }
+        };
+        window.hideUserDropdown = function(e){
+          e?.preventDefault();
+          userDrop?.classList.remove('show');
+        };
+        window.openProfile = function(e){
+          e?.preventDefault();
+          window.hideUserDropdown(e);
+          const modal = document.getElementById('profileModal');
+          if(modal) bootstrap.Modal.getOrCreateInstance(modal).show();
+        };
+        window.markAllAsRead = function() {
+          const items = document.querySelectorAll('.notification-item.unread');
+          items.forEach(item => item.classList.remove('unread'));
+          const badge = document.querySelector('.notification-badge');
+          if (badge) badge.textContent = '0';
+        };
+        window.viewAllNotifications = function(event) {
+          event.preventDefault();
+          // Navigate to notifications page
+        };
+        window.handleLogout = function(event) {
+          event.preventDefault();
+          if (confirm('Are you sure you want to logout?')) {
+            window.location.href = '/users/logout';
+          }
+        };
 
         // Close when clicking outside
         document.addEventListener('click', (e) => {
+          const notifDropdown = document.getElementById('notificationDropdown');
+          const notifBtn = document.querySelector('.notification-btn');
           if (userDrop && !userDrop.contains(e.target) && !userBtn.contains(e.target)) userDrop.classList.remove('show');
+          if (notifDropdown && notifBtn && !notifBtn.contains(e.target) && !notifDropdown.contains(e.target)) notifDropdown.classList.remove('show');
         });
         // Close on Escape
         document.addEventListener('keydown', (e) => {
@@ -1049,6 +1149,23 @@
         form.dataset.targetDay = day;
         // also keep a global quick-reference for immediate '+' adds
         window.lastAddActivityTargetDay = day;
+        // Update suggested cards UI: enable/disable + buttons based on whether the card was already added for this day
+        try {
+          const dayStr = String(day);
+          if (grid) {
+            Array.from(grid.querySelectorAll('.suggested-card')).forEach(card => {
+              const addBtn = card.querySelector('.sugg-add');
+              const addedDays = (card.dataset.addedDays || '').split(',').map(s=>s.trim()).filter(Boolean);
+              const isAdded = addedDays.includes(dayStr);
+              if (addBtn) {
+                addBtn.disabled = isAdded;
+                addBtn.innerHTML = isAdded ? '<i class="bi bi-check-lg"></i>' : '<i class="bi bi-plus-lg"></i>';
+                card.classList.toggle('disabled', isAdded);
+                card.classList.toggle('disabled-for-day', isAdded);
+              }
+            });
+          }
+        } catch(e) { console.warn('Could not update suggested card states for target day', e); }
         bootstrap.Modal.getOrCreateInstance(modal).show();
       }
 
@@ -1086,6 +1203,20 @@
           const grid = document.getElementById('suggestedGrid');
           const selectedCards = grid ? Array.from(grid.querySelectorAll('.suggested-card.selected')) : [];
 
+          // Confirm action with user
+          if (selectedCards.length > 0) {
+            try {
+              const confirmMsg = `Add ${selectedCards.length} selected spot${selectedCards.length>1?'s':''} to Day ${targetDay}?`;
+              if (!confirm(confirmMsg)) return;
+            } catch(e) {}
+          } else {
+            // manual add/edit save confirmation
+            try {
+              const title = form.querySelector('#activityName')?.value || 'Activity';
+              if (!confirm(`Save activity "${title}" to Day ${targetDay}?`)) return;
+            } catch(e) {}
+          }
+
           if (selectedCards.length > 0) {
             selectedCards.forEach(card => {
               const title = card.dataset.title || card.querySelector('.sugg-title')?.textContent || 'Untitled';
@@ -1097,6 +1228,8 @@
               node.className = 'activity-item';
               node.setAttribute('data-type', type);
               node.setAttribute('data-id', card.dataset.id || ('tmp-' + Date.now() + Math.floor(Math.random()*1000)));
+              // preserve link to source card so we can update addedDays later
+              if (card && (card.dataset.id || card.dataset.title)) node.setAttribute('data-source-card-id', card.dataset.id || card.dataset.title);
               node.setAttribute('data-title', title);
               node.setAttribute('data-location', location);
               // Preserve coordinates from the suggested card if present
@@ -1121,7 +1254,24 @@
               `;
 
               const list = document.querySelector(`.activities-list[data-day="${targetDay}"]`);
-              if (list) list.appendChild(node);
+              if (list) {
+                list.appendChild(node);
+                // Mark this suggested card as added for the target day (day-scoped disable)
+                try {
+                  const addBtn = card.querySelector('.sugg-add');
+                  const dayStr = String(targetDay);
+                  const addedDays = (card.dataset.addedDays || '').split(',').map(s=>s.trim()).filter(Boolean);
+                  if (!addedDays.includes(dayStr)) addedDays.push(dayStr);
+                  card.dataset.addedDays = addedDays.join(',');
+                  const isAdded = addedDays.includes(dayStr);
+                  if (addBtn) {
+                    addBtn.disabled = isAdded;
+                    addBtn.innerHTML = isAdded ? '<i class="bi bi-check-lg"></i>' : '<i class="bi bi-plus-lg"></i>';
+                    card.classList.toggle('disabled', isAdded);
+                    card.classList.toggle('disabled-for-day', isAdded);
+                  }
+                } catch(e) {}
+              }
             });
             // update in-memory itinerary and map
             setTimeout(()=>{ if (typeof window.__rebuildCurrentItinerary === 'function') window.__rebuildCurrentItinerary(); }, 80);
@@ -2010,6 +2160,38 @@
               animation: 150,
               handle: '.activity-drag-handle',
               onEnd: function (evt) {
+                try {
+                  const item = evt.item; // moved element
+                  const fromList = evt.from && evt.from.closest && evt.from.closest('.day-card') ? evt.from.closest('.day-card') : evt.from;
+                  const toList = evt.to && evt.to.closest && evt.to.closest('.day-card') ? evt.to.closest('.day-card') : evt.to;
+                  const oldDay = fromList ? fromList.dataset.day || fromList.getAttribute('data-day') : null;
+                  const newDay = toList ? toList.dataset.day || toList.getAttribute('data-day') : null;
+                  // If this activity came from a suggested card, update that card's addedDays
+                  if (item && item.dataset && item.dataset.sourceCardId) {
+                    const sourceId = item.dataset.sourceCardId;
+                    const card = document.querySelector(`.suggested-card[data-id="${sourceId}"]`) || Array.from(document.querySelectorAll('.suggested-card')).find(c => (c.dataset.title || '') === sourceId);
+                    if (card) {
+                      const addedDays = (card.dataset.addedDays || '').split(',').map(s=>s.trim()).filter(Boolean);
+                      // remove oldDay
+                      if (oldDay) {
+                        const idx = addedDays.indexOf(String(oldDay));
+                        if (idx !== -1) addedDays.splice(idx,1);
+                      }
+                      // add newDay
+                      if (newDay && !addedDays.includes(String(newDay))) addedDays.push(String(newDay));
+                      card.dataset.addedDays = addedDays.join(',');
+                      const addBtn = card.querySelector('.sugg-add');
+                      const isAdded = addedDays.includes(String(newDay));
+                      if (addBtn) {
+                        addBtn.disabled = isAdded;
+                        addBtn.innerHTML = isAdded ? '<i class="bi bi-check-lg"></i>' : '<i class="bi bi-plus-lg"></i>';
+                        card.classList.toggle('disabled', isAdded);
+                        card.classList.toggle('disabled-for-day', isAdded);
+                      }
+                    }
+                  }
+                } catch (e) { console.warn('Error updating suggested-card day state after drag', e); }
+
                 // Rebuild in-memory itinerary and refresh map
                 if (typeof window.__rebuildCurrentItinerary === 'function') {
                   window.__rebuildCurrentItinerary();
@@ -2036,6 +2218,31 @@
           if (delBtn) {
             const item = delBtn.closest('.activity-item');
             if (item && confirm('Delete this activity?')) {
+              try {
+                // If this activity originated from a suggested card, remove the day from that card's addedDays
+                if (item.dataset && item.dataset.sourceCardId) {
+                  const sourceId = item.dataset.sourceCardId;
+                  const card = document.querySelector(`.suggested-card[data-id="${sourceId}"]`) || Array.from(document.querySelectorAll('.suggested-card')).find(c => (c.dataset.title || '') === sourceId);
+                  if (card) {
+                    const list = item.closest('.activities-list');
+                    const day = list ? (list.dataset.day || list.getAttribute('data-day')) : null;
+                    const addedDays = (card.dataset.addedDays || '').split(',').map(s=>s.trim()).filter(Boolean);
+                    if (day) {
+                      const idx = addedDays.indexOf(String(day));
+                      if (idx !== -1) addedDays.splice(idx,1);
+                    }
+                    card.dataset.addedDays = addedDays.join(',');
+                    // enable the add button if no longer added for this day
+                    const addBtn = card.querySelector('.sugg-add');
+                    const isAdded = addedDays.length > 0;
+                    if (addBtn) {
+                      addBtn.disabled = false;
+                      addBtn.innerHTML = '<i class="bi bi-plus-lg"></i>';
+                      card.classList.remove('disabled', 'disabled-for-day');
+                    }
+                  }
+                }
+              } catch(err) { console.warn('Failed to update suggested-card after delete', err); }
               item.remove();
             }
 
@@ -2371,6 +2578,10 @@
               node.className = 'activity-item';
               node.setAttribute('data-type', type);
               node.setAttribute('data-id', 'tmp-' + Date.now() + Math.floor(Math.random()*1000));
+              // link back to source suggested card so deletes/moves can update its day-state
+              if (card && (card.dataset.id || card.dataset.title)) {
+                node.setAttribute('data-source-card-id', card.dataset.id || card.dataset.title);
+              }
               node.setAttribute('data-title', title);
               node.setAttribute('data-location', location);
               node.innerHTML = `
@@ -2393,6 +2604,21 @@
               if (list) {
                 list.appendChild(node);
                 console.log('Added suggested card to day', targetDay, title);
+                // Mark the source suggested card as added for this target day (day-scoped)
+                try {
+                  const addBtn = card.querySelector('.sugg-add');
+                  const dayStr = String(targetDay);
+                  const addedDays = (card.dataset.addedDays || '').split(',').map(s=>s.trim()).filter(Boolean);
+                  if (!addedDays.includes(dayStr)) addedDays.push(dayStr);
+                  card.dataset.addedDays = addedDays.join(',');
+                  const isAdded = addedDays.includes(dayStr);
+                  if (addBtn) {
+                    addBtn.disabled = isAdded;
+                    addBtn.innerHTML = isAdded ? '<i class="bi bi-check-lg"></i>' : '<i class="bi bi-plus-lg"></i>';
+                    card.classList.toggle('disabled', isAdded);
+                    card.classList.toggle('disabled-for-day', isAdded);
+                  }
+                } catch (e) { /* ignore */ }
                 // If map is present and the suggested card has lat/lng, add a temporary marker
                 try {
                   const lat = node.getAttribute('data-lat');
@@ -2421,6 +2647,20 @@
               const btn = e.target.closest('.sugg-add');
               const card = e.target.closest('.suggested-card');
               if (btn && card) {
+                // Determine target day (modal or lastAddActivityTargetDay)
+                const form = document.getElementById('activityForm');
+                const targetDay = (form && form.dataset.targetDay) || window.lastAddActivityTargetDay || '';
+                const addedDays = (card.dataset.addedDays || '').split(',').map(s=>s.trim()).filter(Boolean);
+                if (targetDay && addedDays.includes(String(targetDay))) {
+                  console.log('Spot already added for day', targetDay, card.dataset.title || '');
+                  return;
+                }
+                // Confirm add with user
+                try {
+                  const title = card.dataset.title || card.querySelector('.sugg-title')?.textContent || 'this spot';
+                  const dayLabel = targetDay || '1';
+                  if (!confirm(`Add "${title}" to Day ${dayLabel}?`)) return;
+                } catch (e) { /* ignore confirm errors */ }
                 // Immediate add when + button clicked
                 addSuggestedCardToDay(card);
                 return;
@@ -3183,6 +3423,26 @@
         });
       })();
     </script>
+
+    <!-- Notification Detail Modal (opens when clicking a notification) -->
+    <div class="modal fade" id="notificationDetailModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title"><i class="bi bi-bell-fill"></i> <span id="notifDetailTitle">Notification</span></h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p id="notifDetailMessage" style="font-size:1rem;color:#333;margin-bottom:1rem;"></p>
+            <p class="text-muted" style="font-size:0.875rem;margin:0;"><i class="bi bi-clock"></i> <span id="notifDetailTime"></span></p>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button class="btn btn-primary" data-bs-dismiss="modal">Take Action</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
   </body>
 </html>

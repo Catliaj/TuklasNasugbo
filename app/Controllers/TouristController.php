@@ -1106,11 +1106,28 @@ public function listUserTrips()
                     'created_at' => date('Y-m-d H:i:s')
                 ];
 
-                $insertId = $itModel->insert($row);
-                if ($insertId === false) {
-                    $errors[] = ['spot' => $s, 'error' => 'Failed to insert'];
+                // Prevent duplicate itinerary rows: check by preference, spot, trip title and start_date
+                try {
+                    $existsQuery = $itModel->where('preference_id', $preferenceId)
+                        ->where('spot_id', $spotId)
+                        ->where('trip_title', $title)
+                        ->where('start_date', $start)
+                        ->first();
+                } catch (\Throwable $e) {
+                    // In case model or DB schema differs, fall back to no existing check
+                    $existsQuery = null;
+                }
+
+                if ($existsQuery) {
+                    // Record as skipped duplicate
+                    $errors[] = ['spot' => $s, 'error' => 'Duplicate skipped (already in itinerary)'];
                 } else {
-                    $created[] = $insertId;
+                    $insertId = $itModel->insert($row);
+                    if ($insertId === false) {
+                        $errors[] = ['spot' => $s, 'error' => 'Failed to insert'];
+                    } else {
+                        $created[] = $insertId;
+                    }
                 }
 
                 $day++;
@@ -1930,6 +1947,8 @@ public function getVisitedPlacesAjax()
             $data = array_map(function ($row) {
                 return [
                     'booking_id'   => $row['booking_id'] ?? null,
+                    'spot_id'      => $row['spot_id'] ?? null,
+                    'review_id'    => $row['review_id'] ?? null,
                     'booking_date' => $row['booking_date'] ?? null,
                     'visit_date'   => $row['visit_date'] ?? null,
                     'visit_time'   => $row['visit_time'] ?? null,
@@ -1938,7 +1957,7 @@ public function getVisitedPlacesAjax()
                     'spot_name'    => $row['spot_name'] ?? '',
                     'location'     => $row['location'] ?? '',
                     'primary_image'=> $row['primary_image'] ?? null,
-                    'booking_status'=> $row['booking_status'] ?? null, // may be null if query didn't select it
+                    'booking_status'=> $row['booking_status'] ?? null,
                 ];
             }, $visited);
 
@@ -2227,6 +2246,274 @@ public function getVisitedPlacesAjax()
         } catch (\Throwable $e) {
             log_message('error', 'paymentWebhook error: ' . $e->getMessage());
             return $this->response->setStatusCode(500)->setBody('server error');
+        }
+    }
+
+    // ===== FEEDBACK/REVIEW METHODS =====
+    public function createFeedback()
+    {
+        $session = session();
+        $userID = $session->get('UserID');
+        if (!$userID) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Not authenticated'])->setStatusCode(401);
+        }
+
+        $json = $this->request->getJSON(true);
+        $spot_id = $json['spot_id'] ?? null;
+        $rating = $json['rating'] ?? null;
+        $comment = $json['comment'] ?? '';
+        $recommend = $json['recommend'] ?? 1;
+        $status = $json['status'] ?? 'published';
+
+        if (!$spot_id || !$rating) {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Missing required fields',
+                'details' => ['spot_id' => $spot_id, 'rating' => $rating]
+            ])->setStatusCode(422);
+        }
+
+        $customer_id = null;
+        try {
+            $customerModel = new \App\Models\CustomerModel();
+            $c = $customerModel->where('user_id', $userID)->first();
+            if ($c) $customer_id = $c['customer_id'];
+        } catch (\Throwable $e) {
+            log_message('error', 'Error getting customer: ' . $e->getMessage());
+        }
+
+        $business_id = null;
+        try {
+            // Try model if it exists
+            if (class_exists('App\\Models\\TouristSpotModel')) {
+                $spotModel = new \App\Models\TouristSpotModel();
+                $spot = $spotModel->find($spot_id);
+            } else {
+                // Fallback to direct DB query
+                $db = \Config\Database::connect();
+                $spot = $db->table('tourist_spots')->where('spot_id', $spot_id)->get()->getRowArray();
+            }
+            if ($spot) {
+                $business_id = $spot['business_id'] ?? null;
+            }
+        } catch (\Throwable $e) {
+            log_message('error', 'Error getting spot: ' . $e->getMessage());
+        }
+        // Fallback: ensure business_id is not NULL
+        if (!$business_id) {
+            $business_id = 0;
+        }
+
+        $booking_id = null;
+        try {
+            $bookingModel = new \App\Models\BookingModel();
+            if ($customer_id) {
+                $booking = $bookingModel
+                    ->where('customer_id', $customer_id)
+                    ->where('spot_id', $spot_id)
+                    ->whereIn('booking_status', ['Checked-in', 'Checked-out', 'Completed', 'Confirmed'])
+                    ->first();
+                if ($booking) $booking_id = $booking['booking_id'];
+            }
+        } catch (\Throwable $e) {
+            log_message('error', 'Error getting booking: ' . $e->getMessage());
+        }
+
+        $data = [
+            'spot_id' => $spot_id,
+            'customer_id' => $customer_id,
+            'business_id' => $business_id,
+            'rating' => $rating,
+            'comment' => $comment,
+            'status' => $status,
+            'is_verified_visit' => $booking_id ? 1 : 0
+        ];
+
+        // Only include booking_id if it's a valid positive integer; otherwise set to NULL
+        if (is_numeric($booking_id) && (int)$booking_id > 0) {
+            $data['booking_id'] = (int)$booking_id;
+        } else {
+            // Set booking_id to NULL explicitly so the DB can handle it
+            $data['booking_id'] = null;
+        }
+
+        // Log the data being inserted for debugging
+        log_message('info', 'createFeedback: preparing insert with data: ' . json_encode($data));
+
+        try {
+            $feedbackModel = new \App\Models\FeedbackModel();
+            $insertId = $feedbackModel->insert($data);
+            if ($insertId) {
+                log_message('info', 'createFeedback: success, review_id=' . $insertId);
+                return $this->response->setJSON(['success' => true, 'review_id' => $insertId]);
+            } else {
+                log_message('error', 'createFeedback: insert failed (returned false)');
+                return $this->response->setJSON(['success' => false, 'message' => 'Failed to save review'])->setStatusCode(500);
+            }
+        } catch (\Throwable $e) {
+            log_message('error', 'createFeedback error: ' . $e->getMessage());
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Server error',
+                'details' => $e->getMessage()
+            ])->setStatusCode(500);
+        }
+    }
+
+    public function getFeedback($review_id)
+    {
+        $session = session();
+        $userID = $session->get('UserID');
+        if (!$userID) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Not authenticated'])->setStatusCode(401);
+        }
+
+        try {
+            $feedbackModel = new \App\Models\FeedbackModel();
+            $review = $feedbackModel->find($review_id);
+            if (!$review) {
+                return $this->response->setJSON(['success' => false, 'message' => 'Review not found'])->setStatusCode(404);
+            }
+            $spotModel = new \App\Models\TouristSpotModel();
+            $spot = $spotModel->find($review['spot_id']);
+            $review['spot_name'] = $spot['spot_name'] ?? 'Unknown Place';
+            return $this->response->setJSON(['success' => true, 'review' => $review]);
+        } catch (\Throwable $e) {
+            log_message('error', 'getFeedback error: ' . $e->getMessage());
+            return $this->response->setJSON(['success' => false, 'message' => 'Server error'])->setStatusCode(500);
+        }
+    }
+
+    public function updateFeedback($review_id)
+    {
+        $session = session();
+        $userID = $session->get('UserID');
+        if (!$userID) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Not authenticated'])->setStatusCode(401);
+        }
+
+        $json = $this->request->getJSON(true);
+        $rating = $json['rating'] ?? null;
+        $comment = $json['comment'] ?? '';
+        if (!$rating) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Rating is required'])->setStatusCode(422);
+        }
+
+        try {
+            $feedbackModel = new \App\Models\FeedbackModel();
+            $data = [
+                'rating' => $rating,
+                'comment' => $comment
+            ];
+            $updated = $feedbackModel->update($review_id, $data);
+            if ($updated) {
+                return $this->response->setJSON(['success' => true, 'message' => 'Review updated successfully']);
+            } else {
+                return $this->response->setJSON(['success' => false, 'message' => 'Failed to update review'])->setStatusCode(500);
+            }
+        } catch (\Throwable $e) {
+            log_message('error', 'updateFeedback error: ' . $e->getMessage());
+            return $this->response->setJSON(['success' => false, 'message' => 'Server error'])->setStatusCode(500);
+        }
+    }
+
+    public function deleteFeedback($review_id)
+    {
+        $session = session();
+        $userID = $session->get('UserID');
+        if (!$userID) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Not authenticated'])->setStatusCode(401);
+        }
+        try {
+            $feedbackModel = new \App\Models\FeedbackModel();
+            $deleted = $feedbackModel->delete($review_id);
+            if ($deleted) {
+                return $this->response->setJSON(['success' => true, 'message' => 'Review deleted successfully']);
+            } else {
+                return $this->response->setJSON(['success' => false, 'message' => 'Failed to delete review'])->setStatusCode(500);
+            }
+        } catch (\Throwable $e) {
+            log_message('error', 'deleteFeedback error: ' . $e->getMessage());
+            return $this->response->setJSON(['success' => false, 'message' => 'Server error'])->setStatusCode(500);
+        }
+    }
+
+    // Fetch all reviews for a specific spot (public - no auth required)
+    public function getSpotReviews($spot_id)
+    {
+        $spotId = (int) $spot_id;
+        if ($spotId <= 0) {
+            return $this->response->setJSON(['success' => false, 'reviews' => [], 'message' => 'Invalid spot id'])->setStatusCode(400);
+        }
+
+        try {
+            $feedbackModel = new \App\Models\FeedbackModel();
+            $db = \Config\Database::connect();
+            
+                    // Pagination params (limit & offset)
+                    $limit = (int) ($this->request->getGet('limit') ?? 10);
+                    $offset = (int) ($this->request->getGet('offset') ?? 0);
+                    // Clamp values
+                    $limit = $limit > 0 ? min($limit, 50) : 10;
+                    $offset = max(0, $offset);
+
+                    // Fetch published reviews for this spot with customer names (paginated)
+                    $reviews = $db->table('review_feedback rf')
+                        ->select('rf.review_id, rf.rating, rf.comment, rf.recommend, rf.created_at, rf.customer_id, c.FirstName, c.LastName, c.user_id, c.Email')
+                        ->join('customers c', 'rf.customer_id = c.customer_id', 'left')
+                        ->where('rf.spot_id', $spotId)
+                        ->where('rf.status', 'published')
+                        ->orderBy('rf.created_at', 'DESC')
+                        ->limit($limit, $offset)
+                        ->get()
+                        ->getResultArray();
+
+                    // Compute aggregate (average rating and total published reviews)
+                    $agg = $db->table('review_feedback')
+                        ->select('IFNULL(ROUND(AVG(rating),2),0) AS average_rating, COUNT(*) AS total_reviews')
+                        ->where('spot_id', $spotId)
+                        ->where('status', 'published')
+                        ->get()
+                        ->getRowArray();
+
+                    $averageRating = isset($agg['average_rating']) ? (float)$agg['average_rating'] : 0.0;
+                    $totalReviews = isset($agg['total_reviews']) ? (int)$agg['total_reviews'] : 0;
+
+                    // Format reviews for frontend
+                    $formattedReviews = array_map(function($review) {
+                        return [
+                            'review_id' => $review['review_id'],
+                            'rating' => (int)$review['rating'],
+                            'comment' => $review['comment'],
+                            'recommend' => (int)$review['recommend'],
+                            'created_at' => $review['created_at'],
+                            'customer_id' => $review['customer_id'] ?? null,
+                            'user_id' => $review['user_id'] ?? null,
+                            'customer_email' => $review['Email'] ?? $review['email'] ?? null,
+                            'customer_name' => trim(($review['FirstName'] ?? 'Anonymous') . ' ' . ($review['LastName'] ?? '')),
+                        ];
+                    }, $reviews);
+
+                    // Determine if there are more reviews
+                    $hasMore = ($totalReviews > ($offset + count($formattedReviews)));
+
+                    return $this->response->setJSON([
+                        'success' => true,
+                        'reviews' => $formattedReviews,
+                        'count' => count($formattedReviews),
+                        'average_rating' => $averageRating,
+                        'total_reviews' => $totalReviews,
+                        'has_more' => $hasMore,
+                        'offset' => $offset,
+                        'limit' => $limit
+                    ]);
+        } catch (\Throwable $e) {
+            log_message('error', 'getSpotReviews error: ' . $e->getMessage());
+            return $this->response->setJSON([
+                'success' => false,
+                'reviews' => [],
+                'message' => 'Server error'
+            ])->setStatusCode(500);
         }
     }
 

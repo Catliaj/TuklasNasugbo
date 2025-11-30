@@ -119,6 +119,14 @@ $routes->get('tourist/visited/ajax', 'TouristController::getVisitedPlacesAjax');
 $routes->get('/tourist/getFavorites', 'TouristController::getFavorites');
 // Dashboard live stats (AJAX)
 $routes->get('/tourist/dashboardStats', 'TouristController::dashboardStats');
+// Feedback/Review endpoints
+$routes->post('/tourist/feedback', 'TouristController::createFeedback');
+$routes->get('/tourist/feedback/(:num)', 'TouristController::getFeedback/$1');
+$routes->put('/tourist/feedback/(:num)', 'TouristController::updateFeedback/$1');
+$routes->delete('/tourist/feedback/(:num)', 'TouristController::deleteFeedback/$1');
+// Get all reviews for a specific spot
+$routes->get('/tourist/spot/(:num)/reviews', 'TouristController::getSpotReviews/$1');
+
 
 // Save user category preferences
 $routes->post('/tourist/savePreferences', 'TouristController::savePreferences');
@@ -150,6 +158,8 @@ $routes->get('/tourist/viewSpot/(:num)', 'TouristController::viewSpot/$1');
 // Check-in token endpoints
 $routes->get('tourist/generateCheckinToken/(:num)', 'TouristController::generateCheckinToken/$1');
 $routes->post('tourist/generateCheckinToken/(:num)', 'TouristController::generateCheckinToken/$1');
+
+// Badges (removed)
 
 // Verify token (scanner uses POST)
 $routes->post('tourist/verifyCheckinToken', 'TouristController::verifyCheckinToken');

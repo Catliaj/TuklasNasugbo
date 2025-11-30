@@ -379,6 +379,41 @@ body {
     box-shadow: 0 6px 18px rgba(0,46,85,0.25);
 }
 
+/* VIEW TOGGLE BUTTONS */
+.view-toggle {
+    display: flex;
+    gap: 0.5rem;
+}
+.view-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 1.1rem;
+    border: 2px solid rgba(0,75,141,0.25);
+    background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(0,75,141,0.04));
+    color: var(--dark-text);
+    border-radius: 999px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .3s ease;
+    box-shadow: 0 2px 8px rgba(0,46,85,0.05);
+    font-size: 0.9rem;
+}
+.view-btn:hover {
+    transform: translateY(-2px);
+    background: linear-gradient(135deg, rgba(255,255,255,1), rgba(0,75,141,0.08));
+    box-shadow: 0 4px 12px rgba(0,46,85,0.12);
+}
+.view-btn.active {
+    border-color: #004b8d;
+    background: linear-gradient(135deg, #004b8d, #002e55);
+    color: #fff;
+    box-shadow: 0 6px 18px rgba(0,46,85,0.25);
+}
+.view-btn i {
+    font-size: 1rem;
+}
+
 /* BOOKING CARDS */
 .bookings-container { 
     display: grid; 

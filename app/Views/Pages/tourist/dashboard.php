@@ -94,12 +94,7 @@ $userInitials = strtoupper(substr($userFirstName,0,1) . substr($userLastName,0,1
                             <span class="tourist-nav-link-text">Visited Places</span>
                         </a>
                     </li>
-                    <li class="tourist-nav-item">
-                        <a href="/tourist/reviews" class="tourist-nav-link">
-                            <i class="bi bi-star"></i>
-                            <span class="tourist-nav-link-text">My Reviews</span>
-                        </a>
-                    </li>
+                    <!-- My Reviews link removed (reviews integrated into Visited/Explore) -->
                 </ul>
             </nav>
         </aside>
@@ -113,7 +108,7 @@ $userInitials = strtoupper(substr($userFirstName,0,1) . substr($userLastName,0,1
                     <div style="position: relative;">
                         <button class="notification-btn" onclick="toggleNotificationDropdown()">
                             <i class="bi bi-bell-fill"></i>
-                            <span class="notification-badge">3</span>
+                            <span class="notification-badge" id="notifBadge">3</span>
                         </button>
                         <div class="notification-dropdown" id="notificationDropdown">
                             <div class="notification-header">
@@ -121,7 +116,7 @@ $userInitials = strtoupper(substr($userFirstName,0,1) . substr($userLastName,0,1
                                 <button class="mark-all-read" onclick="markAllAsRead()">Mark all as read</button>
                             </div>
                             <ul class="notification-list" id="notificationList">
-                                <li class="notification-item unread">
+                                <li class="notification-item unread" onclick="openNotificationDetail(this)" style="cursor:pointer;">
                                     <div class="notification-content">
                                         <div class="notification-icon success">
                                             <i class="bi bi-check-circle-fill"></i>
@@ -197,7 +192,7 @@ $userInitials = strtoupper(substr($userFirstName,0,1) . substr($userLastName,0,1
                         </div>
                         <ul class="dropdown-menu-custom">
                             <li>
-                                <a href="profile.html" class="dropdown-item-custom">
+                                <a href="#" onclick="openProfile(event); hideUserDropdown(event)" class="dropdown-item-custom">
                                     <i class="bi bi-person-circle"></i>
                                     <span>My Profile</span>
                                 </a>
@@ -215,6 +210,47 @@ $userInitials = strtoupper(substr($userFirstName,0,1) . substr($userLastName,0,1
                 <p>Ready to explore Nasugbu today?</p>
             </div>
             
+            <!-- Weather Widget and Quick Tip -->
+            <div class="row g-3 mb-4">
+                <!-- Weather Widget -->
+                <div class="col-md-6">
+                    <div class="stat-card" style="height:100%;">
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <h5 class="mb-0 d-flex align-items-center gap-2">
+                                <i class="bi bi-cloud-sun-fill" style="color:#fdb813;"></i> 
+                                <span>Nasugbu Weather</span>
+                            </h5>
+                        </div>
+                        <div class="weather-info" id="weatherWidget">
+                            <div class="text-center py-3">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2 text-muted">Loading weather data...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quick Tip -->
+                <div class="col-md-6">
+                    <div class="stat-card" style="height:100%;background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);color:white;">
+                        <div class="d-flex align-items-center gap-2 mb-3">
+                            <i class="bi bi-lightbulb-fill" style="font-size:1.5rem;"></i>
+                            <h5 class="mb-0">Travel Tip of the Day</h5>
+                        </div>
+                        <div id="quickTip">
+                            <p class="mb-2" style="font-size:1rem;line-height:1.6;" id="tipText">
+                                Start your beach adventures early in the morning to avoid crowds and enjoy the peaceful sunrise views!
+                            </p>
+                            <small style="opacity:0.9;">
+                                <i class="bi bi-info-circle"></i> Pro tip from experienced travelers
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Stats Grid -->
             <div class="stats-grid">
                 <div class="stat-card">
@@ -264,6 +300,58 @@ $userInitials = strtoupper(substr($userFirstName,0,1) . substr($userLastName,0,1
                             <i class="bi bi-bookmark"></i>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Your Favorites -->
+            <div class="recent-activity">
+                <h3 class="d-flex align-items-center gap-2">
+                    <i class="bi bi-heart-fill" style="color:#ff5d5d;"></i> Your Favorites
+                </h3>
+                
+                <div id="favoritesList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;">
+                    <?php if (!empty($favoriteSpots) && count($favoriteSpots) > 0): ?>
+                        <?php foreach (array_slice($favoriteSpots, 0, 6) as $spot): ?>
+                            <?php 
+                                $imagePath = 'uploads/spots/' . ($spot['primary_image'] ?? '');
+                                if (empty($spot['primary_image']) || !is_file(FCPATH . $imagePath)) { 
+                                        $imagePath = 'uploads/spots/Spot-No-Image.png';
+                                }
+                            ?>
+                            <div class="favorite-mini-card" 
+                                 data-spot-id="<?= esc($spot['id'] ?? $spot['spot_id'] ?? '') ?>"
+                                 data-spot-name="<?= esc($spot['spot_name'] ?? $spot['name'] ?? '') ?>"
+                                 data-category="<?= esc($spot['category'] ?? '') ?>"
+                                 data-rating="<?= esc($spot['rating'] ?? '4.5') ?>"
+                                 data-description="<?= esc($spot['description'] ?? '') ?>"
+                                 data-location="<?= esc($spot['location'] ?? '') ?>"
+                                 data-image="<?= base_url($imagePath) ?>"
+                                 onclick="viewFavoriteDetails(this)"
+                                 style="cursor:pointer;background:white;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);transition:all 0.3s;">
+                                <div style="background-image:url('<?= base_url($imagePath) ?>');background-size:cover;background-position:center;height:120px;position:relative;">
+                                    <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(0,0,0,0.7),transparent);padding:0.5rem;">
+                                        <div style="color:white;font-size:0.75rem;font-weight:600;"><?= esc($spot['spot_name'] ?? $spot['name'] ?? '') ?></div>
+                                    </div>
+                                </div>
+                                <div style="padding:0.75rem;">
+                                    <div style="display:flex;align-items:center;justify-content:space-between;font-size:0.75rem;color:#666;">
+                                        <span><i class="bi bi-geo-alt"></i> <?= esc($spot['category'] ?? '') ?></span>
+                                        <span><i class="bi bi-star-fill" style="color:#ffc107;"></i> <?= esc($spot['rating'] ?? '4.5') ?></span>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <div class="activity-item" id="noFavoritesPlaceholder">
+                            <div class="activity-icon">
+                                <i class="bi bi-heart"></i>
+                            </div>
+                            <div class="activity-content">
+                                <h6>No Favorites Yet</h6>
+                                <p>Start exploring and add your favorite spots!</p>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -324,47 +412,6 @@ $userInitials = strtoupper(substr($userFirstName,0,1) . substr($userLastName,0,1
                                     <i class="bi bi-geo-alt-fill"></i>
                                     <span>Nasugbu, Batangas</span>
                                 </div>
-                            </div>
-                        </div>
-                    <?php endif; ?>
-                </div>
-            </div>
-            
-            <!-- Your Favorites -->
-            <div class="recent-activity">
-                <h3 class="d-flex align-items-center gap-2">
-                    <i class="bi bi-heart-fill" style="color:#ff5d5d;"></i> Your Favorites
-                </h3>
-                
-                <div id="favoritesList">
-                    <?php if (!empty($favoriteSpots) && count($favoriteSpots) > 0): ?>
-                        <?php foreach (array_slice($favoriteSpots, 0, 4) as $spot): ?>
-                            <?php 
-                                $imagePath = 'uploads/spots/' . ($spot['primary_image'] ?? '');
-                                if (empty($spot['primary_image']) || !is_file(FCPATH . $imagePath)) { 
-                                        $imagePath = 'uploads/spots/Spot-No-Image.png';
-                                }
-                            ?>
-                            <div class="activity-item favorite-card" data-spot-id="<?= esc($spot['id'] ?? $spot['spot_id'] ?? '') ?>" style="cursor:pointer;" onclick="window.location.href='/tourist/exploreSpots'">
-                                <div class="activity-icon" style="background-image:url('<?= base_url($imagePath) ?>');background-size:cover;background-position:center;width:48px;height:48px;border-radius:8px;">
-                                </div>
-                                <div class="activity-content">
-                                    <h6><?= esc($spot['spot_name'] ?? $spot['name'] ?? '') ?></h6>
-                                    <p><?= esc($spot['category'] ?? '') ?> • ⭐ <?= esc($spot['rating'] ?? '4.5') ?></p>
-                                </div>
-                                <div class="activity-time">
-                                    <i class="bi bi-heart-fill text-danger"></i>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <div class="activity-item" id="noFavoritesPlaceholder">
-                            <div class="activity-icon">
-                                <i class="bi bi-heart"></i>
-                            </div>
-                            <div class="activity-content">
-                                <h6>No Favorites Yet</h6>
-                                <p>Start exploring and add your favorite spots!</p>
                             </div>
                         </div>
                     <?php endif; ?>
@@ -691,6 +738,48 @@ $userInitials = strtoupper(substr($userFirstName,0,1) . substr($userLastName,0,1
             }
         });
 
+        // Toggle notification dropdown
+        function toggleNotificationDropdown(){
+            const dd = document.getElementById('notificationDropdown');
+            const ud = document.getElementById('userDropdown');
+            ud?.classList.remove('show');
+            dd?.classList.toggle('show');
+        }
+
+        // Open notification detail modal when clicking a notification
+        function openNotificationDetail(item){
+            const title = item.querySelector('.notification-text h6')?.textContent || 'Notification';
+            const message = item.querySelector('.notification-text p')?.textContent || '';
+            const time = item.querySelector('.notification-time')?.textContent || '';
+            
+            // Mark as read
+            item.classList.remove('unread');
+            
+            // Close dropdown
+            document.getElementById('notificationDropdown')?.classList.remove('show');
+            
+            // Open detail modal
+            const modal = document.getElementById('notificationDetailModal');
+            if(modal){
+                document.getElementById('notifDetailTitle').textContent = title;
+                document.getElementById('notifDetailMessage').textContent = message;
+                document.getElementById('notifDetailTime').textContent = time;
+                bootstrap.Modal.getOrCreateInstance(modal).show();
+            }
+        }
+
+        function hideUserDropdown(e){
+            e?.preventDefault();
+            document.getElementById('userDropdown')?.classList.remove('show');
+        }
+
+        function openProfile(e){
+            e?.preventDefault();
+            hideUserDropdown(e);
+            const modal = document.getElementById('profileModal');
+            if(modal) bootstrap.Modal.getOrCreateInstance(modal).show();
+        }
+
         // ===== Interactive Enhancements =====
         document.addEventListener('DOMContentLoaded', () => {
             // Initialize modals
@@ -966,5 +1055,139 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 </script>
+
+<script>
+// Weather Display
+document.addEventListener('DOMContentLoaded', function() {
+    // Mock weather data for Nasugbu
+    const weatherData = {
+        temp: 28,
+        feels_like: 31,
+        description: "Partly Cloudy",
+        humidity: 75,
+        wind_speed: 12
+    };
+
+    // Display weather if weather container exists
+    const weatherContainer = document.getElementById('weather-info');
+    if (weatherContainer) {
+        const weatherIcon = weatherData.description.toLowerCase().includes('cloud') ? '⛅' : 
+                           weatherData.description.toLowerCase().includes('rain') ? '🌧️' : '☀️';
+        
+        weatherContainer.innerHTML = `
+            <div class="weather-display p-3 bg-light rounded shadow-sm">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="weather-main">
+                        <div class="d-flex align-items-center mb-2">
+                            <span class="weather-icon" style="font-size: 3rem;">${weatherIcon}</span>
+                            <div class="ms-3">
+                                <h3 class="mb-0">${weatherData.temp}°C</h3>
+                                <p class="text-muted mb-0">Feels like ${weatherData.feels_like}°C</p>
+                            </div>
+                        </div>
+                        <p class="mb-0 fw-bold">${weatherData.description}</p>
+                    </div>
+                    <div class="weather-details text-end">
+                        <div class="mb-2">
+                            <i class="bi bi-droplet-fill text-primary"></i>
+                            <span class="ms-1">${weatherData.humidity}%</span>
+                            <small class="text-muted d-block">Humidity</small>
+                        </div>
+                        <div>
+                            <i class="bi bi-wind text-info"></i>
+                            <span class="ms-1">${weatherData.wind_speed} km/h</span>
+                            <small class="text-muted d-block">Wind Speed</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // Travel Tips Rotation
+    const travelTips = [
+        "Start your beach adventures early in the morning to avoid crowds and enjoy the peaceful sunrise views!",
+        "Always bring sunscreen with SPF 50+ when visiting beaches. Reapply every 2 hours for best protection.",
+        "Visit Fortune Island during low tide for the best photo opportunities at the Greek-inspired ruins.",
+        "Book your accommodations in advance during peak season (December to May) for better rates.",
+        "Try local delicacies at Nasugbu Public Market for an authentic taste of Batangas cuisine.",
+        "Bring waterproof bags to protect your electronics and valuables during island hopping tours.",
+        "The best time to visit Kaybiang Tunnel is during sunset for stunning photo opportunities.",
+        "Respect local customs and marine life - take only pictures, leave only footprints.",
+        "Download offline maps of Nasugbu before your trip in case of limited signal in remote areas.",
+        "Check weather forecasts before planning beach or mountain activities for your safety."
+    ];
+
+    let currentTipIndex = 0;
+    const tipElement = document.getElementById('travel-tip');
+    
+    if (tipElement) {
+        // Set initial tip
+        tipElement.textContent = travelTips[0];
+        tipElement.style.transition = 'opacity 0.5s ease-in-out';
+        
+        // Rotate tips every 10 seconds
+        setInterval(() => {
+            // Fade out
+            tipElement.style.opacity = '0';
+            
+            setTimeout(() => {
+                // Change tip
+                currentTipIndex = (currentTipIndex + 1) % travelTips.length;
+                tipElement.textContent = travelTips[currentTipIndex];
+                
+                // Fade in
+                tipElement.style.opacity = '1';
+            }, 500); // Wait for fade out to complete
+        }, 10000); // Every 10 seconds
+    }
+});
+</script>
+<script>
+// View Favorite Details - Navigate to explore and open modal
+function viewFavoriteDetails(card) {
+    const spotId = card.dataset.spotId || '';
+    if (spotId) {
+        // Redirect to explore page with spot ID parameter
+        window.location.href = `/tourist/exploreSpots?viewSpot=${spotId}`;
+    }
+}
+
+// Add hover effect to favorite cards
+document.addEventListener('DOMContentLoaded', () => {
+    const favoriteCards = document.querySelectorAll('.favorite-mini-card');
+    favoriteCards.forEach(card => {
+        card.addEventListener('mouseenter', () => {
+            card.style.transform = 'translateY(-4px)';
+            card.style.boxShadow = '0 8px 16px rgba(0,0,0,0.15)';
+        });
+        card.addEventListener('mouseleave', () => {
+            card.style.transform = 'translateY(0)';
+            card.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)';
+        });
+    });
+});
+</script>
+
+<!-- Notification Detail Modal (opens when clicking a notification) -->
+<div class="modal fade" id="notificationDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-bell-fill"></i> <span id="notifDetailTitle">Notification</span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p id="notifDetailMessage" style="font-size:1rem;color:#333;margin-bottom:1rem;"></p>
+        <p class="text-muted" style="font-size:0.875rem;margin:0;"><i class="bi bi-clock"></i> <span id="notifDetailTime"></span></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button class="btn btn-primary" data-bs-dismiss="modal">Take Action</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

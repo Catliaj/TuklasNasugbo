@@ -16,7 +16,7 @@ class App extends BaseConfig
      *
      * E.g., http://example.com/
      */
-    public string $baseURL = 'https://tuklasnasugbu.com/';
+    public string $baseURL = 'http://localhost:8080/';
 
     /**
      * Allowed Hostnames in the Site URL other than the hostname in the baseURL.
@@ -29,18 +29,18 @@ class App extends BaseConfig
      *
      * @var list<string>
      */
-    public array $allowedHostnames = ['www.tuklasnasugbu.com'];
+    public array $allowedHostnames = [];
 
     /**
      * --------------------------------------------------------------------------
      * Index File
      * --------------------------------------------------------------------------
      *
-     * Typically, this will be your `index.php` file, unless you've renamed it to
+     * Typically, this will be your index.php file, unless you've renamed it to
      * something else. If you have configured your web server to remove this file
      * from your site URIs, set this variable to an empty string.
      */
-    public string $indexPage = '';
+    public string $indexPage = 'index.php';
 
     /**
      * --------------------------------------------------------------------------
@@ -71,7 +71,7 @@ class App extends BaseConfig
     | As a security measure you are STRONGLY encouraged to restrict URLs to
     | as few characters as possible.
     |
-    | By default, only these are allowed: `a-z 0-9~%.:_-`
+    | By default, only these are allowed: a-z 0-9~%.:_-
     |
     | Set an empty string to allow all characters -- but only if you are insane.
     |
@@ -133,7 +133,7 @@ class App extends BaseConfig
      * @see https://www.php.net/manual/en/timezones.php for list of timezones
      *      supported by PHP.
      */
-    public string $appTimezone = 'Asia/Manila';
+    public string $appTimezone = 'UTC';
 
     /**
      * --------------------------------------------------------------------------
@@ -157,7 +157,7 @@ class App extends BaseConfig
      * secure, the user will be redirected to a secure version of the page
      * and the HTTP Strict Transport Security (HSTS) header will be set.
      */
-    public bool $forceGlobalSecureRequests = true;
+    public bool $forceGlobalSecureRequests = false;
 
     /**
      * --------------------------------------------------------------------------
@@ -180,9 +180,7 @@ class App extends BaseConfig
      *
      * @var array<string, string>
      */
-    public array $proxyIPs = [
-        '127.0.0.1' => 'X-Forwarded-For',
-    ];
+    public array $proxyIPs = [];
 
     /**
      * --------------------------------------------------------------------------
@@ -192,12 +190,12 @@ class App extends BaseConfig
      * Enables the Response's Content Secure Policy to restrict the sources that
      * can be used for images, scripts, CSS files, audio, video, etc. If enabled,
      * the Response object will populate default values for the policy from the
-     * `ContentSecurityPolicy.php` file. Controllers can always add to those
+     * ContentSecurityPolicy.php file. Controllers can always add to those
      * restrictions at run time.
      *
      * For a better understanding of CSP, see these documents:
      *
-     * @see http://html5rocks.com/en/tutorials/security/content-security-policy/
+     * @see http://www.html5rocks.com/en/tutorials/security/content-security-policy/
      * @see http://www.w3.org/TR/CSP/
      */
     public bool $CSPEnabled = false;
