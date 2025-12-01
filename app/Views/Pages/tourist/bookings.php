@@ -121,11 +121,7 @@
                         </a>
                     </li>
                     <li class="tourist-nav-item">
-                        <a href="/tourist/reviews" class="tourist-nav-link">
-                            <i class="bi bi-star"></i>
-                            <span class="tourist-nav-link-text">My Reviews</span>
-                        </a>
-                    </li>
+                        <!-- My Reviews link removed from bookings sidebar -->
                 </ul>
             </nav>
         </aside>

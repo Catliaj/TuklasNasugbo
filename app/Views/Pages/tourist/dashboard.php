@@ -35,7 +35,15 @@ $hasPref = !empty($userPreference);
     <!-- Global CSS (Unified Sidebar) -->
     <link rel="stylesheet" href="<?= base_url('assets/css/globals.css')?>">
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="<?= base_url('assets/css/touristStyle/dashboard.css')?>">
+        <link rel="stylesheet" href="<?= base_url('assets/css/touristStyle/dashboard.css')?>">
+        <style>
+            /* Keep weather and tip cards small regardless of content/loading */
+            .compact-card { height: 200px; overflow: hidden; }
+            .compact-card .text-center { padding-top: .25rem !important; padding-bottom: .25rem !important; }
+            @media (max-width: 576px) {
+                .compact-card { height: auto; min-height: 160px; }
+            }
+        </style>
 <?php
 // Get session values for profile display
 $session = session();
@@ -265,7 +273,7 @@ $userInitials = strtoupper(substr($userFirstName,0,1) . substr($userLastName,0,1
             <div class="row g-3 mb-4">
                 <!-- Weather Widget -->
                 <div class="col-md-6">
-                    <div class="stat-card" style="height:100%;">
+                    <div class="stat-card compact-card">
                         <div class="d-flex align-items-center justify-content-between mb-3">
                             <h5 class="mb-0 d-flex align-items-center gap-2">
                                 <i class="bi bi-cloud-sun-fill" style="color:#fdb813;"></i> 
@@ -285,7 +293,7 @@ $userInitials = strtoupper(substr($userFirstName,0,1) . substr($userLastName,0,1
                 
                 <!-- Quick Tip -->
                 <div class="col-md-6">
-                    <div class="stat-card" style="height:100%;background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);color:white;">
+                    <div class="stat-card compact-card" style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);color:white;">
                         <div class="d-flex align-items-center gap-2 mb-3">
                             <i class="bi bi-lightbulb-fill" style="font-size:1.5rem;"></i>
                             <h5 class="mb-0">Travel Tip of the Day</h5>
@@ -319,8 +327,8 @@ $userInitials = strtoupper(substr($userFirstName,0,1) . substr($userLastName,0,1
                                         $imagePath = 'uploads/spots/Spot-No-Image.png';
                                 }
                             ?>
-                            <div class="favorite-mini-card" 
-                                 data-spot-id="<?= esc($spot['id'] ?? $spot['spot_id'] ?? '') ?>"
+                               <div class="favorite-mini-card" 
+                                   data-spot-id="<?= esc($spot['spot_id'] ?? $spot['id'] ?? '') ?>"
                                  data-spot-name="<?= esc($spot['spot_name'] ?? $spot['name'] ?? '') ?>"
                                  data-category="<?= esc($spot['category'] ?? '') ?>"
                                  data-rating="<?= esc($spot['rating'] ?? '4.5') ?>"
@@ -916,7 +924,7 @@ $userInitials = strtoupper(substr($userFirstName,0,1) . substr($userLastName,0,1
                     const name = escapeHtml(spot.spot_name || spot.name || 'Spot');
                     const category = escapeHtml(spot.category || '');
                     const rating = spot.rating ? parseFloat(spot.rating).toFixed(1) : '0.0';
-                    const spotId = escapeHtml(spot.id || spot.spot_id || '');
+                    const spotId = escapeHtml(spot.spot_id || spot.id || '');
                     
                     return `
                         <div class="favorite-mini-card" 
@@ -924,6 +932,7 @@ $userInitials = strtoupper(substr($userFirstName,0,1) . substr($userLastName,0,1
                              data-spot-name="${name}"
                              data-category="${category}"
                              data-rating="${rating}"
+                             onclick="viewFavoriteDetails(this)"
                              style="cursor:pointer;background:white;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);transition:all 0.3s;">
                             <div style="background-image:url('${imgSrc}');background-size:cover;background-position:center;height:120px;position:relative;background-color:#f0f0f0;">
                                 <img src="${imgSrc}" alt="${name}" style="display:none;" onerror="this.parentElement.style.backgroundImage='url(${fallbackImg})'" />
@@ -1206,30 +1215,27 @@ $userInitials = strtoupper(substr($userFirstName,0,1) . substr($userLastName,0,1
                 updateTravelTip(data.weather_code, temp, humidity, windSpeed);
                 
                 container.innerHTML = `
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
                         <div style="flex:1;">
-                            <div style="font-size:3rem;font-weight:700;color:#1a73e8;margin-bottom:0.25rem;">
-                                ${temp}°C
+                            <div style="font-size:3rem;font-weight:700;color:#1a73e8;margin-bottom:0.25rem;display:flex;align-items:baseline;gap:.5rem;flex-wrap:wrap;">
+                                <span>${temp}°C</span>
+                                <span style="font-size:1rem;font-weight:600;color:#0f172a;opacity:.8;">• ${humidity}%</span>
                             </div>
-                            <div style="font-size:1rem;color:#666;margin-bottom:0.5rem;">
+                            <div style="font-size:1rem;color:#666;margin-bottom:0.25rem;">
                                 ${desc}
                             </div>
                         </div>
-                        <div style="font-size:3.5rem;color:#fdb813;">
-                            <i class="bi ${icon}"></i>
+                        <div style="display:flex;flex-direction:column;align-items:flex-end;">
+                            <div style="font-size:3rem;color:#fdb813;line-height:1;">
+                                <i class="bi ${icon}"></i>
+                            </div>
+                            <div style="margin-top:.25rem;font-size:.9rem;color:#333;display:flex;gap:.75rem;align-items:center;">
+                                <span style="display:inline-flex;align-items:center;gap:.25rem;"><i class="bi bi-droplet-fill" style="color:#3b82f6;"></i> ${humidity}%</span>
+                                <span style="display:inline-flex;align-items:center;gap:.25rem;"><i class="bi bi-wind" style="color:#06b6d4;"></i> ${windSpeed} km/h</span>
+                            </div>
                         </div>
                     </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;border-top:1px solid #eee;padding-top:1rem;">
-                        <div>
-                            <div style="font-size:0.75rem;color:#999;margin-bottom:0.25rem;">Humidity</div>
-                            <div style="font-size:1.25rem;font-weight:600;color:#333;">${humidity}%</div>
-                        </div>
-                        <div>
-                            <div style="font-size:0.75rem;color:#999;margin-bottom:0.25rem;">Wind Speed</div>
-                            <div style="font-size:1.25rem;font-weight:600;color:#333;">${windSpeed} km/h</div>
-                        </div>
-                    </div>
-                    <div style="font-size:0.7rem;color:#bbb;margin-top:1rem;text-align:center;">
+                    <div style="font-size:0.7rem;color:#bbb;margin-top:.25rem;text-align:center;">
                         Last updated: ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                     </div>`;
             } catch (err) {
@@ -1369,7 +1375,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="d-flex align-items-center mb-2">
                             <span class="weather-icon" style="font-size: 3rem;">${weatherIcon}</span>
                             <div class="ms-3">
-                                <h3 class="mb-0">${weatherData.temp}°C</h3>
+                                <h3 class="mb-0">${weatherData.temp}°C <span class="ms-2 text-muted" style="font-size:1rem;">• ${weatherData.humidity}%</span></h3>
                                 <p class="text-muted mb-0">Feels like ${weatherData.feels_like}°C</p>
                             </div>
                         </div>
