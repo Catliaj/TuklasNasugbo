@@ -72,60 +72,13 @@
                 </ul>
             </div>
 
-            <div class="sidebar-footer">
-                <a href="/" class="sidebar-link text-danger" id="logoutBtn">
-                    <i class="bi bi-box-arrow-right"></i>
-                    <span>Logout</span>
-                </a>
-            </div>
+            
         </nav>
 
         <!-- Main Content -->
         <div class="flex-fill d-flex flex-column">
             <!-- Mobile Header -->
-            <div class="mobile-header d-lg-none">
-    <button class="btn btn-link" id="sidebarToggle">
-        <i class="bi bi-list fs-4"></i>
-    </button>
-    <div class="d-flex align-items-center gap-2">
-        <div class="mobile-logo">
-            <i class="bi bi-geo-alt-fill"></i>
-        </div>
-        <div>
-            <h3 class="mobile-title mb-0">Tourist Spot</h3>
-            <p class="mobile-subtitle mb-0">Manage Spots</p>
-        </div>
-    </div>
-    
-  
-    <!-- Notification Bell -->
-<div class="dropdown">
-    <button class="btn btn-link position-relative p-2" id="notificationDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="color: white; margin-right: 5px;">
-    <i class="bi bi-bell-fill" style="font-size: 1.25rem;"></i>
-    <span class="position-absolute badge rounded-pill bg-danger" 
-          id="notificationBadge" 
-          style="display: none; font-size: 0.6rem; top: 2px; right: 0px; padding: 0.25rem 0.4rem; min-width: 18px;">
-        0
-    </span>
-</button>
-    <div class="dropdown-menu dropdown-menu-end shadow-lg" style="width: 380px; max-height: 500px;">
-        <div class="dropdown-header d-flex justify-content-between align-items-center bg-primary text-white py-3">
-            <h6 class="mb-0 fw-bold">Notifications</h6>
-            <button class="btn btn-sm btn-link text-white text-decoration-none" id="markAllReadBtn">
-                Mark all read
-            </button>
-        </div>
-        <div class="dropdown-divider m-0"></div>
-        <div id="notificationList" style="max-height: 400px; overflow-y: auto;">
-            <div class="text-center py-4 text-muted">
-                <i class="bi bi-bell-slash fs-1"></i>
-                <p class="mb-0 mt-2">No notifications</p>
-            </div>
-        </div>
-    </div>
-</div>
-</div>
-<!-- ^^^ THIS CLOSING DIV WAS MISSING - IT CLOSES THE mobile-header -->
+            <?= view('Pages/spotowner/_mobile_header', ['subtitle' => 'Manage Spots', 'FullName' => $FullName ?? null, 'email' => $email ?? null]) ?>
 
             <!-- Page Content - This will be populated by JavaScript -->
 
@@ -366,13 +319,7 @@
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div class="mt-2">
-                                                    <label for="group_discount_percent" class="form-label">Group Discount (%)</label>
-                                                    <div class="input-group">
-                                                        <span class="input-group-text"><i class="bi bi-percent"></i></span>
-                                                        <input type="number" class="form-control" name="group_discount_percent" id="group_discount_percent" min="0" max="100">
-                                                    </div>
-                                                </div>
+                                                
                                             </div>
                                         </div>
 
@@ -429,21 +376,19 @@
                                     </div>
 
                                     <div class="col-lg-4">
-                                        <!-- Spot Status -->
+                                        <!-- Spot Status (Read-only: defaults to Pending) -->
                                         <div class="custom-card mb-4">
                                             <div class="custom-card-header">
                                                 <h3 class="custom-card-title">Spot Status</h3>
-                                                <p class="custom-card-description">Control visibility and availability</p>
+                                                <p class="custom-card-description">New spots require admin approval</p>
                                             </div>
                                             <div class="custom-card-body">
                                                 <div class="d-flex justify-content-between align-items-center">
                                                     <div>
-                                                        <label class="form-label mb-0">Active Status</label>
-                                                        <p class="text-muted-custom small mb-0">Make spot available for booking</p>
+                                                        <label class="form-label mb-1">Status</label>
+                                                        <p class="text-muted-custom small mb-0">Newly added spots are set to <strong>Pending</strong> until approved by an administrator.</p>
                                                     </div>
-                                                    <div class="form-check form-switch">
-                                                        <input class="form-check-input" type="checkbox" id="newSpotActiveStatus" name = "status" checked>
-                                                    </div>
+                                                    <span class="badge bg-warning text-dark">Pending</span>
                                                 </div>
                                             </div>
                                         </div>

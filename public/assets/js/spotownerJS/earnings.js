@@ -30,9 +30,7 @@ document.addEventListener('DOMContentLoaded', function() {
         switchChart('weekly-revenue', 'line');
     });
 
-    document.getElementById('btnBookingTrends').addEventListener('click', function() {
-        switchChart('booking-trends', 'bar');
-    });
+    // Booking Trends feature removed: no handler needed
 });
 
 // Switch between different charts
@@ -50,9 +48,6 @@ function switchChart(chartType, chartStyle) {
             break;
         case 'weekly-revenue':
             loadWeeklyRevenueChart();
-            break;
-        case 'booking-trends':
-            loadBookingTrendsChart();
             break;
     }
 }
@@ -148,82 +143,6 @@ function loadWeeklyRevenueChart() {
         });
 }
 
-// Load Booking Trends Chart (Stacked Bar)
-function loadBookingTrendsChart() {
-    showChartLoading();
-
-    fetch(window.location.origin + '/spotowner/api/booking-trends')
-        .then(response => {
-            console.log('Booking Trends Response Status:', response.status);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            console.log('Booking Trends Data:', data);
-
-            if (!data || data.length === 0) {
-                console.warn('No data returned from API');
-                showChartError('No data available for the selected period');
-                return;
-            }
-
-            // Process data by status
-            const months = [...new Set(data.map(item => item.month_name))];
-            const statuses = [...new Set(data.map(item => item.booking_status))];
-
-            // Create datasets for each status
-            const datasets = statuses.map((status, index) => {
-                const statusData = months.map(month => {
-                    const found = data.find(item => item.month_name === month && item.booking_status === status);
-                    return found ? parseInt(found.count) : 0;
-                });
-
-                // Assign colors based on status
-                // Assign colors based on status - Beige, White, Ocean Blue theme
-                let color;
-                switch (status) {
-                    case 'Confirmed':
-                        color = '#0666cc'; // Ocean blue
-                        break;
-                    case 'Pending':
-                        color = '#f5f5dc'; // Beige
-                        break;
-                    case 'Cancelled':
-                        color = '#ffffff'; // White
-                        break;
-                    case 'Completed':
-                        color = '#0080ff'; // Light ocean blue
-                        break;
-                    default:
-                        color = '#0066cc'; // Ocean blue
-                }
-
-                return {
-                    label: status,
-                    data: statusData,
-                    backgroundColor: color,
-                    borderColor: status === 'Cancelled' ? '#cccccc' : color, // Gray border for white bars
-                    borderWidth: 2
-                };
-            });
-
-            // Calculate totals
-            const totalBookings = data.reduce((sum, item) => sum + parseInt(item.count), 0);
-            const avgBookings = totalBookings / months.length || 0;
-
-            // Update chart info
-            updateChartInfo('Last 6 Months', `${totalBookings} bookings`, `${avgBookings.toFixed(1)}/month`);
-
-            // Create stacked bar chart
-            createStackedBarChart(months, datasets, 'Booking Trends by Status');
-        })
-        .catch(error => {
-            console.error('Error loading booking trends:', error);
-            showChartError('Error: ' + error.message);
-        });
-}
 
 // Create Bar Chart
 function createBarChart(labels, data, label, color) {

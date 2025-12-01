@@ -2,7 +2,8 @@
 
 :root {
     --sidebar-width: 260px;
-    --mobile-header-height: 60px;
+    --mobile-header-height: 56px;
+    --desktop-header-height: 32px; /* reduced because the blue header is removed */
     --ocean-blue: #004a7c;
     /* Changed to match admin primary-blue */
     --ocean-medium: #003d66;
@@ -129,51 +130,36 @@ body {
 }
 
 
-/* Mobile Header - Hidden on Desktop */
+/* Mobile Header - Hidden on Desktop, Shown on Mobile/Tablet */
 
 .mobile-header {
-    display: none;
+    display: flex;
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: var(--mobile-header-height);
-    background: linear-gradient(180deg, #003d66 0%, #002a47 100%);
-    /* Changed from 90deg to 180deg to match sidebar vertical gradient */
-    color: white;
-    padding: 0 1rem;
+    top: 0.75rem;
+    left: 0.75rem;
+    right: 0.75rem;
+    min-height: var(--mobile-header-height);
+    background: transparent;
+    color: var(--ocean-blue);
+    padding: 0;
     align-items: center;
-    justify-content: flex-start;
-    gap: 1rem;
+    justify-content: flex-end;
+    gap: 0.75rem;
     z-index: 1030;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: none;
+    border-radius: 999px;
 }
 
-.mobile-logo {
-    width: 32px;
-    height: 32px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 6px;
+.mobile-header-actions {
     display: flex;
     align-items: center;
-    justify-content: center;
-    font-size: 1.25rem;
+    gap: 0.75rem;
+    margin-left: auto;
 }
 
-.mobile-title {
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: white;
-}
-
-.mobile-subtitle {
-    font-size: 0.65rem;
-    opacity: 0.8;
-    color: white;
-}
-
-#sidebarToggle {
-    color: white;
+.mobile-header .spotowner-toggle {
+    margin-right: auto;
+    color: var(--ocean-blue);
     padding: 0.25rem;
 }
 
@@ -784,11 +770,19 @@ canvas {
         transform: translateX(0);
     }
     .mobile-header {
-        display: none !important;
+        display: flex !important;
+        left: auto;
+        right: 2rem;
+        width: auto;
+        top: 1.5rem;
     }
     #mainContent {
         margin-left: var(--sidebar-width);
+        /* tighter spacing now that the blue header is gone */
+        padding-top: 1.5rem;
     }
+    /* Ensure in-page anchor jumps and first headings clear the floating action chips */
+    h1, h2, h3, .page-header { scroll-margin-top: 1.5rem; }
 }
 
 
@@ -803,16 +797,23 @@ canvas {
     .sidebar.show {
         transform: translateX(0);
     }
-    /* Show mobile header */
+    /* Restore mobile header on tablet/mobile */
     .mobile-header {
         display: flex !important;
+        left: 0;
+        right: 0;
+        padding: 0.35rem 1rem;
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid rgba(0, 0, 0, 0.05);
     }
     /* Adjust main content for mobile header */
     #mainContent {
         margin-left: 0;
-        padding-top: calc(var(--mobile-header-height) + 1rem);
+        padding-top: calc(var(--mobile-header-height) + 0.75rem);
         min-height: calc(100vh - var(--mobile-header-height));
     }
+    /* Ensure in-page anchor jumps and first headings clear the fixed mobile header */
+    h1, h2, h3, .page-header { scroll-margin-top: var(--mobile-header-height); }
     /* Add extra top padding to first heading/button container */
     #mainContent>.container-fluid>.mb-4:first-child {
         margin-top: 0.5rem;
@@ -1380,6 +1381,14 @@ body.sidebar-open {
     transform: scale(1.2);
 }
 
+/* Sidebar line cleanup: remove left indicator strip on links */
+.sidebar-link::before,
+.sidebar-link:hover::before,
+.sidebar-link.active::before {
+    display: none !important;
+    content: none !important;
+}
+
 
 /* Enhanced Custom Card Header */
 
@@ -1482,6 +1491,14 @@ html {
     scroll-behavior: smooth;
 }
 
+/* Ensure anchor jumps account for fixed/sticky headers */
+@media (min-width: 992px) {
+    html { scroll-padding-top: 1.5rem; }
+}
+@media (max-width: 991.98px) {
+    html { scroll-padding-top: calc(var(--mobile-header-height) + 0.5rem); }
+}
+
 
 /* Enhanced Loading Spinner */
 
@@ -1507,14 +1524,9 @@ html {
 
 /* Glass Morphism Effect for Mobile Header */
 
-
-/* Glass Morphism Effect for Mobile Header */
-
 .mobile-header {
-    backdrop-filter: blur(10px);
-    background: linear-gradient(180deg, rgba(0, 61, 102, 0.95) 0%, rgba(0, 42, 71, 0.95) 100%);
-    /* Changed to 180deg for vertical gradient */
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(12px);
+    box-shadow: none;
 }
 
 
@@ -1581,6 +1593,37 @@ html {
 /* ============================================
    NOTIFICATION BELL STYLES
    ============================================ */
+
+/* Topbar avatar (notification/profile) — uniform circular buttons */
+.topbar-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #004b8d, #002e55);
+    color: #ffffff !important;
+    border: 2px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 10px 24px rgba(3, 57, 86, 0.18);
+    transition: transform .12s ease, box-shadow .12s ease;
+    position: relative;
+}
+
+.topbar-avatar:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 32px rgba(3, 57, 86, 0.26);
+}
+
+.topbar-avatar--notification i {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.topbar-avatar--primary span {
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
 
 
 /* Force notification bell to stay on right side */
@@ -1669,11 +1712,7 @@ html {
 }
 
 
-/* Show notification bell on ALL screen sizes */
-
-.mobile-header {
-    display: flex !important;
-}
+/* Show notification bell on mobile/tablet only (do NOT display on desktop via media query below). */
 
 
 /* Ensure notification bell is visible */

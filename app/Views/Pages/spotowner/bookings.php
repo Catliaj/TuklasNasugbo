@@ -124,63 +124,16 @@
                 </ul>
             </div>
 
-            <div class="sidebar-footer">
-                <a href="/" class="sidebar-link text-danger" id="logoutBtn">
-                    <i class="bi bi-box-arrow-right"></i>
-                    <span>Logout</span>
-                </a>
-            </div>
+            
         </nav>
 
         <!-- Main Content -->
         <div class="flex-fill d-flex flex-column">
-            <!-- Mobile Header -->
-            <div class="mobile-header d-lg-none">
-    <button class="btn btn-link" id="sidebarToggle">
-        <i class="bi bi-list fs-4"></i>
-    </button>
-    <div class="d-flex align-items-center gap-2">
-        <div class="mobile-logo">
-            <i class="bi bi-geo-alt-fill"></i>
-        </div>
-        <div>
-            <h3 class="mobile-title mb-0">Tourist Spot</h3>
-            <p class="mobile-subtitle mb-0">Booking Management</p>
-        </div>
-    </div>
-    
-    <!-- Notification Bell -->
-    <!-- Notification Bell -->
-<div class="dropdown">
-<button class="btn btn-link position-relative p-2" id="notificationDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="color: white; margin-right: 5px;">
-    <i class="bi bi-bell-fill" style="font-size: 1.25rem;"></i>
-    <span class="position-absolute badge rounded-pill bg-danger" 
-          id="notificationBadge" 
-          style="display: none; font-size: 0.6rem; top: 2px; right: 0px; padding: 0.25rem 0.4rem; min-width: 18px;">
-        0
-    </span>
-</button>
-    <div class="dropdown-menu dropdown-menu-end shadow-lg" style="width: 380px; max-height: 500px;">
-        <div class="dropdown-header d-flex justify-content-between align-items-center bg-primary text-white py-3">
-            <h6 class="mb-0 fw-bold">Notifications</h6>
-            <button class="btn btn-sm btn-link text-white text-decoration-none" id="markAllReadBtn">
-                Mark all read
-            </button>
-        </div>
-        <div class="dropdown-divider m-0"></div>
-        <div id="notificationList" style="max-height: 400px; overflow-y: auto;">
-            <div class="text-center py-4 text-muted">
-                <i class="bi bi-bell-slash fs-1"></i>
-                <p class="mb-0 mt-2">No notifications</p>
-            </div>
-        </div>
-    </div>
-</div>
-</div>
+          <!-- Mobile Header -->
+          <?= view('Pages/spotowner/_mobile_header', ['subtitle' => 'Booking Management', 'FullName' => $FullName ?? null, 'email' => $email ?? null]) ?>
 
-            <!-- Page Content -->
+          <!-- Page Content -->
             <main class="flex-fill p-3 p-lg-4" id="mainContent">
-                <div class="container-fluid">
                     <div class="mb-3 mb-lg-4">
                         <h2 class="h4 h-lg-2">Booking Management</h2>
                         <p class="text-muted-custom small"></p>
@@ -326,7 +279,7 @@
                 </div>
 
                 <!-- QR Scanner Modal -->
-            </main>
+              </main>
         </div>
     </div>
 
@@ -345,9 +298,6 @@
 <!-- Page-specific scripts -->
 <script src="<?= base_url('assets/js/spotownerJS/shared-data.js')?>"></script>
 <script src="<?= base_url('assets/js/spotownerJS/bookings.js')?>"></script>
-
- 
-    </script>
 
 
  
