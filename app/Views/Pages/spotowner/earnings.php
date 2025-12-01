@@ -62,61 +62,13 @@
                 </ul>
             </div>
 
-            <div class="sidebar-footer">
-                <a href="/" class="sidebar-link text-danger" id="logoutBtn">
-                    <i class="bi bi-box-arrow-right"></i>
-                    <span>Logout</span>
-                </a>
-            </div>
+            
         </nav>
 
         <!-- Main Content -->
         <div class="flex-fill d-flex flex-column">
             <!-- Mobile Header -->
-            <div class="mobile-header d-lg-none">
-    <button class="btn btn-link" id="sidebarToggle">
-        <i class="bi bi-list fs-4"></i>
-    </button>
-    <div class="d-flex align-items-center gap-2">
-        <div class="mobile-logo">
-            <i class="bi bi-geo-alt-fill"></i>
-        </div>
-        <div>
-            <h3 class="mobile-title mb-0">Tourist Spot</h3>
-            <p class="mobile-subtitle mb-0">Earnings & Reports</p>
-        </div>
-    </div>
-    
-    
-    
-<!-- Notification Bell -->
-<div class="dropdown">
-<button class="btn btn-link position-relative p-2" id="notificationDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="color: white; margin-right: 5px;">
-    <i class="bi bi-bell-fill" style="font-size: 1.25rem;"></i>
-    <span class="position-absolute badge rounded-pill bg-danger" 
-          id="notificationBadge" 
-          style="display: none; font-size: 0.6rem; top: 2px; right: 0px; padding: 0.25rem 0.4rem; min-width: 18px;">
-        0
-    </span>
-</button>
-    <div class="dropdown-menu dropdown-menu-end shadow-lg" style="width: 380px; max-height: 500px;">
-        <div class="dropdown-header d-flex justify-content-between align-items-center bg-primary text-white py-3">
-            <h6 class="mb-0 fw-bold">Notifications</h6>
-            <button class="btn btn-sm btn-link text-white text-decoration-none" id="markAllReadBtn">
-                Mark all read
-            </button>
-        </div>
-        <div class="dropdown-divider m-0"></div>
-        <div id="notificationList" style="max-height: 400px; overflow-y: auto;">
-            <div class="text-center py-4 text-muted">
-                <i class="bi bi-bell-slash fs-1"></i>
-                <p class="mb-0 mt-2">No notifications</p>
-            </div>
-        </div>
-    </div>
-</div>
-</div>
-<!-- ^^^ THIS CLOSING DIV WAS MISSING - IT CLOSES THE mobile-header -->
+            <?= view('Pages/spotowner/_mobile_header', ['subtitle' => 'Earnings & Reports', 'FullName' => $FullName ?? null, 'email' => $email ?? null]) ?>
 
             <!-- Page Content - This will be populated by JavaScript -->
 
@@ -216,9 +168,7 @@
                                     <button type="button" class="btn btn-outline-primary" id="btnWeeklyRevenue" onclick="switchChart('weekly-revenue', 'line')">
                                         <i class="bi bi-graph-up me-1"></i>Weekly Revenue (Line)
                                     </button>
-                                    <button type="button" class="btn btn-outline-primary" id="btnBookingTrends" onclick="switchChart('booking-trends', 'bar')">
-                                        <i class="bi bi-bar-chart-fill me-1"></i>Booking Trends (Bar)
-                                    </button>
+                                    <!-- Booking Trends button removed -->
                                 </div>
                             </div>
                         </div>
@@ -474,10 +424,9 @@
                     if(elTotal) elTotal.textContent = toCurrency(totalRevenue);
                 }catch(e){}
 
-                // Also warm-up weekly and booking-trends endpoints so charts can use cached responses
+                // Also warm-up weekly endpoint so charts can use cached responses
                 try{
                     fetchJson(base + '/spotowner/api/weekly-revenue').catch(()=>{});
-                    fetchJson(base + '/spotowner/api/booking-trends').catch(()=>{});
                 }catch(e){}
 
             }catch(err){

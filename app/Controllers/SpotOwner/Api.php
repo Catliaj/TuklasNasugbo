@@ -116,50 +116,45 @@ class Api extends BaseController
             ];
         }
 
-        // Additionally provide per-spot monthly series for top spots (for multi-line revenue comparison)
+        // Additionally provide per-spot monthly series across all spots with confirmed bookings
         $db = \Config\Database::connect();
         $startDate = date('Y-m-d', strtotime('-' . ($months) . ' months'));
         $endDate = date('Y-m-d');
-        // Use model helper to get top spots by revenue in range (if available)
-        $topSpots = [];
-        if (method_exists($this->bookingModel, 'getTopSpotsPerformanceMetrics')) {
-            $topSpots = $this->bookingModel->getTopSpotsPerformanceMetrics($startDate, $endDate, 3);
-        }
+        $monthIndexMap = array_flip($monthsKeys);
 
-        $by_spot = [];
-        foreach ($topSpots as $spot) {
-            $spotId = $spot['spot_id'] ?? $spot['spotId'] ?? null;
-            $spotName = $spot['spot_name'] ?? $spot['spotName'] ?? ('Spot ' . ($spotId ?? ''));
-            if (!$spotId) continue;
+        $spotSeriesRows = $db->table('bookings b')
+            ->select("ts.spot_id, ts.spot_name, DATE_FORMAT(b.booking_date, '%Y-%m') as month, SUM(b.total_price) as revenue", false)
+            ->join('tourist_spots ts', 'b.spot_id = ts.spot_id')
+            ->where('ts.business_id', $businessId)
+            ->where('b.booking_status', 'Confirmed')
+            ->where('DATE(b.booking_date) >=', $startDate)
+            ->where('DATE(b.booking_date) <=', $endDate)
+            ->groupBy('ts.spot_id, month')
+            ->orderBy('ts.spot_id')
+            ->orderBy('month')
+            ->get()
+            ->getResultArray();
 
-            $bld = $db->table('bookings b')
-                ->select("DATE_FORMAT(b.booking_date, '%Y-%m') as month, SUM(b.total_price) as revenue", false)
-                ->join('tourist_spots ts', 'b.spot_id = ts.spot_id')
-                ->where('ts.business_id', $businessId)
-                ->where('ts.spot_id', $spotId)
-                ->where("b.booking_date >= DATE_SUB(CURDATE(), INTERVAL {$months} MONTH)")
-                ->where('b.payment_status', 'Paid')
-                ->groupBy("DATE_FORMAT(b.booking_date, '%Y-%m')")
-                ->orderBy('month', 'ASC');
-
-            $spotRows = $bld->get()->getResultArray();
-            $spotMap = [];
-            foreach ($spotRows as $sr) {
-                $spotMap[$sr['month']] = (float)$sr['revenue'];
+        $spotSeries = [];
+        foreach ($spotSeriesRows as $row) {
+            $spotId = (int) ($row['spot_id'] ?? 0);
+            $monthKey = $row['month'] ?? null;
+            if (!$spotId || !$monthKey || !isset($monthIndexMap[$monthKey])) {
+                continue;
             }
 
-            // Build series aligned with $monthsKeys
-            $series = [];
-            foreach ($monthsKeys as $mk) {
-                $series[] = $spotMap[$mk] ?? 0.0;
+            if (!isset($spotSeries[$spotId])) {
+                $spotSeries[$spotId] = [
+                    'spot_id' => $spotId,
+                    'spot_name' => $row['spot_name'] ?? ('Spot ' . $spotId),
+                    'series' => array_fill(0, count($monthsKeys), 0.0)
+                ];
             }
 
-            $by_spot[] = [
-                'spot_id' => $spotId,
-                'spot_name' => $spotName,
-                'series' => $series
-            ];
+            $spotSeries[$spotId]['series'][$monthIndexMap[$monthKey]] = (float) ($row['revenue'] ?? 0);
         }
+
+        $by_spot = array_values($spotSeries);
 
         return $this->response->setJSON([
             'months' => $monthsKeys,

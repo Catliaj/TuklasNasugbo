@@ -16,9 +16,9 @@ class TouristSpotModel extends Model
     // ==========================================================
     // ADD 'suspension_reason' TO ALLOWED FIELDS
     // ==========================================================
-    protected $allowedFields    = [
-         'business_id', 'spot_name', 'description', 'latitude', 'longitude','category', 'location', 'capacity', 'opening_time', 'closing_time', 'operating_days', 'status', 'price_per_person', 'child_price', 'senior_price', 'group_discount_percent', 'primary_image', 'created_at', 'updated_at', 'status_reason', 'suspension_reason'
-    ];
+        protected $allowedFields    = [
+            'business_id', 'spot_name', 'description', 'latitude', 'longitude','category', 'location', 'capacity', 'opening_time', 'closing_time', 'operating_days', 'status', 'price_per_person', 'child_price', 'senior_price', 'primary_image', 'created_at', 'updated_at', 'status_reason', 'suspension_reason'
+        ];
     // ==========================================================
 
     protected bool $allowEmptyInserts = false;
