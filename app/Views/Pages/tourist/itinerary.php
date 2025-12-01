@@ -750,6 +750,8 @@
       #createItineraryModal h6.mb-3 i {font-size:1.6rem;background:rgba(0,75,141,0.15);padding:.55rem .65rem;border-radius:14px;color:#004b8d;box-shadow:0 4px 10px -4px rgba(0,46,85,.35);}
       /* Selected spot glass design */
       .selected-spot-glass {background:rgba(255,255,255,0.55);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(0,75,141,0.25);border-radius:20px;padding:18px 20px;position:relative;overflow:hidden;box-shadow:0 10px 30px -10px rgba(0,46,85,.35);}
+      /* Make generated preview scrollable and prevent over-extend */
+      #rightPanelGenerated #generatedPreview { max-height: 450px; overflow-y: auto; overflow-x: hidden; }
       .selected-spot-glass:before {content:"";position:absolute;inset:0;border-radius:20px;background:linear-gradient(145deg,rgba(0,75,141,0.10),rgba(0,46,85,0.05));pointer-events:none;}
       .spot-header-line {display:flex;align-items:center;gap:14px;margin-bottom:12px;}
       .spot-icon-circle {width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#004b8d,#002e55);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.6rem;box-shadow:0 6px 18px -6px rgba(0,46,85,.55);}
@@ -1393,6 +1395,9 @@
       }
 
       async function generateItinerary() {
+        // Prevent overlapping requests
+        if (window.__autoGenInFlight) return;
+        window.__autoGenInFlight = true;
         // Read inputs from Create modal
         const titleEl = $('#newTripTitle');
         const startEl = $('#newTripStart');
@@ -1430,14 +1435,23 @@
         if (rightPanelGen) rightPanelGen.style.display = 'block';
         previewContent.innerHTML = placeholderMarkup();
         if (previewSection) previewSection.style.display = 'block';
-        if (generateBtn) generateBtn.disabled = true;
+        if (generateBtn) {
+          generateBtn.disabled = true;
+          generateBtn.dataset.originalText = generateBtn.dataset.originalText || generateBtn.innerHTML;
+          generateBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Generating...';
+        }
 
         // Build API URL
         const adults = (adultsEl && adultsEl.value) || 0;
         const children = (childrenEl && childrenEl.value) || 0;
         const seniors = (seniorsEl && seniorsEl.value) || 0;
+        // Persist last chosen guest counts for fallback rendering
+        window.__lastGuestCounts = { adults: Number(adults)||0, children: Number(children)||0, seniors: Number(seniors)||0 };
         const recommendBase = isLocalhostGlobal ? 'http://127.0.0.1:8000/api/recommend/' : 'https://tuklasnasugbu.com/dj/api/recommend/';
-        const url = `${recommendBase}?days=${diffDays}&budget=${encodeURIComponent(budgetVal)}&adults=${encodeURIComponent(adults)}&children=${encodeURIComponent(children)}&seniors=${encodeURIComponent(seniors)}&preference=${encodeURIComponent(userPreference)}&start_date=${encodeURIComponent(startVal)}&end_date=${encodeURIComponent(endVal)}`;
+        // Add seed + jitter to encourage different output each click
+        const seed = Date.now() ^ Math.floor(Math.random()*1e6);
+        const jitter = 0.8; // default variability
+        const url = `${recommendBase}?days=${diffDays}&budget=${encodeURIComponent(budgetVal)}&adults=${encodeURIComponent(adults)}&children=${encodeURIComponent(children)}&seniors=${encodeURIComponent(seniors)}&preference=${encodeURIComponent(userPreference)}&start_date=${encodeURIComponent(startVal)}&end_date=${encodeURIComponent(endVal)}&seed=${seed}&jitter=${jitter}`;
 
 
         try {
@@ -1483,6 +1497,7 @@
           // expose for other scripts
           window.__lastItineraryRequest = lastItineraryRequest;
           window.__hasGeneratedPreview = true;
+          window.__lastGeneratedItinerary = data.itinerary;
 
           previewContent.innerHTML = data.itinerary.map((day) => {
             const spotsList = day.spots.map((spot) => {
@@ -1495,9 +1510,13 @@
                   <li>Price (Senior): ₱${spot.senior_price}</li>
                 `;
               const totalHtml = Number(spot.total_cost_for_day) === 0 ? `<li><strong>Total Cost for Day: Free</strong></li>` : `<li>Total Cost for Day: ₱${spot.total_cost_for_day}</li>`;
+              const timeHtml = (spot.start_time || spot.end_time)
+                ? `<div class="small text-muted"><i class="bi bi-clock"></i> ${spot.start_time || ''}${spot.end_time ? ' - ' + spot.end_time : ''}</div>`
+                : (spot.time ? `<div class="small text-muted"><i class="bi bi-clock"></i> ${spot.time}</div>` : '');
               return `
                 <li>
                   <strong>${spot.name}</strong> (${spot.category})
+                  ${timeHtml}
                   <p>${spot.description}</p>
                   <ul>
                     <li>Location: ${spot.location}</li>
@@ -1527,6 +1546,12 @@
           message += `<div class="alert alert-info">Remaining Budget: ₱${data.remaining_budget}</div>`;
           if (data.note) message += `<div class="alert alert-info">${data.note}</div>`;
           previewContent.innerHTML += message;
+          // Re-enable button for subsequent generations
+          if (generateBtn) {
+            generateBtn.disabled = false;
+            generateBtn.innerHTML = generateBtn.dataset.originalText || '<i class="bi bi-lightning-charge"></i> Auto generate';
+          }
+          window.__autoGenInFlight = false;
         } catch (err) {
           console.error('Auto-generate error:', err);
           const errorMsg = err.name === 'AbortError' 
@@ -1539,7 +1564,11 @@
               <strong><i class="bi bi-exclamation-triangle"></i> Error:</strong> ${errorMsg}
             </div>
           `;
-          if (generateBtn) generateBtn.disabled = false;
+          if (generateBtn) {
+            generateBtn.disabled = false;
+            generateBtn.innerHTML = generateBtn.dataset.originalText || '<i class="bi bi-lightning-charge"></i> Auto generate';
+          }
+          window.__autoGenInFlight = false;
         }
       }
 
@@ -1549,9 +1578,13 @@
         if (previewSection) previewSection.style.display = 'none';
         if (rightPanelGen) rightPanelGen.style.display = 'none';
         if (rightPanelRec) rightPanelRec.style.display = 'block';
-        if (generateBtn) generateBtn.disabled = false;
+        if (generateBtn) {
+          generateBtn.disabled = false;
+          generateBtn.innerHTML = generateBtn.dataset.originalText || '<i class="bi bi-lightning-charge"></i> Auto generate';
+        }
         window.__hasGeneratedPreview = false;
         window.__lastItineraryRequest = null;
+        window.__autoGenInFlight = false;
       }
 
       document.addEventListener('DOMContentLoaded', () => {
@@ -1751,7 +1784,26 @@
       // Central renderer used by both loadSavedTrip and history modal "View"
       function renderTripItinerary(data) {
         const tripInfo = data.trip_info || data.trip || {};
+        // Merge with last known guest counts if server returns missing/zero
+        try {
+          if (window.__lastGuestCounts) {
+            const g = window.__lastGuestCounts;
+            if ((tripInfo.adults === undefined || tripInfo.adults === 0) && g.adults > 0) tripInfo.adults = g.adults;
+            if ((tripInfo.children === undefined || tripInfo.children === 0) && g.children > 0) tripInfo.children = g.children;
+            if ((tripInfo.seniors === undefined || tripInfo.seniors === 0) && g.seniors > 0) tripInfo.seniors = g.seniors;
+          }
+        } catch(_) {}
         const itinerary = data.itinerary || data.itin || [];
+
+        // Helper: format a Date (or date-like input) as M/D/YYYY (no leading zeros)
+        function formatMDY(dt) {
+          const d = (dt instanceof Date) ? dt : new Date(dt);
+          if (Number.isNaN(d.getTime())) return '';
+          const m = d.getMonth() + 1;
+          const day = d.getDate();
+          const y = d.getFullYear();
+          return `${m}/${day}/${y}`;
+        }
 
         // Update trip title
         if (tripInfo.trip_title) {
@@ -1812,18 +1864,27 @@
               if (!Number.isNaN(numericDay) && numericDay > 0 && !Number.isNaN(startDateObj.getTime())) {
                 const d = new Date(startDateObj);
                 d.setDate(d.getDate() + (numericDay - 1));
-                dayDateText = d.toLocaleDateString();
+                dayDateText = formatMDY(d);
               } else {
                 // If dayIndex is already a date string, try parsing it
                 const parsed = new Date(dayIndex);
-                if (!Number.isNaN(parsed.getTime())) dayDateText = parsed.toLocaleDateString();
+                if (!Number.isNaN(parsed.getTime())) dayDateText = formatMDY(parsed);
               }
             } else if (dayData.date) {
               const parsed = new Date(dayData.date);
-              if (!Number.isNaN(parsed.getTime())) dayDateText = parsed.toLocaleDateString();
+              if (!Number.isNaN(parsed.getTime())) dayDateText = formatMDY(parsed);
             }
           } catch (e) { /* silently ignore date parsing errors */ }
           const spots = dayData.spots || dayData.places || dayData.activities || [];
+          // Fallback time allocation (07:00–18:00) if a spot lacks times
+          const totalMinutes = (18 * 60) - (7 * 60); // 660
+          const slot = spots.length > 0 ? Math.floor(totalMinutes / spots.length) : 0;
+          function idxToTimeRange(idx){
+            const startM = (7 * 60) + (idx * slot);
+            const endM = (idx === spots.length - 1) ? (18 * 60) : (startM + slot);
+            function fmt(m){ const hh = Math.floor(m/60).toString().padStart(2,'0'); const mm = (m%60).toString().padStart(2,'0'); return `${hh}:${mm}`; }
+            return { s: fmt(startM), e: fmt(endM) };
+          }
 
           const totalCost = spots.reduce((sum, spot) => {
               const adultCost = (tripInfo.adults || 0) * (Number(spot.price_per_person) || Number(spot.adult_price) || 0);
@@ -1852,7 +1913,7 @@
               </div>
               <div class="day-content">
                 <div class="activities-list" data-day="${dayIndex}">
-                ${spots.map((spot) => {
+                ${spots.map((spot, __sidx) => {
                   const name = spot.name || spot.title || spot.place_name || 'Untitled';
                   const location = spot.location || spot.address || '';
                   const category = spot.category || spot.type || '';
@@ -1867,14 +1928,21 @@
                       <li>Price (Child): ₱${spot.child_price ?? 0}</li>
                       <li>Price (Senior): ₱${spot.senior_price ?? 0}</li>
                     `;
+                  // Determine display times: prefer provided start/end, otherwise fallback evenly
+                  let dispStart = spot.start_time || '';
+                  let dispEnd = spot.end_time || '';
+                  if (!dispStart && !dispEnd && spots.length > 0) {
+                    const r = idxToTimeRange(__sidx);
+                    dispStart = r.s; dispEnd = r.e;
+                  }
                   return `
-                    <div class="activity-item" data-type="${spot.type || 'place'}" data-id="${spot.id || ''}" data-title="${(name||'').replace(/"/g,'\"')}" data-location="${(location||'').replace(/"/g,'\"')}" data-lat="${spot.lat || spot.latitude || ''}" data-lng="${spot.lng || spot.longitude || spot.lon || ''}">
+                    <div class="activity-item" data-type="${spot.type || 'place'}" data-id="${spot.id || ''}" data-title="${(name||'').replace(/"/g,'\"')}" data-location="${(location||'').replace(/"/g,'\"')}" data-lat="${spot.lat || spot.latitude || ''}" data-lng="${spot.lng || spot.longitude || spot.lon || ''}" ${dispStart ? `data-start-time="${dispStart}"` : ''} ${dispEnd ? `data-end-time="${dispEnd}"` : ''}>
                       <i class="bi bi-grip-vertical activity-drag-handle"></i>
                       <div class="activity-icon place"><i class="bi bi-geo-alt"></i></div>
                       <div class="activity-details">
                         <div class="activity-header">
                           <h4 class="activity-title">${name}</h4>
-                          <div class="activity-time">${spot.start_time ?? ''}${spot.end_time ? ' - ' + spot.end_time : ''} <i class="bi bi-clock"></i></div>
+                          <div class="activity-time">${dispStart}${dispEnd ? ' - ' + dispEnd : ''} <i class="bi bi-clock"></i></div>
                         </div>
                         <div class="activity-meta">
                           <div class="activity-meta-item"><i class="bi bi-geo-alt"></i><span>${location}</span></div>
@@ -1941,6 +2009,12 @@
               const activities = [];
               const list = dc.querySelectorAll('.activity-item');
               list.forEach(ai => {
+                const actStart = ai.dataset.time || ai.dataset.startTime || '';
+                // Pull guest counts from current trip info or last known
+                const g = window.__lastGuestCounts || {};
+                const ga = (tripInfo.adults ?? g.adults ?? 0) || 0;
+                const gc = (tripInfo.children ?? g.children ?? 0) || 0;
+                const gs = (tripInfo.seniors ?? g.seniors ?? 0) || 0;
                 activities.push({
                   id: ai.dataset.id || null,
                   title: ai.dataset.title || ai.querySelector('.activity-title')?.textContent?.trim() || null,
@@ -1948,6 +2022,10 @@
                   location: ai.dataset.location || ai.querySelector('.activity-meta .activity-meta-item span')?.textContent || null,
                   lat: ai.dataset.lat || null,
                   lng: ai.dataset.lng || null,
+                  time: actStart || null,
+                  num_adults: ga,
+                  num_children: gc,
+                  num_seniors: gs,
                 });
               });
               days.push({ day_number: dayNumber, date: dateText, activities });
@@ -1971,7 +2049,14 @@
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               credentials: 'same-origin',
-              body: JSON.stringify({ itinerary: itineraryPayload, title: document.getElementById('tripTitle')?.textContent || '' })
+              body: JSON.stringify({
+                itinerary: itineraryPayload,
+                title: document.getElementById('tripTitle')?.textContent || '',
+                // Provide top-level guest counts as fallback for server
+                num_adults: (tripInfo.adults ?? window.__lastGuestCounts?.adults ?? 0) || 0,
+                num_children: (tripInfo.children ?? window.__lastGuestCounts?.children ?? 0) || 0,
+                num_seniors: (tripInfo.seniors ?? window.__lastGuestCounts?.seniors ?? 0) || 0
+              })
             });
             const json = await resp.json().catch(()=>({ success: resp.ok }));
             if (resp.ok && json && (json.success === true || json.success === 'true')) {
@@ -3366,13 +3451,31 @@
                 try { await refreshDisabledDates(); } catch(e){}
                 // Close modal
                 bootstrap.Modal.getInstance(createModal).hide();
-                // Load saved trip into timeline
+                // Prefer rendering from the just-generated itinerary so times/guests are preserved
                 setTimeout(async () => {
                   try {
-                    const res = await fetch(`/itinerary/get?trip_title=${encodeURIComponent(req.trip_title)}&start_date=${encodeURIComponent(req.start_date)}`);
-                    if (res.ok) {
-                      const json = await res.json();
-                      if (typeof window.__renderTripItinerary === 'function') window.__renderTripItinerary(json);
+                    if (Array.isArray(window.__lastGeneratedItinerary) && typeof window.__renderTripItinerary === 'function') {
+                      const injected = {
+                        trip_info: {
+                          trip_title: req.trip_title,
+                          start_date: req.start_date,
+                          end_date: req.end_date,
+                          adults: Number(req.adults)||0,
+                          children: Number(req.children)||0,
+                          seniors: Number(req.seniors)||0,
+                          budget: Number(req.budget)||0,
+                          days: req.days
+                        },
+                        itinerary: window.__lastGeneratedItinerary
+                      };
+                      window.__renderTripItinerary(injected);
+                    } else {
+                      // Fallback to loading from server if no generated itinerary in memory
+                      const res = await fetch(`/itinerary/get?trip_title=${encodeURIComponent(req.trip_title)}&start_date=${encodeURIComponent(req.start_date)}`);
+                      if (res.ok) {
+                        const json = await res.json();
+                        if (typeof window.__renderTripItinerary === 'function') window.__renderTripItinerary(json);
+                      }
                     }
                   } catch (err) { console.warn('Failed to auto-load saved trip', err); }
                 }, 400);
@@ -3447,6 +3550,8 @@
               // Close modal
               bootstrap.Modal.getInstance(createModal).hide();
               // Try to reload/display the saved trip in the timeline (if loader exists)
+              // Persist last guest counts so render can fallback if server omits them
+              window.__lastGuestCounts = { adults: formData.adults||0, children: formData.children||0, seniors: formData.seniors||0 };
               if (typeof window.loadSavedTrip === 'function') {
                 try { window.loadSavedTrip(formData.title, formData.start_date); } catch(e) { console.warn('loadSavedTrip failed', e); }
               } else {

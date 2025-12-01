@@ -3,6 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?php
+        // Ensure settings are loaded before use
+        if (!isset($currentSettings) || !is_array($currentSettings)) {
+            $settingsPath = WRITEPATH . 'settings.json';
+            $currentSettings = [];
+            if (file_exists($settingsPath)) {
+                $currentSettings = json_decode(file_get_contents($settingsPath), true) ?: [];
+            }
+        }
+    ?>
     <title><?= esc($currentSettings['site_title'] ?? 'Tourism Admin') ?> - Dashboard</title>
     
     <!-- CSRF Token -->
@@ -13,13 +23,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="<?= base_url("assets/css/admin-style.css")?>">
-    <?php
-        $settingsPath = WRITEPATH . 'settings.json';
-        $currentSettings = [];
-        if (file_exists($settingsPath)) {
-            $currentSettings = json_decode(file_get_contents($settingsPath), true) ?: [];
-        }
-    ?>
+    <?php /* settings already loaded above */ ?>
     <style>:root { --primary-blue: <?= esc($currentSettings['primary_color'] ?? '#004a7c') ?>; }</style>
     <!-- Modern font + small UI polish -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
@@ -141,7 +145,7 @@
                         <ul class="dropdown-menu dropdown-menu-end p-2 shadow" style="min-width:220px">
                             <li class="px-3 py-2">
                                 <div class="fw-bold"><?= esc($FullName) ?></div>
-                                <div class="small text-muted"><?= esc($Email ?? '') ?></div>
+                                <div class="small text-muted"><?= esc($email ?? $Email ?? '') ?></div>
                             </li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="/admin/settings"><i class="bi bi-gear me-2"></i>Settings</a></li>
@@ -423,6 +427,51 @@
                 </div>
             </div>
 
+            <!-- PERFORMANCE METRICS ROW -->
+            <div class="row g-4 mt-1">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm rounded-4" style="overflow: hidden;">
+                        <div class="card-header bg-white py-3 border-bottom-0 d-flex align-items-center justify-content-between">
+                            <h5 class="card-title fw-bold mb-0 d-flex align-items-center gap-2">
+                                <i class="bi bi-graph-up-arrow text-success"></i>
+                                <span>Performance Metrics: Top 3 Spots by Revenue (Last 30 Days)</span>
+                            </h5>
+                        </div>
+                        <div class="card-body pt-0">
+                            <?php if (!empty($topSpotsPerformance)): ?>
+                                <div class="table-responsive">
+                                    <table class="table align-middle mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th class="text-muted small">#</th>
+                                                <th class="text-muted small">Tourist Spot</th>
+                                                <th class="text-muted small text-end">Revenue</th>
+                                                <th class="text-muted small text-end">Avg Rating</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($topSpotsPerformance as $idx => $row): ?>
+                                                <tr>
+                                                    <td class="fw-700"><?= $idx + 1 ?></td>
+                                                    <td class="fw-600 text-dark"><?= esc($row['spot_name'] ?? 'Spot') ?></td>
+                                                    <td class="text-end">₱<?= number_format((float)($row['total_revenue'] ?? $row['revenue'] ?? 0), 2) ?></td>
+                                                    <td class="text-end">
+                                                        <?= number_format((float)($row['avg_rating'] ?? 0), 1) ?>
+                                                        <i class="bi bi-star-fill text-warning ms-1"></i>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            <?php else: ?>
+                                <p class="text-muted text-center py-4 mb-0">No performance data available for the period.</p>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -433,11 +482,10 @@
     <!-- DATA INJECTION -->
     <script>
         window.dashboardData = {
-            // We use ternary checks here. If the data is null or empty, we pass an empty array '[]'
-            // This prevents the JavaScript from breaking.
             peakVisitTimes: <?= !empty($peakVisitTimes) ? $peakVisitTimes : '[]' ?>,
             userPreferences: <?= !empty($userPreferences) ? $userPreferences : '[]' ?>,
-            monthlyBookings: <?= !empty($MonthlyBookingsTrend) ? $MonthlyBookingsTrend : '[]' ?>
+            monthlyBookings: <?= !empty($MonthlyBookingsTrend) ? $MonthlyBookingsTrend : '[]' ?>,
+            metrics: <?= !empty($metricsJSON) ? $metricsJSON : '{"conversionRate":0,"conversionTrend":0}' ?>
         };
     </script>
 
@@ -528,12 +576,15 @@
                     }
                 }
 
-                if (prefs.length) {
-                    // Estimate conversion rate from user preferences data
-                    const totalPreferences = prefs.reduce((sum, p) => sum + (parseFloat(p.count || p.total || 0)), 0);
-                    const conversionRate = Math.min(((totalPreferences / Math.max(1, 10000)) * 100), 100).toFixed(1);
-                    document.getElementById('conversionRate').textContent = conversionRate;
-                    document.getElementById('conversionTrend').textContent = (Math.random() * 5).toFixed(1); // Simulated trend
+                // Use server-side conversion metrics from DB
+                if (window.dashboardData.metrics) {
+                    const m = window.dashboardData.metrics;
+                    if (typeof m.conversionRate !== 'undefined') {
+                        document.getElementById('conversionRate').textContent = (parseFloat(m.conversionRate) || 0).toFixed(1);
+                    }
+                    if (typeof m.conversionTrend !== 'undefined') {
+                        document.getElementById('conversionTrend').textContent = (parseFloat(m.conversionTrend) || 0).toFixed(1);
+                    }
                 }
 
                 if (peak.length) {
