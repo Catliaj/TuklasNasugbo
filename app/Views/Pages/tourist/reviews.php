@@ -286,35 +286,14 @@
                             <div style="position:relative;">
                             <button class="notification-btn" onclick="toggleNotificationDropdown()">
                                 <i class="bi bi-bell-fill"></i>
-                                <span class="notification-badge" id="notifBadge">3</span>
+                                <span class="notification-badge" id="notifBadge" style="display:none">0</span>
                             </button>
                             <div class="notification-dropdown" id="notificationDropdown">
                                 <div class="notification-header">
                                     <h6>Notifications</h6>
                                     <button class="mark-all-read" onclick="markAllAsRead()">Mark all as read</button>
                                 </div>
-                                <ul class="notification-list">
-                                    <li class="notification-item unread" onclick="openNotificationDetail(this)" style="cursor:pointer;">
-                                        <div class="notification-content">
-                                            <div class="notification-icon info"><i class="bi bi-star-fill"></i></div>
-                                            <div class="notification-text">
-                                                <h6>New Review Response</h6>
-                                                <p>The owner responded to your Mount Batulao review</p>
-                                                <div class="notification-time">1 hour ago</div>
-                                            </div>
-                                        </div>
-                                    </li>
-                                    <li class="notification-item" onclick="openNotificationDetail(this)" style="cursor:pointer;">
-                                        <div class="notification-content">
-                                            <div class="notification-icon success"><i class="bi bi-check-circle-fill"></i></div>
-                                            <div class="notification-text">
-                                                <h6>Review Published</h6>
-                                                <p>Your Fortune Island review is now live</p>
-                                                <div class="notification-time">3 days ago</div>
-                                            </div>
-                                        </div>
-                                    </li>
-                                </ul>
+                                <ul class="notification-list" id="notificationList"></ul>
                                 <div class="notification-footer">
                                     <a href="#" onclick="viewAllNotifications(event)">View all notifications</a>
                                 </div>
@@ -707,10 +686,12 @@
             if(modal) bootstrap.Modal.getOrCreateInstance(modal).show();
         }
 
-        function markAllAsRead(){
-            document.querySelectorAll('.notification-item.unread').forEach(i=>i.classList.remove('unread'));
-            const badge = document.getElementById('notifBadge');
-            if(badge) { badge.textContent = '0'; badge.style.display = 'none'; }
+        if (typeof window.markAllAsRead === 'undefined') {
+            function markAllAsRead(){
+                document.querySelectorAll('.notification-item.unread').forEach(i=>i.classList.remove('unread'));
+                const badge = document.getElementById('notifBadge');
+                if(badge) { badge.textContent = '0'; badge.style.display = 'none'; }
+            }
         }
 
         function viewAllNotifications(e){

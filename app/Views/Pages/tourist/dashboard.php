@@ -116,75 +116,14 @@ $userInitials = strtoupper(substr($userFirstName,0,1) . substr($userLastName,0,1
                     <div style="position: relative;">
                         <button class="notification-btn" onclick="toggleNotificationDropdown()">
                             <i class="bi bi-bell-fill"></i>
-                            <span class="notification-badge" id="notifBadge">3</span>
+                            <span class="notification-badge" id="notifBadge" style="display:none">0</span>
                         </button>
                         <div class="notification-dropdown" id="notificationDropdown">
                             <div class="notification-header">
                                 <h6>Notifications</h6>
                                 <button class="mark-all-read" onclick="markAllAsRead()">Mark all as read</button>
                             </div>
-                            <ul class="notification-list" id="notificationList">
-                                <li class="notification-item unread" onclick="openNotificationDetail(this)" style="cursor:pointer;">
-                                    <div class="notification-content">
-                                        <div class="notification-icon success">
-                                            <i class="bi bi-check-circle-fill"></i>
-                                        </div>
-                                        <div class="notification-text">
-                                            <h6>Booking Confirmed</h6>
-                                            <p>Your booking at Canyon Cove has been confirmed for Dec 20, 2025</p>
-                                            <div class="notification-time">2 hours ago</div>
-                                        </div>
-                                    </div>
-                                </li>
-                                <li class="notification-item unread">
-                                    <div class="notification-content">
-                                        <div class="notification-icon info">
-                                            <i class="bi bi-star-fill"></i>
-                                        </div>
-                                        <div class="notification-text">
-                                            <h6>Review Reminder</h6>
-                                            <p>Don't forget to review your visit to Mount Batulao!</p>
-                                            <div class="notification-time">1 day ago</div>
-                                        </div>
-                                    </div>
-                                </li>
-                                <li class="notification-item unread">
-                                    <div class="notification-content">
-                                        <div class="notification-icon warning">
-                                            <i class="bi bi-calendar-event"></i>
-                                        </div>
-                                        <div class="notification-text">
-                                            <h6>Itinerary Update</h6>
-                                            <p>Your 3-Day Beach Adventure itinerary starts in 3 days</p>
-                                            <div class="notification-time">2 days ago</div>
-                                        </div>
-                                    </div>
-                                </li>
-                                <li class="notification-item">
-                                    <div class="notification-content">
-                                        <div class="notification-icon info">
-                                            <i class="bi bi-heart-fill"></i>
-                                        </div>
-                                        <div class="notification-text">
-                                            <h6>New Spot Added</h6>
-                                            <p>Fortune Island has been added to your favorites</p>
-                                            <div class="notification-time">3 days ago</div>
-                                        </div>
-                                    </div>
-                                </li>
-                                <li class="notification-item">
-                                    <div class="notification-content">
-                                        <div class="notification-icon success">
-                                            <i class="bi bi-geo-alt-fill"></i>
-                                        </div>
-                                        <div class="notification-text">
-                                            <h6>Check-in Successful</h6>
-                                            <p>You checked in at Kaybiang Tunnel</p>
-                                            <div class="notification-time">1 week ago</div>
-                                        </div>
-                                    </div>
-                                </li>
-                            </ul>
+                            <ul class="notification-list" id="notificationList"></ul>
                             <div class="notification-footer">
                                 <a href="#" onclick="viewAllNotifications(event)">View all notifications</a>
                             </div>
@@ -1485,3 +1424,94 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </body>
 </html>
+
+<script>
+// Notifications: fetch from backend and render
+document.addEventListener('DOMContentLoaded', () => {
+    refreshUnreadBadge();
+    loadNotifications();
+});
+
+async function refreshUnreadBadge() {
+    try {
+        const res = await fetch('<?= base_url('tourist/notifications/unread-count') ?>');
+        const data = await res.json();
+        const badge = document.getElementById('notifBadge');
+        const count = Number(data?.count || 0);
+        if (count > 0) {
+            badge.textContent = String(count);
+            badge.style.display = 'inline-block';
+        } else {
+            badge.style.display = 'none';
+        }
+    } catch (e) {
+        console.error('Failed to load unread count', e);
+    }
+}
+
+async function loadNotifications() {
+    const listEl = document.getElementById('notificationList');
+    listEl.innerHTML = '<li class="notification-item"><div class="notification-content"><div class="notification-text"><p>Loading...</p></div></div></li>';
+    try {
+        const res = await fetch('<?= base_url('tourist/notifications/list') ?>');
+        const data = await res.json();
+        const items = Array.isArray(data?.notifications) ? data.notifications : [];
+        if (items.length === 0) {
+            listEl.innerHTML = '<li class="notification-item"><div class="notification-content"><div class="notification-text"><p>No notifications yet.</p></div></div></li>';
+            return;
+        }
+        listEl.innerHTML = '';
+        for (const n of items) {
+            const li = document.createElement('li');
+            li.className = 'notification-item' + (Number(n.is_read) ? '' : ' unread');
+            li.innerHTML = `
+                <div class="notification-content">
+                    <div class="notification-icon ${Number(n.is_read) ? 'info' : 'success'}">
+                        <i class="bi ${Number(n.is_read) ? 'bi-info-circle-fill' : 'bi-check-circle-fill'}"></i>
+                    </div>
+                    <div class="notification-text">
+                        <h6>${escapeHtml(n.message || 'Notification')}</h6>
+                        ${n.url ? `<p><a href="${encodeURI(n.url)}">View details</a></p>` : ''}
+                        <div class="notification-time">${formatTime(n.created_at)}</div>
+                    </div>
+                </div>`;
+            li.addEventListener('click', () => markNotificationRead(n.id));
+            listEl.appendChild(li);
+        }
+    } catch (e) {
+        console.error('Failed to load notifications', e);
+        listEl.innerHTML = '<li class="notification-item"><div class="notification-content"><div class="notification-text"><p>Failed to load notifications.</p></div></div></li>';
+    }
+}
+
+async function markNotificationAsRead() { /* legacy hook if used elsewhere */ }
+
+async function markNotificationRead(id) {
+    try {
+        await fetch('<?= base_url('tourist/notifications/mark-read') ?>/' + encodeURIComponent(id), { method: 'POST' });
+        refreshUnreadBadge();
+        loadNotifications();
+    } catch (e) {
+        console.error('Failed to mark read', e);
+    }
+}
+
+async function markAllAsRead() {
+    try {
+        await fetch('<?= base_url('tourist/notifications/mark-all-read') ?>', { method: 'POST' });
+        refreshUnreadBadge();
+        loadNotifications();
+    } catch (e) {
+        console.error('Failed to mark all as read', e);
+    }
+}
+
+function formatTime(ts) {
+    if (!ts) return '';
+    try { return new Date(ts.replace(' ', 'T')).toLocaleString(); } catch { return ts; }
+}
+
+function escapeHtml(str) {
+    return String(str).replace(/[&<>"]/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[s]));
+}
+</script>

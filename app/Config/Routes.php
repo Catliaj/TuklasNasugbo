@@ -149,6 +149,12 @@ $routes->delete('/tourist/feedback/(:num)', 'TouristController::deleteFeedback/$
 // Get all reviews for a specific spot
 $routes->get('/tourist/spot/(:num)/reviews', 'TouristController::getSpotReviews/$1');
 
+// Tourist Notifications API
+$routes->get('tourist/notifications/list', 'TouristController::getNotifications');
+$routes->get('tourist/notifications/unread-count', 'TouristController::getUnreadNotificationCount');
+$routes->post('tourist/notifications/mark-read/(:num)', 'TouristController::markNotificationAsRead/$1');
+$routes->post('tourist/notifications/mark-all-read', 'TouristController::markAllNotificationsAsRead');
+
 
 // Save user category preferences
 $routes->post('/tourist/savePreferences', 'TouristController::savePreferences');

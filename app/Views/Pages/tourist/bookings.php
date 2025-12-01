@@ -135,45 +135,14 @@
                     <div style="position: relative;">
                         <button class="notification-btn" onclick="toggleNotificationDropdown()">
                             <i class="bi bi-bell-fill"></i>
-                            <span class="notification-badge" id="notifBadge">3</span>
+                            <span class="notification-badge" id="notifBadge" style="display:none">0</span>
                         </button>
                     <div class="notification-dropdown" id="notificationDropdown">
                         <div class="notification-header">
                             <h6>Notifications</h6>
                             <button class="mark-all-read" onclick="markAllAsRead()">Mark all read</button>
                         </div>
-                        <ul class="notification-list" id="notificationList">
-                            <li class="notification-item unread" onclick="openNotificationDetail(this)" style="cursor:pointer;">
-                                <div class="notification-content">
-                                    <div class="notification-icon success"><i class="bi bi-check-circle-fill"></i></div>
-                                    <div class="notification-text">
-                                        <h6>Booking Confirmed</h6>
-                                        <p>Your Canyon Cove reservation is confirmed for Dec 20, 2025</p>
-                                        <div class="notification-time"><i class="bi bi-clock"></i><span>2 hours ago</span></div>
-                                    </div>
-                                </div>
-                            </li>
-                            <li class="notification-item unread">
-                                <div class="notification-content">
-                                    <div class="notification-icon info"><i class="bi bi-star-fill"></i></div>
-                                    <div class="notification-text">
-                                        <h6>Leave a Review</h6>
-                                        <p>Share your experience at Fortune Island</p>
-                                        <div class="notification-time"><i class="bi bi-clock"></i><span>1 day ago</span></div>
-                                    </div>
-                                </div>
-                            </li>
-                            <li class="notification-item">
-                                <div class="notification-content">
-                                    <div class="notification-icon warning"><i class="bi bi-calendar-event"></i></div>
-                                    <div class="notification-text">
-                                        <h6>Upcoming Trip</h6>
-                                        <p>Van Transfer starts in 3 days</p>
-                                        <div class="notification-time"><i class="bi bi-clock"></i><span>2 days ago</span></div>
-                                    </div>
-                                </div>
-                            </li>
-                        </ul>
+                        <ul class="notification-list" id="notificationList"></ul>
                         <div class="notification-footer">
                             <a href="#" onclick="viewAllNotifications(event)">View all</a>
                         </div>
