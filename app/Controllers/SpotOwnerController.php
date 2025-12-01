@@ -326,7 +326,6 @@ public function recordCheckin()
                 'price_per_person'     => $this->request->getPost('price_per_person'),
                 'child_price'          => $this->request->getPost('child_price'),
                 'senior_price'         => $this->request->getPost('senior_price'),
-                'group_discount_percent' => $this->request->getPost('group_discount_percent'),
                 'created_at'           => date('Y-m-d H:i:s'),
                 'updated_at'           => date('Y-m-d H:i:s')
             ];
