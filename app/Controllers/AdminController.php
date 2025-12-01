@@ -48,6 +48,7 @@ class AdminController extends BaseController
         $data['TotalBookingsThisMonth'] = $bookingModel->getTotalBookingsThisMonth();
         $data['TotalTodayBookings']     = $bookingModel->getTotalBookingsToday();
         $data['satisfactionScore']      = $feedbackModel->getOverallAverageRating();
+        $data['totalFeedbackCount']     = $feedbackModel->countAll();
 
         // 2. CHARTS DATA (Safely Encoded for JS)
         // We use the ?: [] operator to ensure we don't encode nulls
@@ -93,6 +94,10 @@ class AdminController extends BaseController
         $data['TotalCategories'] = $touristSpotModel->getTotalCategories();
         $data['TotalCategoriesJSON'] = json_encode($data['TotalCategories'] ?: [], JSON_NUMERIC_CHECK);
 
+        // Get unread notifications count for initial badge
+        $notifModel = new NotificationModel();
+        $unread = (int) $notifModel->getUnreadCount(null);
+
         // Pass everything to View
         return view('Pages/admin/dashboard', [
             'data'                    => $data,
@@ -118,31 +123,155 @@ class AdminController extends BaseController
             // Lists
             'topHiddenSpots'          => $data['topHiddenSpots'],
             'topViewedBusinesses'     => $data['topViewedBusinesses']
+            , 'unreadNotifications'    => $unread
         ]);
     }
 
     public function registrations()
     {
         if ($redirect = $this->ensureAdmin()) return $redirect;
-        return view('Pages/admin/registrations');
+        $notifModel = new NotificationModel();
+        $unread = (int) $notifModel->getUnreadCount(null);
+        return view('Pages/admin/registrations', ['unreadNotifications' => $unread]);
     }
 
     public function attractions()
     {
         if ($redirect = $this->ensureAdmin()) return $redirect;
-        return view('Pages/admin/attractions');
+        $notifModel = new NotificationModel();
+        $unread = (int) $notifModel->getUnreadCount(null);
+        return view('Pages/admin/attractions', ['unreadNotifications' => $unread]);
     }
 
     public function reports()
     {
         if ($redirect = $this->ensureAdmin()) return $redirect;
-        return view('Pages/admin/reports');
+        $notifModel = new NotificationModel();
+        $unread = (int) $notifModel->getUnreadCount(null);
+        return view('Pages/admin/reports', ['unreadNotifications' => $unread]);
     }
 
     public function settings()
     {
         if ($redirect = $this->ensureAdmin()) return $redirect;
         return view('Pages/admin/settings');
+    }
+
+    public function profile()
+    {
+        if ($redirect = $this->ensureAdmin()) return $redirect;
+        $notifModel = new NotificationModel();
+        $unread = (int) $notifModel->getUnreadCount(null);
+        // Provide minimal user info from session
+        $user = [
+            'FullName' => session()->get('FirstName') . ' ' . session()->get('LastName'),
+            'Email' => session()->get('Email'),
+            'UserID' => session()->get('UserID')
+        ];
+        return view('Pages/admin/profile', ['unreadNotifications' => $unread, 'user' => $user]);
+    }
+
+    // Endpoint to update admin profile info
+    public function updateProfile()
+    {
+        if ($redirect = $this->ensureAdmin()) return $redirect;
+        $rules = [
+            'FirstName' => 'required|min_length[2]|max_length[80]',
+            'LastName'  => 'required|min_length[2]|max_length[80]',
+            'email'     => 'required|valid_email',
+            'current_password' => 'permit_empty',
+            'new_password' => 'permit_empty|min_length[8]',
+            'confirm_password' => 'permit_empty'
+        ];
+
+        if (!$this->validate($rules)) {
+            return $this->response->setStatusCode(422)->setJSON(['errors' => $this->validator->getErrors()]);
+        }
+
+        $userId = session()->get('UserID');
+        $usersModel = new UsersModel();
+        $data = [
+            'FirstName' => $this->request->getPost('FirstName'),
+            'LastName'  => $this->request->getPost('LastName'),
+            'email'     => $this->request->getPost('email')
+        ];
+
+        // Email uniqueness check (ignore current user)
+        $existing = $usersModel->where('email', $data['email'])->where('UserID !=', $userId)->countAllResults();
+        if ($existing > 0) {
+            return $this->response->setStatusCode(422)->setJSON(['errors' => ['email' => 'This email is already in use by another account.']]);
+        }
+
+        // Handle password change if requested
+        $currentPassword = $this->request->getPost('current_password');
+        $newPassword = $this->request->getPost('new_password');
+        $confirmPassword = $this->request->getPost('confirm_password');
+        if (!empty($newPassword)) {
+            if (empty($currentPassword)) {
+                return $this->response->setStatusCode(422)->setJSON(['errors' => ['current_password' => 'Current password is required to change password.']]);
+            }
+            $userRow = $usersModel->find($userId);
+            if (!$userRow || !password_verify($currentPassword, $userRow['password'])) {
+                return $this->response->setStatusCode(422)->setJSON(['errors' => ['current_password' => 'Current password is incorrect.']]);
+            }
+            if ($newPassword !== $confirmPassword) {
+                return $this->response->setStatusCode(422)->setJSON(['errors' => ['confirm_password' => 'The new password confirmation does not match.']]);
+            }
+            $data['password'] = password_hash($newPassword, PASSWORD_BCRYPT);
+        }
+
+        if ($usersModel->update($userId, $data)) {
+            // Update session values
+            session()->set('FirstName', $data['FirstName']);
+            session()->set('LastName', $data['LastName']);
+            session()->set('Email', $data['email']);
+            return $this->response->setJSON(['success' => 'Profile updated successfully.']);
+        }
+
+        return $this->response->setStatusCode(500)->setJSON(['error' => 'Failed to update profile.']);
+    }
+
+    // Endpoint to update administrative settings — persists to writable/settings.json
+    public function updateSettings()
+    {
+        if ($redirect = $this->ensureAdmin()) return $redirect;
+        // Validate settings
+        $rules = [
+            'site_title' => 'required|min_length[3]|max_length[120]',
+            'primary_color' => 'required',
+            'items_per_page' => 'required|integer|greater_than[0]'
+        ];
+        if (!$this->validate($rules)) {
+            return $this->response->setStatusCode(422)->setJSON(['errors' => $this->validator->getErrors()]);
+        }
+
+        // Accept small settings: site_title, primary_color, items_per_page
+        $siteTitle = $this->request->getPost('site_title');
+        $primaryColor = $this->request->getPost('primary_color');
+        $itemsPerPage = (int)$this->request->getPost('items_per_page');
+
+        $settings = [];
+        $path = WRITEPATH . 'settings.json';
+        if (file_exists($path)) {
+            $raw = file_get_contents($path);
+            $settings = json_decode($raw, true) ?: [];
+        }
+
+        $settings['site_title'] = $siteTitle ?: ($settings['site_title'] ?? 'Tuklas Nasugbo');
+        // Normalize color: ensure it starts with # and is a 3 or 6-digit hex
+        $primaryColor = trim($primaryColor);
+        if ($primaryColor && strpos($primaryColor, '#') !== 0) $primaryColor = '#' . $primaryColor;
+        if (!preg_match('/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/', $primaryColor)) {
+            return $this->response->setStatusCode(422)->setJSON(['errors' => ['primary_color' => 'Invalid color hex code']]);
+        }
+        $settings['primary_color'] = $primaryColor ?: ($settings['primary_color'] ?? '#004a7c');
+        $settings['items_per_page'] = $itemsPerPage > 0 ? $itemsPerPage : ($settings['items_per_page'] ?? 12);
+
+        if (file_put_contents($path, json_encode($settings, JSON_PRETTY_PRINT))) {
+            return $this->response->setJSON(['success' => 'Settings saved successfully.']);
+        }
+
+        return $this->response->setStatusCode(500)->setJSON(['error' => 'Failed to save settings.']);
     }
 
     // ==========================================================
@@ -305,7 +434,8 @@ class AdminController extends BaseController
     public function getNotificationsList()
     {
         $notifModel = new NotificationModel();
-        $data = $notifModel->getLatestForAdmin(20);
+        // Return both read and unread (latest first)
+        $data = $notifModel->getRecentNotifications(null, 20);
         return $this->response->setJSON($data ?: []);
     }
 

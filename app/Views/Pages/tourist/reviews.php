@@ -69,6 +69,137 @@
             color: #fbbf24;
             transform: scale(1.15);
         }
+        
+        /* Critical Review Card Layout - Inline to prevent caching issues */
+        .review-card {
+            display: flex !important;
+            flex-direction: row !important;
+            gap: 1.5rem !important;
+            align-items: flex-start !important;
+            background: #fff !important;
+            border-radius: 16px !important;
+            padding: 1.25rem !important;
+            border: 1px solid #e9ecef !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06) !important;
+            margin-bottom: 1.5rem !important;
+        }
+        
+        .review-card .place-thumb {
+            flex: 0 0 180px !important;
+            min-width: 180px !important;
+            max-width: 180px !important;
+        }
+        
+        .review-card .place-image {
+            width: 180px !important;
+            height: 180px !important;
+            object-fit: cover !important;
+            border-radius: 12px !important;
+            display: block !important;
+            border: 2px solid #f0f0f0 !important;
+        }
+        
+        .review-card .review-body {
+            flex: 1 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 0.5rem !important;
+            min-width: 0 !important;
+        }
+        
+        .review-card .review-header {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: flex-start !important;
+            margin-bottom: 0.3rem !important;
+        }
+        
+        .review-card .place-info {
+            flex: 1 !important;
+        }
+        
+        .review-card .place-info h3 {
+            margin: 0 0 0.3rem 0 !important;
+            font-size: 1.25rem !important;
+            line-height: 1.3 !important;
+            color: #013A63 !important;
+            font-weight: 700 !important;
+        }
+        
+        .review-card .place-location {
+            display: flex !important;
+            align-items: center !important;
+            gap: 0.4rem !important;
+            font-size: 0.88rem !important;
+            color: #6c757d !important;
+            margin: 0 !important;
+        }
+        
+        .review-card .review-rating {
+            display: flex !important;
+            gap: 0.25rem !important;
+            margin: 0 0 0.5rem 0 !important;
+            font-size: 1.05rem !important;
+            color: #ffc107 !important;
+        }
+        
+        .review-card .review-text {
+            margin: 0 0 0.75rem 0 !important;
+            line-height: 1.7 !important;
+            font-size: 0.94rem !important;
+            color: #2c3e50 !important;
+        }
+        
+        .review-card .review-photos {
+            display: flex !important;
+            gap: 0.65rem !important;
+            flex-wrap: wrap !important;
+            margin: 0 0 0.75rem 0 !important;
+        }
+        
+        .review-card .review-photo {
+            width: 80px !important;
+            height: 80px !important;
+            border-radius: 8px !important;
+            object-fit: cover !important;
+            border: 2px solid #e9ecef !important;
+        }
+        
+        .review-card .review-meta {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            padding-top: 0.75rem !important;
+            border-top: 1px solid #e9ecef !important;
+            margin-top: auto !important;
+        }
+        
+        .review-card .review-date {
+            display: flex !important;
+            align-items: center !important;
+            gap: 0.5rem !important;
+            font-size: 0.84rem !important;
+            color: #6c757d !important;
+        }
+        
+        .review-card .review-actions {
+            display: flex !important;
+            gap: 0.5rem !important;
+        }
+        
+        @media (max-width: 767px) {
+            .review-card {
+                flex-direction: column !important;
+            }
+            .review-card .place-thumb {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+            .review-card .place-image {
+                width: 100% !important;
+                height: 200px !important;
+            }
+        }
     </style>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -83,7 +214,7 @@
     <!-- Global CSS (Unified Sidebar) -->
     <link rel="stylesheet" href="<?= base_url('assets/css/globals.css')?>">
     <!-- Custom CSS (Inlined Below) -->
-    <link rel="stylesheet" href="<?= base_url('assets/css/touristStyle/reviews.css')?>"> 
+    <link rel="stylesheet" href="<?= base_url('assets/css/touristStyle/reviews.css')?>?v=<?= time() ?>"> 
 </head>
 <body>
     <div class="dashboard-wrapper">
@@ -151,7 +282,45 @@
                 <!-- Page Header (matches explore exactly) -->
                 <div class="page-header">
                     <div class="page-header-actions">
-                        <div style="position: relative;">
+                        <div style="position: relative;display:flex;align-items:center;gap:1rem;">
+                            <div style="position:relative;">
+                            <button class="notification-btn" onclick="toggleNotificationDropdown()">
+                                <i class="bi bi-bell-fill"></i>
+                                <span class="notification-badge" id="notifBadge">3</span>
+                            </button>
+                            <div class="notification-dropdown" id="notificationDropdown">
+                                <div class="notification-header">
+                                    <h6>Notifications</h6>
+                                    <button class="mark-all-read" onclick="markAllAsRead()">Mark all as read</button>
+                                </div>
+                                <ul class="notification-list">
+                                    <li class="notification-item unread" onclick="openNotificationDetail(this)" style="cursor:pointer;">
+                                        <div class="notification-content">
+                                            <div class="notification-icon info"><i class="bi bi-star-fill"></i></div>
+                                            <div class="notification-text">
+                                                <h6>New Review Response</h6>
+                                                <p>The owner responded to your Mount Batulao review</p>
+                                                <div class="notification-time">1 hour ago</div>
+                                            </div>
+                                        </div>
+                                    </li>
+                                    <li class="notification-item" onclick="openNotificationDetail(this)" style="cursor:pointer;">
+                                        <div class="notification-content">
+                                            <div class="notification-icon success"><i class="bi bi-check-circle-fill"></i></div>
+                                            <div class="notification-text">
+                                                <h6>Review Published</h6>
+                                                <p>Your Fortune Island review is now live</p>
+                                                <div class="notification-time">3 days ago</div>
+                                            </div>
+                                        </div>
+                                    </li>
+                                </ul>
+                                <div class="notification-footer">
+                                    <a href="#" onclick="viewAllNotifications(event)">View all notifications</a>
+                                </div>
+                            </div>
+                            </div>
+                            <div style="position:relative;">
                             <div class="user-avatar" onclick="toggleUserDropdown()"><?= esc($userInitials ?: 'JD') ?></div>
                             <div class="user-dropdown" id="userDropdown">
                                 <div class="dropdown-header">
@@ -160,12 +329,19 @@
                                 </div>
                                 <ul class="dropdown-menu-custom">
                                     <li>
+                                        <a href="#" onclick="openProfile(event); hideUserDropdown(event)" class="dropdown-item-custom">
+                                            <i class="bi bi-person-circle"></i>
+                                            <span>My Profile</span>
+                                        </a>
+                                    </li>
+                                    <li>
                                         <a href="/users/logout" class="dropdown-item-custom logout" onclick="handleLogout(event)">
                                             <i class="bi bi-box-arrow-right"></i>
                                             <span>Logout</span>
                                         </a>
                                     </li>
                                 </ul>
+                            </div>
                             </div>
                         </div>
                     </div>
@@ -198,84 +374,84 @@
 
                 <!-- Review Cards -->
                 <div class="review-card stagger-1">
-                    <div class="review-header">
-                        <div class="review-place">
-                            <div class="place-thumb">
-                                <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&q=80" alt="Mount Batulao" class="place-image">
-                                <span class="place-badge"><i class="bi bi-geo-alt-fill"></i></span>
-                            </div>
+                    <div class="place-thumb">
+                        <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&q=80" alt="Mount Batulao" class="place-image">
+                        <span class="place-badge"><i class="bi bi-geo-alt-fill"></i></span>
+                    </div>
+                    <div class="review-body">
+                        <div class="review-header">
                             <div class="place-info">
                                 <h3>Mount Batulao</h3>
                                 <div class="place-location"><i class="bi bi-geo-alt"></i><span>Nasugbu, Batangas</span></div>
                             </div>
+                            <div class="review-actions">
+                                <button class="btn-icon" onclick="editReview(this)"><i class="bi bi-pencil"></i></button>
+                                <button class="btn-icon delete" onclick="deleteReview()"><i class="bi bi-trash"></i></button>
+                            </div>
                         </div>
-                        <div class="review-actions">
-                            <button class="btn-icon" onclick="editReview(this)"><i class="bi bi-pencil"></i></button>
-                            <button class="btn-icon delete" onclick="deleteReview()"><i class="bi bi-trash"></i></button>
+                        <div class="review-rating"><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i></div>
+                        <p class="review-text">Absolutely amazing experience! The sunrise hike was worth the early wake-up call. The rolling hills provide stunning panoramic views of Batangas. Trail is well-maintained and suitable for beginners. Highly recommended for nature lovers!</p>
+                        <div class="review-photos">
+                            <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=300&fit=crop" alt="Review photo" class="review-photo">
+                            <img src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=300&h=300&fit=crop" alt="Review photo" class="review-photo">
                         </div>
-                    </div>
-                    <div class="review-rating"><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i></div>
-                    <p class="review-text">Absolutely amazing experience! The sunrise hike was worth the early wake-up call. The rolling hills provide stunning panoramic views of Batangas. Trail is well-maintained and suitable for beginners. Highly recommended for nature lovers!</p>
-                    <div class="review-photos">
-                        <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=300&fit=crop" alt="Review photo" class="review-photo">
-                        <img src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=300&h=300&fit=crop" alt="Review photo" class="review-photo">
-                    </div>
-                    <div class="review-meta">
-                        <div class="review-date"><i class="bi bi-calendar"></i><span>November 20, 2024</span></div>
-                        <div class="review-helpful"><span class="helpful-count"><i class="bi bi-hand-thumbs-up"></i><span>42 found this helpful</span></span></div>
+                        <div class="review-meta">
+                            <div class="review-date"><i class="bi bi-calendar"></i><span>November 20, 2024</span></div>
+                            <div class="review-helpful"><span class="helpful-count"><i class="bi bi-hand-thumbs-up"></i><span>42 found this helpful</span></span></div>
+                        </div>
                     </div>
                 </div>
 
                 <div class="review-card stagger-2">
-                    <div class="review-header">
-                        <div class="review-place">
-                            <div class="place-thumb">
-                                <img src="https://images.unsplash.com/photo-1505142468610-359e7d316be0?w=300&q=80" alt="Fortune Island" class="place-image">
-                                <span class="place-badge"><i class="bi bi-geo-alt-fill"></i></span>
-                            </div>
+                    <div class="place-thumb">
+                        <img src="https://images.unsplash.com/photo-1505142468610-359e7d316be0?w=300&q=80" alt="Fortune Island" class="place-image">
+                        <span class="place-badge"><i class="bi bi-geo-alt-fill"></i></span>
+                    </div>
+                    <div class="review-body">
+                        <div class="review-header">
                             <div class="place-info">
                                 <h3>Fortune Island</h3>
                                 <div class="place-location"><i class="bi bi-geo-alt"></i><span>Nasugbu, Batangas</span></div>
                             </div>
+                            <div class="review-actions">
+                                <button class="btn-icon" onclick="editReview(this)"><i class="bi bi-pencil"></i></button>
+                                <button class="btn-icon delete" onclick="deleteReview()"><i class="bi bi-trash"></i></button>
+                            </div>
                         </div>
-                        <div class="review-actions">
-                            <button class="btn-icon" onclick="editReview(this)"><i class="bi bi-pencil"></i></button>
-                            <button class="btn-icon delete" onclick="deleteReview()"><i class="bi bi-trash"></i></button>
+                        <div class="review-rating"><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-half"></i></div>
+                        <p class="review-text">The Greek-inspired ruins are breathtaking, but the island could be better maintained. Crystal clear waters perfect for swimming. Bring your own food and water as there are no facilities. The boat ride can be choppy.</p>
+                        <div class="review-photos">
+                            <img src="https://images.unsplash.com/photo-1505142468610-359e7d316be0?w=300&h=300&fit=crop" alt="Review photo" class="review-photo">
                         </div>
-                    </div>
-                    <div class="review-rating"><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-half"></i></div>
-                    <p class="review-text">The Greek-inspired ruins are breathtaking, but the island could be better maintained. Crystal clear waters perfect for swimming. Bring your own food and water as there are no facilities. The boat ride can be choppy.</p>
-                    <div class="review-photos">
-                        <img src="https://images.unsplash.com/photo-1505142468610-359e7d316be0?w=300&h=300&fit=crop" alt="Review photo" class="review-photo">
-                    </div>
-                    <div class="review-meta">
-                        <div class="review-date"><i class="bi bi-calendar"></i><span>September 8, 2024</span></div>
-                        <div class="review-helpful"><span class="helpful-count"><i class="bi bi-hand-thumbs-up"></i><span>38 found this helpful</span></span></div>
+                        <div class="review-meta">
+                            <div class="review-date"><i class="bi bi-calendar"></i><span>September 8, 2024</span></div>
+                            <div class="review-helpful"><span class="helpful-count"><i class="bi bi-hand-thumbs-up"></i><span>38 found this helpful</span></span></div>
+                        </div>
                     </div>
                 </div>
 
                 <div class="review-card stagger-3">
-                    <div class="review-header">
-                        <div class="review-place">
-                            <div class="place-thumb">
-                                <img src="https://images.unsplash.com/photo-1519290916420-e67e00a83cde?w=300&q=80" alt="Caleruega Church" class="place-image">
-                                <span class="place-badge"><i class="bi bi-geo-alt-fill"></i></span>
-                            </div>
+                    <div class="place-thumb">
+                        <img src="https://images.unsplash.com/photo-1519290916420-e67e00a83cde?w=300&q=80" alt="Caleruega Church" class="place-image">
+                        <span class="place-badge"><i class="bi bi-geo-alt-fill"></i></span>
+                    </div>
+                    <div class="review-body">
+                        <div class="review-header">
                             <div class="place-info">
                                 <h3>Caleruega Church</h3>
                                 <div class="place-location"><i class="bi bi-geo-alt"></i><span>Nasugbu, Batangas</span></div>
                             </div>
+                            <div class="review-actions">
+                                <button class="btn-icon" onclick="editReview(this)"><i class="bi bi-pencil"></i></button>
+                                <button class="btn-icon delete" onclick="deleteReview()"><i class="bi bi-trash"></i></button>
+                            </div>
                         </div>
-                        <div class="review-actions">
-                            <button class="btn-icon" onclick="editReview(this)"><i class="bi bi-pencil"></i></button>
-                            <button class="btn-icon delete" onclick="deleteReview()"><i class="bi bi-trash"></i></button>
+                        <div class="review-rating"><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star"></i></div>
+                        <p class="review-text">A beautiful and peaceful place for reflection. The hilltop chapel offers great views. However, it can get very crowded on weekends, which slightly diminishes the serene atmosphere. Best to visit on a weekday if you can.</p>
+                        <div class="review-meta">
+                            <div class="review-date"><i class="bi bi-calendar"></i><span>October 15, 2024</span></div>
+                            <div class="review-helpful"><span class="helpful-count"><i class="bi bi-hand-thumbs-up"></i><span>31 found this helpful</span></span></div>
                         </div>
-                    </div>
-                    <div class="review-rating"><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star"></i></div>
-                    <p class="review-text">A beautiful and peaceful place for reflection. The hilltop chapel offers great views. However, it can get very crowded on weekends, which slightly diminishes the serene atmosphere. Best to visit on a weekday if you can.</p>
-                    <div class="review-meta">
-                        <div class="review-date"><i class="bi bi-calendar"></i><span>October 15, 2024</span></div>
-                        <div class="review-helpful"><span class="helpful-count"><i class="bi bi-hand-thumbs-up"></i><span>31 found this helpful</span></span></div>
                     </div>
                 </div>
                 </div> <!-- end .reviews-container -->
@@ -513,8 +689,33 @@
         if (typeof toggleUserDropdown === 'undefined') {
             function toggleUserDropdown() {
                 const dropdown = document.getElementById('userDropdown');
+                const notifDropdown = document.getElementById('notificationDropdown');
+                notifDropdown?.classList.remove('show');
                 if (dropdown) dropdown.classList.toggle('show');
             }
+        }
+
+        function hideUserDropdown(e){
+            e?.preventDefault();
+            document.getElementById('userDropdown')?.classList.remove('show');
+        }
+
+        function openProfile(e){
+            e?.preventDefault();
+            hideUserDropdown(e);
+            const modal = document.getElementById('profileModal');
+            if(modal) bootstrap.Modal.getOrCreateInstance(modal).show();
+        }
+
+        function markAllAsRead(){
+            document.querySelectorAll('.notification-item.unread').forEach(i=>i.classList.remove('unread'));
+            const badge = document.getElementById('notifBadge');
+            if(badge) { badge.textContent = '0'; badge.style.display = 'none'; }
+        }
+
+        function viewAllNotifications(e){
+            e?.preventDefault();
+            // Could navigate to notifications page
         }
 
         if (typeof handleLogout === 'undefined') {
@@ -533,6 +734,8 @@
                 const menuBtn = document.querySelector('.mobile-menu-btn');
                 const userDropdown = document.getElementById('userDropdown');
                 const userAvatar = document.querySelector('.user-avatar');
+                const notifDropdown = document.getElementById('notificationDropdown');
+                const notifBtn = document.querySelector('.notification-btn');
 
                 if (window.innerWidth <= 992) {
                     if (sidebar && menuBtn && !sidebar.contains(event.target) && !menuBtn.contains(event.target)) {
@@ -543,8 +746,34 @@
                 if (userDropdown && userAvatar && !userAvatar.contains(event.target) && !userDropdown.contains(event.target)) {
                     userDropdown.classList.remove('show');
                 }
+
+                if (notifDropdown && notifBtn && !notifBtn.contains(event.target) && !notifDropdown.contains(event.target)) {
+                    notifDropdown.classList.remove('show');
+                }
             });
             window._touristUiClickHandlerAttached = true;
+        }
+
+        function toggleNotificationDropdown(){
+            const dd = document.getElementById('notificationDropdown');
+            const ud = document.getElementById('userDropdown');
+            ud?.classList.remove('show');
+            dd?.classList.toggle('show');
+        }
+
+        function openNotificationDetail(item){
+            const title = item.querySelector('.notification-text h6')?.textContent || 'Notification';
+            const message = item.querySelector('.notification-text p')?.textContent || '';
+            const time = item.querySelector('.notification-time')?.textContent || '';
+            item.classList.remove('unread');
+            document.getElementById('notificationDropdown')?.classList.remove('show');
+            const modal = document.getElementById('notificationDetailModal');
+            if(modal){
+                document.getElementById('notifDetailTitle').textContent = title;
+                document.getElementById('notifDetailMessage').textContent = message;
+                document.getElementById('notifDetailTime').textContent = time;
+                bootstrap.Modal.getOrCreateInstance(modal).show();
+            }
         }
 
         if (typeof showToast === 'undefined') {
@@ -919,5 +1148,26 @@
             else { sp?.classList.add('d-none'); btn.disabled = false; if (saveText) saveText.textContent = 'Save Changes'; }
         }
     </script>
+
+    <!-- Notification Detail Modal (opens when clicking a notification) -->
+    <div class="modal fade" id="notificationDetailModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title"><i class="bi bi-bell-fill"></i> <span id="notifDetailTitle">Notification</span></h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p id="notifDetailMessage" style="font-size:1rem;color:#333;margin-bottom:1rem;"></p>
+            <p class="text-muted" style="font-size:0.875rem;margin:0;"><i class="bi bi-clock"></i> <span id="notifDetailTime"></span></p>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button class="btn btn-primary" data-bs-dismiss="modal">Take Action</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
 </body>
 </html>

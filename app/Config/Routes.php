@@ -11,15 +11,27 @@ $routes->get('/under-development', 'Home::index');
 $routes->get('/', 'AuthController::login'); 
 $routes->get('/users/login', 'AuthController::login');
 $routes->get('/signup', 'AuthController::signup'); 
-$routes->post('/users/login', 'AuthController::Handlelogin');
+$routes->post('/users/login', 'AuthController::handleLogin');
 $routes->post('signup/submit', 'AuthController::handleSignup');
 $routes->get('/users/logout', 'AuthController::logout');
+
+// OTP & Google Auth routes
+$routes->get('verify-otp', 'AuthController::showOtpForm');
+$routes->post('verify-otp', 'AuthController::verifyOtp');
+$routes->get('verify-email', 'AuthController::verifyEmail');
+$routes->post('verify-email/resend', 'AuthController::resendVerificationEmail');
+$routes->get('verify-email/status', 'AuthController::verificationStatus');
+$routes->get('auth/google', 'AuthController::googleRedirect');
+$routes->get('auth/google/callback', 'AuthController::googleCallback');
 
 //Admin routes
 $routes->group('admin', ['namespace' => 'App\Controllers', 'filter' => 'auth'], function($routes) {
     $routes->get('dashboard', 'AdminController::dashboard');
     $routes->get('reports', 'AdminController::reports');
     $routes->get('settings', 'AdminController::settings');
+    $routes->get('profile', 'AdminController::profile');
+    $routes->post('profile/update', 'AdminController::updateProfile');
+    $routes->post('settings/update', 'AdminController::updateSettings');
     
 
     // REGISTRATIONS PAGE ROUTES
@@ -77,6 +89,7 @@ $routes->get('spotowner/api/booking-trends', 'SpotOwner\Api::bookingTrends');
 $routes->get('spotowner/api/dashboard-analytics', 'SpotOwnerController::getDashboardAnalytics');
 $routes->get('spotowner/api/spot-analytics/(:num)', 'SpotOwnerController::getSpotAnalytics/$1');
 
+    
 
 
 
@@ -119,6 +132,16 @@ $routes->get('tourist/visited/ajax', 'TouristController::getVisitedPlacesAjax');
 $routes->get('/tourist/getFavorites', 'TouristController::getFavorites');
 // Dashboard live stats (AJAX)
 $routes->get('/tourist/dashboardStats', 'TouristController::dashboardStats');
+// Weather data for dashboard
+$routes->get('/tourist/getWeather', 'TouristController::getWeather');
+// Feedback/Review endpoints
+$routes->post('/tourist/feedback', 'TouristController::createFeedback');
+$routes->get('/tourist/feedback/(:num)', 'TouristController::getFeedback/$1');
+$routes->put('/tourist/feedback/(:num)', 'TouristController::updateFeedback/$1');
+$routes->delete('/tourist/feedback/(:num)', 'TouristController::deleteFeedback/$1');
+// Get all reviews for a specific spot
+$routes->get('/tourist/spot/(:num)/reviews', 'TouristController::getSpotReviews/$1');
+
 
 // Save user category preferences
 $routes->post('/tourist/savePreferences', 'TouristController::savePreferences');
@@ -150,6 +173,8 @@ $routes->get('/tourist/viewSpot/(:num)', 'TouristController::viewSpot/$1');
 // Check-in token endpoints
 $routes->get('tourist/generateCheckinToken/(:num)', 'TouristController::generateCheckinToken/$1');
 $routes->post('tourist/generateCheckinToken/(:num)', 'TouristController::generateCheckinToken/$1');
+
+// Badges (removed)
 
 // Verify token (scanner uses POST)
 $routes->post('tourist/verifyCheckinToken', 'TouristController::verifyCheckinToken');

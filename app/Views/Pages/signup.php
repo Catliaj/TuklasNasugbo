@@ -34,17 +34,17 @@
                 <form id="signupForm">
                     <div class="input-group mb-3">
                         <span class="input-group-text"><i class="bi bi-person"></i></span>
-                        <input type="text" class="form-control" placeholder="Full Name" required>
+                        <input type="text" class="form-control" id="fullName" placeholder="Full Name" required>
                     </div>
                     
                     <div class="input-group mb-3">
                         <span class="input-group-text"><i class="bi bi-envelope"></i></span>
-                        <input type="email" class="form-control" placeholder="Email Address" required>
+                        <input type="email" class="form-control" id="email" placeholder="Email Address" required>
                     </div>
                     
                     <div class="input-group mb-3">
                         <span class="input-group-text"><i class="bi bi-phone"></i></span>
-                        <input type="tel" class="form-control" placeholder="Phone Number (optional)">
+                        <input type="tel" class="form-control" id="touristContact" placeholder="Phone Number (optional)">
                     </div>
                     
                     <div class="input-group mb-2">
@@ -99,6 +99,18 @@
         </div>
     </div>
 
+    <!-- Verification Waiting Overlay -->
+    <div id="verifyOverlay" style="display:none;position:fixed;inset:0;background:rgba(255,255,255,0.96);z-index:9999">
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;width:90%;max-width:520px">
+            <div class="spinner-border text-primary" role="status" style="width:3rem;height:3rem">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <h3 class="mt-4">Check your Gmail</h3>
+            <p class="text-muted">We sent a verification link to your Gmail. Please click the Verify button in the email to complete your registration. Keep this window open — we'll be ready once you're verified.</p>
+            <p class="mt-3"><small>If you don't see it, check Spam/Promotions.</small></p>
+        </div>
+    </div>
+
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
@@ -130,6 +142,9 @@
             
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
+            const email = document.getElementById('email').value.trim();
+            const fullName = document.getElementById('fullName').value.trim();
+            const touristContact = document.getElementById('touristContact').value.trim();
             
             if (password !== confirmPassword) {
                 alert('Passwords do not match!');
@@ -141,9 +156,49 @@
                 return;
             }
             
-            // Simulate successful signup
-            alert('Account created successfully! Redirecting to login...');
-            window.location.href = 'login.html';
+            // Call backend to start email verification signup
+            const formData = new URLSearchParams();
+            const [firstName, ...rest] = fullName.split(' ');
+            const lastName = rest.join(' ');
+            formData.append('firstName', firstName || '');
+            formData.append('middleName', '');
+            formData.append('lastName', lastName || '');
+            formData.append('email', email);
+            formData.append('role', 'tourist');
+            formData.append('password', password);
+            formData.append('confirmPassword', confirmPassword);
+            formData.append('touristContact', touristContact);
+            formData.append('touristAddress', '');
+            formData.append('emergencyContact', '');
+            formData.append('emergencyNumber', '');
+            formData.append('businessName', '');
+            formData.append('businessContact', '');
+            formData.append('businessAddress', '');
+            formData.append('govIdType', '');
+            formData.append('govIdNumber', '');
+
+            // Show waiting overlay immediately
+            const overlay = document.getElementById('verifyOverlay');
+            overlay.style.display = 'block';
+
+            fetch('<?= base_url('signup/submit') ?>', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: formData.toString()
+            }).then(async (res) => {
+                const data = await res.json().catch(() => ({}));
+                if (data.status === 'verification_sent') {
+                    // Keep overlay visible; user will click link in email.
+                    // Optionally we could start a poll to check token consumption.
+                } else {
+                    overlay.style.display = 'none';
+                    const msg = data.message || 'Signup failed. Please try again.';
+                    alert(msg);
+                }
+            }).catch(() => {
+                overlay.style.display = 'none';
+                alert('Network error starting verification. Please try again.');
+            });
         });
         
         // Social Signup

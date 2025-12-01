@@ -173,12 +173,7 @@
                             <span class="tourist-nav-link-text">Visited Places</span>
                         </a>
                     </li>
-                    <li class="tourist-nav-item">
-                        <a href="/tourist/reviews" class="tourist-nav-link">
-                            <i class="bi bi-star"></i>
-                            <span class="tourist-nav-link-text">My Reviews</span>
-                        </a>
-                    </li>
+                    <!-- My Reviews link removed (reviews integrated into Visited/Explore) -->
                 </ul>
             </nav>
         </aside>
@@ -213,13 +208,57 @@
                 <div class="page-header">
                     <div class="page-header-actions">
                         <div style="position: relative;">
-                            <div class="user-avatar" onclick="toggleUserDropdown()"><?= $userInitials ?></div>
+                            <div style="position:relative;display:flex;align-items:center;gap:1rem;">
+                        <button class="notification-btn" onclick="toggleNotificationDropdown()">
+                            <i class="bi bi-bell-fill"></i>
+                            <span class="notification-badge" id="notifBadge">3</span>
+                        </button>
+                        <!-- Notification Dropdown -->
+                        <div class="notification-dropdown" id="notificationDropdown">
+                            <div class="notification-header">
+                                <h6>Notifications</h6>
+                                <button class="mark-all-read" onclick="markAllAsRead()">Mark all read</button>
+                            </div>
+                            <ul class="notification-list">
+                                <li class="notification-item unread" onclick="openNotificationDetail(this)" style="cursor:pointer;">
+                                    <div class="notification-content">
+                                        <div class="notification-icon success"><i class="bi bi-check-circle-fill"></i></div>
+                                        <div class="notification-text">
+                                            <h6>New Spot Available</h6>
+                                            <p>Punta Fuego Beach is now open for bookings</p>
+                                            <div class="notification-time"><i class="bi bi-clock"></i> 30 minutes ago</div>
+                                        </div>
+                                    </div>
+                                </li>
+                                <li class="notification-item unread" onclick="openNotificationDetail(this)" style="cursor:pointer;">
+                                    <div class="notification-content">
+                                        <div class="notification-icon info"><i class="bi bi-star-fill"></i></div>
+                                        <div class="notification-text">
+                                            <h6>Special Offer</h6>
+                                            <p>Get 20% off Canyon Cove bookings this weekend</p>
+                                            <div class="notification-time"><i class="bi bi-clock"></i> 1 day ago</div>
+                                        </div>
+                                    </div>
+                                </li>
+                            </ul>
+                            <div class="notification-footer">
+                                <a href="#" onclick="viewAllNotifications(event)">View all notifications</a>
+                            </div>
+                        </div>
+                        <div class="user-avatar" onclick="toggleUserDropdown()"><?= $userInitials ?></div>
+                    </div>
                             <div class="user-dropdown" id="userDropdown">
                                 <div class="dropdown-header">
                                     <h6><?= esc($userFirstName . ' ' . $userLastName) ?></h6>
                                     <p><?= esc($userEmail) ?></p>
                                 </div>
                                 <ul class="dropdown-menu-custom">
+                                    <li>
+                                        <a href="#" class="dropdown-item-custom" onclick="openProfile(event); hideUserDropdown(event)">
+                                            <i class="bi bi-person-circle"></i>
+                                            <span>My Profile</span>
+                                        </a>
+                                    </li>
                                     <li>
                                         <a href="#" class="dropdown-item-custom logout" onclick="handleLogout(event)">
                                             <i class="bi bi-box-arrow-right"></i>
@@ -288,7 +327,7 @@
                                         </span>
                                         <div class="spot-rating">
                                             <i class="bi bi-star-fill"></i>
-                                            <span><?= esc($spot['rating'] ?? '4.5') ?></span>
+                                            <span>0</span>
                                         </div>
                                     </div>
                                     <div class="spot-actions">
@@ -310,7 +349,7 @@
                         <i class="bi bi-search"></i>
                     </div>
                     
-                    <div class="filter-tags">
+                    <div class="filter-tags" style="display:grid;grid-template-columns:repeat(7,1fr);gap:0.5rem;max-width:100%;">
                         <button class="filter-tag active" data-filter="all">All</button>
                         <?php
                         $uiCategories = ['Historical','Cultural','Natural','Recreational','Religious','Adventure','Ecotourism','Urban','Rural','Beach','Mountain','Resort','Park','Restaurant'];
@@ -352,7 +391,7 @@
 
                                     <div class="spot-rating">
                                         <i class="bi bi-star-fill"></i>
-                                        <span><?= esc($spot['rating'] ?? '4.5') ?></span>
+                                        <span>0</span>
                                     </div>
                                 </div>
 
@@ -397,7 +436,9 @@
                                                                             </div>
                                                                             <div class="col-md-5">
                                                                                 <label class="form-label"><strong>Visit Time</strong></label>
-                                                                                <input type="time" class="form-control" id="bookingStartTime" name="visit_time" />
+                                                                                <select class="form-select" id="bookingStartTime" name="visit_time" required>
+                                                                                    <option value="">Select time</option>
+                                                                                </select>
                                                                             </div>
                                                                         </div>
                                                                         <div class="mb-3">
@@ -521,6 +562,18 @@
                     <div id="spotModalDetails" class="spot-details-panel">
                         <!-- dynamically inserted details -->
                     </div>
+                    <!-- Reviews Section -->
+                    <div id="spotReviewsSection" style="display:none;">
+                        <h6 style="margin-top: 1.5rem; margin-bottom: 1rem; color: #004b8d; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="bi bi-star-fill" style="color: #ffb400;"></i> Guest Reviews
+                        </h6>
+                        <div id="spotReviewsList" style="display: flex; flex-direction: column; gap: 1rem; max-height: 300px; overflow-y: auto;">
+                                <!-- Reviews inserted dynamically -->
+                            </div>
+                            <div id="spotReviewsControls" style="margin-top:0.75rem; display:flex; justify-content:center;">
+                                <button id="spotReviewsLoadMore" type="button" class="btn btn-outline-primary" style="display:none;">View more reviews</button>
+                            </div>
+                    </div>
                 </div>
       </div>
 
@@ -622,6 +675,59 @@
             }
         });
 
+        function toggleUserDropdown() {
+            const notifDropdown = document.getElementById('notificationDropdown');
+            const dropdown = document.getElementById('userDropdown');
+            notifDropdown?.classList.remove('show');
+            dropdown?.classList.toggle('show');
+        }
+
+        function toggleNotificationDropdown(){
+            const dd = document.getElementById('notificationDropdown');
+            const ud = document.getElementById('userDropdown');
+            ud?.classList.remove('show');
+            dd?.classList.toggle('show');
+        }
+
+        function openNotificationDetail(item){
+            const title = item.querySelector('.notification-text h6')?.textContent || 'Notification';
+            const message = item.querySelector('.notification-text p')?.textContent || '';
+            const time = item.querySelector('.notification-time')?.textContent || '';
+            item.classList.remove('unread');
+            document.getElementById('notificationDropdown')?.classList.remove('show');
+            const modal = document.getElementById('notificationDetailModal');
+            if(modal){
+                document.getElementById('notifDetailTitle').textContent = title;
+                document.getElementById('notifDetailMessage').textContent = message;
+                document.getElementById('notifDetailTime').textContent = time;
+                bootstrap.Modal.getOrCreateInstance(modal).show();
+            }
+        }
+
+        function hideUserDropdown(e){
+            e?.preventDefault();
+            document.getElementById('userDropdown')?.classList.remove('show');
+        }
+
+        function openProfile(e){
+            e?.preventDefault();
+            hideUserDropdown(e);
+            const modal = document.getElementById('profileModal');
+            if(modal) bootstrap.Modal.getOrCreateInstance(modal).show();
+        }
+
+        function markAllAsRead() {
+            const items = document.querySelectorAll('.notification-item.unread');
+            items.forEach(item => item.classList.remove('unread'));
+            const badge = document.querySelector('.notification-badge');
+            if (badge) badge.textContent = '0';
+        }
+
+        function viewAllNotifications(event) {
+            event.preventDefault();
+            // Navigate to notifications page or show all notifications
+        }
+
 
         
         async function toggleFavorite(button) {
@@ -649,6 +755,23 @@
                 const data = await res.json();
                 if (!res.ok) throw new Error(data?.error || 'Failed to update favorite');
                 showToast('Favorites', data.message || (isNowFavorite ? spotName + ' added to favorites!' : spotName + ' removed from favorites.'));
+                
+                // If removing from favorites section, remove the card
+                if (!isNowFavorite) {
+                    const favoriteCard = card.closest('.col-12');
+                    if (favoriteCard && favoriteCard.closest('#favoritesSection')) {
+                        favoriteCard.remove();
+                        
+                        // If no favorites left, show a message
+                        const remainingFavorites = document.querySelectorAll('#favoritesSection .spot-card').length;
+                        if (remainingFavorites === 0) {
+                            const favoritesGrid = document.querySelector('#favoritesSection .favorites-grid');
+                            if (favoritesGrid) {
+                                favoritesGrid.innerHTML = '<div class="col-12"><p class="text-center text-muted">No favorite spots yet. Click the heart icon on any spot to add it to your favorites!</p></div>';
+                            }
+                        }
+                    }
+                }
             } catch (err) {
                 console.error(err);
                 // revert optimistic UI
@@ -754,7 +877,8 @@
                                         </div>
                                     </div>
                                 `;
-                // (Optional future: favorite button wiring if element exists)
+                // Fetch and display reviews for this spot
+                fetchSpotReviews(spotId);
         
         
             })
@@ -768,8 +892,207 @@
             });
     }
 
+        // Current logged-in user id (if any) - used to highlight their review
+    const CURRENT_USER_ID = <?= json_encode($session->get('UserID') ?? null) ?>;
+    const CURRENT_USER_EMAIL = <?= json_encode($session->get('Email') ?? null) ?>;
+
+        // Fetch and display reviews for a spot (renders testimonial-style cards)
+    function fetchSpotReviews(spotId, offset = 0) {
+        const reviewsSection = document.getElementById('spotReviewsSection');
+        const reviewsList = document.getElementById('spotReviewsList');
+        const loadMoreBtn = document.getElementById('spotReviewsLoadMore');
         
-        // addToItinerary removed — functionality deprecated
+        if (!reviewsSection || !reviewsList) return;
+        
+        // Set current spot id/offset on section for subsequent loads
+        reviewsSection.dataset.spotId = spotId;
+        reviewsSection.dataset.offset = offset;
+        const pageSize = 10;
+
+        // If offset is zero, clear current list (fresh load). Otherwise we'll append.
+        if (offset === 0) {
+            reviewsList.innerHTML = '<div class="text-center text-muted">Loading reviews...</div>';
+            reviewsSection.style.display = 'block';
+        } else {
+            // show loading state on button
+            if (loadMoreBtn) { loadMoreBtn.disabled = true; loadMoreBtn.textContent = 'Loading...'; loadMoreBtn.style.display = 'inline-block'; }
+        }
+
+        fetch(`/tourist/spot/${spotId}/reviews?limit=${pageSize}&offset=${offset}`)
+            .then(res => res.json())
+            .then(data => {
+                // Update rating display with actual average from reviews
+                if (data.average_rating !== undefined) {
+                    const avgRating = parseFloat(data.average_rating) || 0;
+                    const ratingEl = document.getElementById('spotModalRating');
+                    if (ratingEl) {
+                        // Build star markup - round to nearest 0.5
+                        let stars = '';
+                        for (let i = 1; i <= 5; i++) {
+                            if (avgRating >= i) {
+                                // Full star
+                                stars += '<i class="bi bi-star-fill" style="color: #ffb400;"></i>';
+                            } else if (avgRating >= i - 0.5) {
+                                // Half star
+                                stars += '<i class="bi bi-star-half" style="color: #ffb400;"></i>';
+                            } else {
+                                // Empty star
+                                stars += '<i class="bi bi-star" style="color: #ddd;"></i>';
+                            }
+                        }
+                        ratingEl.innerHTML = `${stars} (${avgRating.toFixed(1)})`;
+                    }
+                }
+
+                if (data.success && Array.isArray(data.reviews)) {
+                    const reviews = data.reviews;
+                    if (reviews.length === 0) {
+                        // If first page and no reviews, show empty state
+                        if (offset === 0) {
+                            reviewsSection.style.display = 'block';
+                            reviewsList.innerHTML = '<div class="text-center text-muted">No reviews yet. Be the first to review this place.</div>';
+                        }
+                        return;
+                    }
+
+                    reviewsSection.style.display = 'block';
+
+                    // If the API provided the current user's review, move it to the top
+                    let userIndex = -1;
+                    for (let i = 0; i < reviews.length; i++) {
+                        const r = reviews[i];
+                        const reviewerId = r.customer_id ?? r.user_id ?? r.userId ?? r.customerId ?? null;
+                        const reviewerEmail = (r.customer_email || r.email || '').toLowerCase();
+                        if (CURRENT_USER_ID && reviewerId && String(reviewerId) === String(CURRENT_USER_ID)) { userIndex = i; break; }
+                        if (CURRENT_USER_EMAIL && reviewerEmail && String(reviewerEmail) === String((CURRENT_USER_EMAIL||'').toLowerCase())) { userIndex = i; break; }
+                    }
+                    if (userIndex > 0) {
+                        const userReview = reviews.splice(userIndex, 1)[0];
+                        reviews.unshift(userReview);
+                    }
+
+                    // Build markup for this page
+                    const markup = reviews.map((review, idx) => {
+                        const isMyReview = (idx === 0) && (CURRENT_USER_ID && (String(review.customer_id ?? review.user_id ?? review.userId ?? review.customerId ?? '') === String(CURRENT_USER_ID)));
+                        const name = escapeHtml(review.customer_name || 'Anonymous');
+                        const initials = name.split(' ').map(s => s.charAt(0)).filter(Boolean).slice(0,2).join('').toUpperCase();
+                        const comment = escapeHtml(review.comment || '');
+                        const commentHtml = comment.replace(/\n/g, '<br>');
+                        const rating = parseInt(review.rating) || 0;
+
+                        // Build star markup (filled + empty up to 5)
+                        let stars = '';
+                        for (let i = 1; i <= 5; i++) {
+                            if (i <= rating) stars += '<i class="bi bi-star-fill" style="color: #ffb400;"></i>';
+                            else stars += '<i class="bi bi-star" style="color: #ddd;"></i>';
+                        }
+
+                        return `
+                            <div class="card mb-3 ${isMyReview ? 'my-review' : ''}" style="border:1px solid ${isMyReview ? 'rgba(0,123,255,0.18)' : 'rgba(0,75,141,0.06)'};">
+                                <div class="card-body p-3">
+                                    <div class="d-flex align-items-start">
+                                        <div class="me-3" style="width:48px; height:48px; border-radius:50%; background:#e9f2fb; display:flex; align-items:center; justify-content:center; font-weight:700; color:#004b8d;">${initials}</div>
+                                        <div style="flex:1;">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div>
+                                                    <div style="font-weight:600; color:#004b8d;">${name} ${isMyReview ? '<span class="badge bg-primary ms-2" style="font-size:.7rem;">Your review</span>' : ''}</div>
+                                                    <div style="font-size:0.85rem; color:#666;">${formatDate(review.created_at)}</div>
+                                                </div>
+                                                <div style="text-align:right;">
+                                                    <div style="line-height:1">${stars}</div>
+                                                </div>
+                                            </div>
+                                            <div style="margin-top:0.5rem; color:#333; font-size:0.95rem;">${commentHtml}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    if (offset === 0) {
+                        reviewsList.innerHTML = markup;
+                    } else {
+                        // append
+                        reviewsList.insertAdjacentHTML('beforeend', markup);
+                    }
+
+                    // handle load more visibility
+                    const hasMore = data.has_more === true;
+                    if (loadMoreBtn) {
+                        if (hasMore) {
+                            loadMoreBtn.style.display = 'inline-block';
+                            loadMoreBtn.disabled = false;
+                            loadMoreBtn.textContent = 'View more reviews';
+                            loadMoreBtn.onclick = function() {
+                                const nextOffset = offset + pageSize;
+                                fetchSpotReviews(spotId, nextOffset);
+                            };
+                        } else {
+                            loadMoreBtn.style.display = 'none';
+                        }
+                    }
+                } else {
+                    reviewsSection.style.display = 'block';
+                    reviewsList.innerHTML = '<div class="text-center text-muted">No reviews available.</div>';
+                }
+            })
+            .catch(err => {
+                console.error('Error fetching reviews:', err);
+                reviewsSection.style.display = 'block';
+                if (offset === 0) {
+                    reviewsList.innerHTML = '<div class="text-center text-danger">Failed to load reviews.</div>';
+                }
+                const loadMoreBtn = document.getElementById('spotReviewsLoadMore');
+                if (loadMoreBtn) { loadMoreBtn.style.display = 'none'; }
+            });
+    }
+
+    function escapeHtml(text) {
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        if (text === null || text === undefined) return '';
+        return String(text).replace(/[&<>"']/g, m => map[m]);
+    }
+
+    function formatDate(isoDate) {
+        try {
+            const date = new Date(isoDate);
+            return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+        } catch {
+            return isoDate;
+        }
+    }
+
+    // Update all card ratings with real average ratings from reviews
+    function updateCardRatings() {
+        const spotCards = document.querySelectorAll('.spot-card');
+        spotCards.forEach(card => {
+            const spotId = card.dataset.spotId;
+            if (!spotId) return;
+
+            fetch(`/tourist/spot/${spotId}/reviews?limit=1&offset=0`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.average_rating !== undefined) {
+                        const avgRating = parseFloat(data.average_rating) || 0;
+                        const ratingEl = card.querySelector('.spot-rating span');
+                        if (ratingEl) {
+                            ratingEl.textContent = avgRating.toFixed(1);
+                        }
+                    }
+                })
+                .catch(err => console.log('Error fetching rating for spot', spotId, err));
+        });
+    }
+
+    // Update ratings when page loads
+    document.addEventListener('DOMContentLoaded', updateCardRatings);
         
 
         // --- BOOKING FUNCTIONS ---
@@ -785,11 +1108,67 @@
                 'description' => $spot['description'],
                 'category' => $spot['category'],
                 'location' => $spot['location'],
+                'opening_time' => $spot['opening_time'] ?? null,
+                'closing_time' => $spot['closing_time'] ?? null,
                 'primary_image' => $spot['primary_image'],
             ]) ?>;
         <?php endforeach; ?>
 
         let currentSpotPrices = { adult: 0, child: 0, senior: 0 };
+
+        // Function to populate visit time dropdown based on operating hours
+        function populateVisitTimeOptions(openingTime, closingTime) {
+            const timeSelect = document.getElementById('bookingStartTime');
+            if (!timeSelect) return;
+            
+            // Clear existing options except the first one
+            timeSelect.innerHTML = '<option value="">Select time</option>';
+            
+            if (!openingTime || !closingTime) {
+                timeSelect.innerHTML = '<option value="">Operating hours not available</option>';
+                return;
+            }
+            
+            // Parse opening and closing times (format: "HH:MM:SS" or "HH:MM")
+            const parseTime = (timeStr) => {
+                const parts = timeStr.split(':');
+                return {
+                    hours: parseInt(parts[0]),
+                    minutes: parseInt(parts[1] || 0)
+                };
+            };
+            
+            const opening = parseTime(openingTime);
+            const closing = parseTime(closingTime);
+            
+            // Generate time slots every 30 minutes
+            let currentHour = opening.hours;
+            let currentMinute = opening.minutes;
+            
+            while (currentHour < closing.hours || (currentHour === closing.hours && currentMinute <= closing.minutes)) {
+                const hourStr = currentHour.toString().padStart(2, '0');
+                const minuteStr = currentMinute.toString().padStart(2, '0');
+                const timeValue = `${hourStr}:${minuteStr}:00`;
+                const timeDisplay = `${hourStr}:${minuteStr}`;
+                
+                const option = document.createElement('option');
+                option.value = timeValue;
+                option.textContent = timeDisplay;
+                timeSelect.appendChild(option);
+                
+                // Increment by 30 minutes
+                currentMinute += 30;
+                if (currentMinute >= 60) {
+                    currentMinute = 0;
+                    currentHour++;
+                }
+                
+                // Break if we've gone past closing time
+                if (currentHour > closing.hours || (currentHour === closing.hours && currentMinute > closing.minutes)) {
+                    break;
+                }
+            }
+        }
 
                 function bookSpot(spotId, spotName, btn) {
                         const spot = spotDataMap[spotId];
@@ -825,6 +1204,10 @@
                             child: parseFloat(spot.child_price),
                             senior: parseFloat(spot.senior_price)
                         };
+                        
+                        // Populate visit time dropdown based on operating hours
+                        populateVisitTimeOptions(spot.opening_time, spot.closing_time);
+                        
                         updateBookingSummary();
                         bootstrap.Modal.getOrCreateInstance(document.getElementById('bookingModal')).show();
                 }
@@ -923,11 +1306,9 @@
                 this.classList.add('active');
 
                 const filter = this.getAttribute('data-filter');
-                const spots = document.querySelectorAll('.spot-card');
+                const spots = document.querySelectorAll('.spots-grid .spot-card');
 
                 spots.forEach(spot => {
-                    // Skip recommended cards (always visible at top)
-                    if (spot.classList.contains('recommended-card')) return;
                     const cat = (spot.getAttribute('data-category') || '').toLowerCase();
                     if (filter === 'all' || cat === filter) {
                         spot.style.display = 'block';
@@ -941,11 +1322,9 @@
         // Search functionality
         document.getElementById('searchInput').addEventListener('input', function() {
             const searchTerm = this.value.toLowerCase();
-            const spots = document.querySelectorAll('.spot-card');
+            const spots = document.querySelectorAll('.spots-grid .spot-card');
              
             spots.forEach(spot => {
-                // Keep recommended cards always visible
-                if (spot.classList.contains('recommended-card')) return;
                 const title = spot.querySelector('.spot-title').textContent.toLowerCase();
                 const description = spot.querySelector('.spot-description').textContent.toLowerCase();
                 
@@ -956,6 +1335,27 @@
                 }
             });
         });
+
+        // Check if viewSpot parameter exists in URL and auto-open modal
+        const urlParams = new URLSearchParams(window.location.search);
+        const viewSpotId = urlParams.get('viewSpot');
+        
+        if (viewSpotId) {
+            // Find the spot card with this ID
+            const spotCard = document.querySelector(`.spot-card[data-spot-id="${viewSpotId}"]`);
+            if (spotCard) {
+                // Scroll to the spot
+                spotCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                
+                // Wait a bit for scroll, then open the modal
+                setTimeout(() => {
+                    const viewBtn = spotCard.querySelector('.btn-view');
+                    if (viewBtn) {
+                        viewBtn.click();
+                    }
+                }, 500);
+            }
+        }
     </script>
     <script>
         // Override confirmBooking with server-backed implementation
@@ -974,6 +1374,10 @@
 
             if (!startDate || !spotId || (numAdults + numChildren + numSeniors) < 1) {
                 alert('Please select a start date and at least one guest.');
+                return;
+            }
+            if (!startTime) {
+                alert('Please select a visit time.');
                 return;
             }
             if (endDate && endDate < startDate) {
@@ -1035,5 +1439,26 @@
             }
         }
     </script>
+
+    <!-- Notification Detail Modal (opens when clicking a notification) -->
+    <div class="modal fade" id="notificationDetailModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title"><i class="bi bi-bell-fill"></i> <span id="notifDetailTitle">Notification</span></h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p id="notifDetailMessage" style="font-size:1rem;color:#333;margin-bottom:1rem;"></p>
+            <p class="text-muted" style="font-size:0.875rem;margin:0;"><i class="bi bi-clock"></i> <span id="notifDetailTime"></span></p>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button class="btn btn-primary" data-bs-dismiss="modal">Take Action</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
 </body>
 </html>

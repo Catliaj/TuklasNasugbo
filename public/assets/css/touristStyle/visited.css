@@ -268,33 +268,39 @@ body {
 .view-toggle {
     display: flex;
     gap: 0.5rem;
-    background: var(--light-bg);
-    padding: 0.35rem;
-    border-radius: 10px;
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
 }
 
-.toggle-btn {
-    background: transparent;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 0.9rem;
-    color: var(--light-text);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
+/* Unified view buttons (matching bookings page) */
+.view-btn {
+    display: inline-flex;
     align-items: center;
     gap: 0.5rem;
+    padding: 0.55rem 1.1rem;
+    border: 2px solid rgba(0,75,141,0.25);
+    background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(0,75,141,0.05));
+    color: var(--dark-text);
+    border-radius: 999px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .3s ease;
+    box-shadow: 0 2px 8px rgba(0,46,85,0.06);
+    font-size: 0.9rem;
 }
-.toggle-btn:hover {
-    color: var(--primary-color);
+.view-btn:hover {
+    transform: translateY(-2px);
+    background: linear-gradient(135deg, rgba(255,255,255,1), rgba(0,75,141,0.10));
+    box-shadow: 0 4px 12px rgba(0,46,85,0.18);
 }
-.toggle-btn.active {
-    background: #fff;
-    color: var(--primary-color);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+.view-btn.active {
+    border-color: #004b8d;
+    background: linear-gradient(135deg, #004b8d, #002e55);
+    color: #fff;
+    box-shadow: 0 6px 18px rgba(0,46,85,0.30);
 }
+.view-btn i { font-size: 1rem; }
 
 /* Timeline View */
 .timeline {

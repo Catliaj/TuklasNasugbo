@@ -522,29 +522,7 @@
             alert('Login successful!');
         }
 
-        // Handle signup
-        function handleSignup(event) {
-            event.preventDefault();
-            const form = event.target;
-            
-            if (form.password.value !== form.confirmPassword.value) {
-                alert('Passwords do not match');
-                return;
-            }
-
-            const formData = {
-                firstName: form.firstName.value,
-                lastName: form.lastName.value,
-                email: form.email.value,
-                role: form.role.value
-            };
-            console.log('Signup submitted:', formData);
-            
-            // Example: Close modal on success
-            const authModal = bootstrap.Modal.getInstance(document.getElementById('authModal'));
-            authModal.hide();
-            alert('Account created successfully!');
-        }
+        // legacy placeholder removed; real handler defined below
     </script>
 
 
@@ -599,46 +577,174 @@ if (loginForm) {
 }
 
 
+// Waiting modal HTML injected dynamically (keeps markup minimal here)
+let verifyModal, verifyModalEl, verifyCountdownTimer, verifyPollTimer, verifySeconds = 60, verifyEmail = '';
+
+function openVerifyModal(email) {
+  verifyEmail = email;
+  // Build modal if not present
+  if (!document.getElementById('verifyWaitModal')) {
+    const modalHtml = `
+    <div class="modal fade" id="verifyWaitModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Check your Gmail</h5>
+          </div>
+          <div class="modal-body text-center p-4">
+            <div class="mb-3">
+              <div class="spinner-border text-primary" role="status"></div>
+            </div>
+            <p class="mb-1">We sent a verification link to</p>
+            <p class="fw-semibold">${email}</p>
+            <p class="text-muted small">Please click the Verify button in the email to complete your registration.</p>
+            <div class="mt-3">
+              <button id="resendBtn" class="btn btn-outline-primary" type="button" disabled>Resend (60s)</button>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    verifyModalEl = document.getElementById('verifyWaitModal');
+    verifyModal = new bootstrap.Modal(verifyModalEl, { backdrop: 'static', keyboard: false });
+    verifyModalEl.addEventListener('hidden.bs.modal', () => {
+      clearInterval(verifyCountdownTimer);
+      clearInterval(verifyPollTimer);
+      verifyCountdownTimer = null;
+      verifyPollTimer = null;
+    });
+  } else {
+    // Update email text if reused
+    verifyModalEl.querySelector('.modal-body .fw-semibold').textContent = email;
+  }
+
+  // Hook resend click
+  const resendBtn = document.getElementById('resendBtn');
+  resendBtn.onclick = onResendClicked;
+
+  // Start countdown + polling
+  verifySeconds = 60;
+  updateResendButton();
+  if (verifyCountdownTimer) clearInterval(verifyCountdownTimer);
+  verifyCountdownTimer = setInterval(() => {
+    verifySeconds -= 1;
+    if (verifySeconds <= 0) {
+      verifySeconds = 0;
+      clearInterval(verifyCountdownTimer);
+    }
+    updateResendButton();
+  }, 1000);
+
+  if (verifyPollTimer) clearInterval(verifyPollTimer);
+  verifyPollTimer = setInterval(checkVerificationStatus, 5000);
+
+  verifyModal.show();
+}
+
+function updateResendButton() {
+  const btn = document.getElementById('resendBtn');
+  if (!btn) return;
+  if (verifySeconds > 0) {
+    btn.disabled = true;
+    btn.textContent = `Resend (${verifySeconds}s)`;
+  } else {
+    btn.disabled = false;
+    btn.textContent = 'Resend verification';
+  }
+}
+
+function onResendClicked() {
+  if (verifySeconds > 0) return;
+  const fd = new FormData();
+  fd.append('email', verifyEmail);
+  fetch('<?= base_url('verify-email/resend') ?>', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'resent') {
+        verifySeconds = parseInt(data.waitSeconds || 60, 10);
+        if (isNaN(verifySeconds) || verifySeconds < 0) verifySeconds = 60;
+        if (verifyCountdownTimer) clearInterval(verifyCountdownTimer);
+        updateResendButton();
+        verifyCountdownTimer = setInterval(() => {
+          verifySeconds -= 1;
+          if (verifySeconds <= 0) {
+            verifySeconds = 0;
+            clearInterval(verifyCountdownTimer);
+          }
+          updateResendButton();
+        }, 1000);
+        Swal.fire({ icon: 'success', title: 'Sent', text: 'Verification email resent.' , timer: 1500, showConfirmButton: false});
+      } else if (data.status === 'wait') {
+        // Sync with server-side throttle if out of sync
+        verifySeconds = Math.max(0, parseInt(data.waitSeconds || 60, 10));
+        updateResendButton();
+      } else {
+        Swal.fire({ icon: 'error', title: 'Could not resend', text: data.message || 'Please try again later.' });
+      }
+    })
+    .catch(() => Swal.fire({ icon: 'error', title: 'Network error', text: 'Please try again.' }));
+}
+
+function checkVerificationStatus() {
+  if (!verifyEmail) return;
+  fetch(`<?= base_url('verify-email/status') ?>?email=${encodeURIComponent(verifyEmail)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data && data.status === 'ok' && data.verified) {
+        clearInterval(verifyPollTimer);
+        clearInterval(verifyCountdownTimer);
+        verifyPollTimer = null;
+        verifyCountdownTimer = null;
+        // Close modal and notify
+        const modalInst = bootstrap.Modal.getInstance(document.getElementById('verifyWaitModal'));
+        if (modalInst) modalInst.hide();
+        Swal.fire({ icon: 'success', title: 'Email verified!', text: 'Your account has been created. You can now log in.' })
+          .then(() => { setAuthTab('login'); });
+      }
+    })
+    .catch(() => {/* ignore transient errors */});
+}
+
 function handleSignup(event) {
     event.preventDefault();
 
     const form = document.getElementById('signupForm');
-    const formData = new FormData(form);
+    const fd = new FormData(form);
 
-    fetch('/signup/submit', {
-        method: 'POST',
-        body: formData
-    })
-    .then(res => res.json())
-    .then(data => {
-    if (data.status === 'success') {
-            Swal.fire({
-                icon: 'success',
-                title: 'Success!',
-                text: data.message,
-                timer: 2000,
-                showConfirmButton: false
-            }).then(() => {
-                window.location.href = "/";
-            });
+    // Client-side guard on password match
+    if (fd.get('password') !== fd.get('confirmPassword')) {
+      Swal.fire({ icon: 'error', title: 'Passwords do not match' });
+      return;
+    }
+
+    Swal.fire({ title: 'Creating account...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+    fetch('<?= base_url('signup/submit') ?>', { method: 'POST', body: fd })
+      .then(res => res.json())
+      .then(data => {
+        Swal.close();
+        if (data.status === 'verification_sent') {
+          // Show waiting modal and begin polling
+          const email = fd.get('email');
+          // Hide auth modal if open
+          const auth = bootstrap.Modal.getInstance(document.getElementById('authModal'));
+          if (auth) auth.hide();
+          openVerifyModal(email);
+        } else if (data.status === 'success') {
+          Swal.fire({ icon: 'success', title: 'Success!', text: data.message })
+            .then(() => window.location.href = '/');
         } else {
-            Swal.fire({
-                icon: 'error',
-                title: 'Oops!',
-                text: data.message
-            });
+          Swal.fire({ icon: 'error', title: 'Oops!', text: data.message || 'Unable to create account.' });
         }
-    })
-    .catch(err => {
-        console.error(err);
-
-        Swal.fire({
-            icon: 'error',
-            title: 'Something went wrong',
-            text: 'An unexpected error occurred.',
-            confirmButtonColor: '#d33',
-        });
-    });
+      })
+      .catch(() => {
+        Swal.close();
+        Swal.fire({ icon: 'error', title: 'Network error', text: 'Please try again.' });
+      });
 }
 
 

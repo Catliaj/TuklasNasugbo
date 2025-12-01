@@ -147,7 +147,7 @@
                             <button class="mark-all-read" onclick="markAllAsRead()">Mark all read</button>
                         </div>
                         <ul class="notification-list" id="notificationList">
-                            <li class="notification-item unread">
+                            <li class="notification-item unread" onclick="openNotificationDetail(this)" style="cursor:pointer;">
                                 <div class="notification-content">
                                     <div class="notification-icon success"><i class="bi bi-check-circle-fill"></i></div>
                                     <div class="notification-text">
@@ -205,13 +205,25 @@
         </div>
 
             <div class="bookings-container">
-                <!-- Filter Tabs -->
-                <div class="filter-tabs">
-                    <button class="filter-tab active" onclick="filterBookings('all', this)">All Bookings</button>
-                    <button class="filter-tab" onclick="filterBookings('confirmed', this)">Confirmed</button>
-                    <button class="filter-tab" onclick="filterBookings('pending', this)">Pending</button>
-                    <button class="filter-tab" onclick="filterBookings('completed', this)">Completed</button>
-                    <button class="filter-tab" onclick="filterBookings('cancelled', this)">Cancelled</button>
+                <!-- Filter Tabs and View Toggle -->
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1.5rem;">
+                    <div class="filter-tabs" style="margin-bottom:0;">
+                        <button class="filter-tab active" onclick="filterBookings('all', this)">All Bookings</button>
+                        <button class="filter-tab" onclick="filterBookings('confirmed', this)">Confirmed</button>
+                        <button class="filter-tab" onclick="filterBookings('pending', this)">Pending</button>
+                        <button class="filter-tab" onclick="filterBookings('completed', this)">Completed</button>
+                        <button class="filter-tab" onclick="filterBookings('cancelled', this)">Cancelled</button>
+                    </div>
+                    
+                    <!-- View Toggle -->
+                    <div class="view-toggle" style="display:flex;gap:0.5rem;">
+                        <button class="view-btn active" onclick="switchView('timeline')" data-view="timeline" title="Timeline View">
+                            <i class="bi bi-list-ul"></i> Timeline
+                        </button>
+                        <button class="view-btn" onclick="switchView('grid')" data-view="grid" title="Grid View">
+                            <i class="bi bi-grid-3x3-gap"></i> Grid
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Booking Cards Container -->
@@ -510,6 +522,26 @@
             if (!toggleBtn && !sidebar.contains(e.target)) sidebar.classList.remove('show');
           }
         });
+
+        function switchView(viewType) {
+            const bookingsList = document.getElementById('bookingsList');
+            const viewButtons = document.querySelectorAll('.view-btn');
+            
+            // Update active button
+            viewButtons.forEach(btn => btn.classList.remove('active'));
+            event.target.closest('.view-btn').classList.add('active');
+            
+            // Switch view layout
+            if (viewType === 'grid') {
+                bookingsList.style.display = 'grid';
+                bookingsList.style.gridTemplateColumns = 'repeat(auto-fill, minmax(320px, 1fr))';
+                bookingsList.style.gap = '1.5rem';
+            } else {
+                bookingsList.style.display = 'block';
+                bookingsList.style.gridTemplateColumns = '';
+                bookingsList.style.gap = '';
+            }
+        }
 
         function filterBookings(status, clickedTab) {
             // Update active tab style
@@ -1015,15 +1047,29 @@
 
         // Dropdown, profile, small toasts and other UI helpers (unchanged)
         if (typeof toggleNotificationDropdown === 'undefined') {
-            function toggleNotificationDropdown() {
-                const dd = document.getElementById('notificationDropdown');
-                const ud = document.getElementById('userDropdown');
-                ud?.classList.remove('show');
-                dd.classList.toggle('show');
+                    function toggleNotificationDropdown() {
+                        const dd = document.getElementById('notificationDropdown');
+                        const ud = document.getElementById('userDropdown');
+                        ud?.classList.remove('show');
+                        dd.classList.toggle('show');
+                    }
+                }
+        if (typeof openNotificationDetail === 'undefined') {
+            function openNotificationDetail(item){
+                const title = item.querySelector('.notification-text h6')?.textContent || 'Notification';
+                const message = item.querySelector('.notification-text p')?.textContent || '';
+                const time = item.querySelector('.notification-time')?.textContent || '';
+                item.classList.remove('unread');
+                document.getElementById('notificationDropdown')?.classList.remove('show');
+                const modal = document.getElementById('notificationDetailModal');
+                if(modal){
+                    document.getElementById('notifDetailTitle').textContent = title;
+                    document.getElementById('notifDetailMessage').textContent = message;
+                    document.getElementById('notifDetailTime').textContent = time;
+                    bootstrap.Modal.getOrCreateInstance(modal).show();
+                }
             }
-        }
-
-        // On page load, probe pending bookings to detect payments processed externally
+        }        // On page load, probe pending bookings to detect payments processed externally
         document.addEventListener('DOMContentLoaded', function(){
             const cards = document.querySelectorAll('.booking-card');
             if(!cards || cards.length === 0) return;
@@ -1156,9 +1202,26 @@
             // Basic fallback; replace with your toast UI if you have one
             console.info(title, message);
         }
-    </script>
-
-
+        </script>
+    <!-- Notification Detail Modal (opens when clicking a notification) -->
+    <div class="modal fade" id="notificationDetailModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title"><i class="bi bi-bell-fill"></i> <span id="notifDetailTitle">Notification</span></h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p id="notifDetailMessage" style="font-size:1rem;color:#333;margin-bottom:1rem;"></p>
+            <p class="text-muted" style="font-size:0.875rem;margin:0;"><i class="bi bi-clock"></i> <span id="notifDetailTime"></span></p>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button class="btn btn-primary" data-bs-dismiss="modal">Take Action</button>
+          </div>
+        </div>
+      </div>
+    </div>
  
 </body>
 </html>

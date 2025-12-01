@@ -655,12 +655,15 @@ public function getTopSpotsPerformanceMetrics($startDate, $endDate, $limit = 3)
             'b.visit_time',
             'b.total_guests',
             'b.total_price',
+            'ts.spot_id',
             'ts.spot_name',
             'ts.location',
-            'ts.primary_image'
+            'ts.primary_image',
+            'rf.review_id'
         ]);
 
         $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id', 'left');
+        $builder->join('review_feedback rf', 'b.booking_id = rf.booking_id', 'left');
 
         $builder->where('b.customer_id', $userId);
         // Include common finalized/visited statuses so users' past visits show up
