@@ -10,13 +10,13 @@
   // 1. Configuration / Globals
   // ------------------------------
   const COLOR_PALETTE = [
-    '#4e73df', // Blue
-    '#1cc88a', // Green
-    '#36b9cc', // Teal
-    '#f6c23e', // Yellow
-    '#e74a3b', // Red
-    '#6f42c1', // Purple
-    '#858796'  // Gray
+    '#004a7c', // Ocean Blue Primary
+    '#003d66', // Ocean Blue Dark
+    '#1cc88a', // Green (complementary)
+    '#e8d5c4', // Beige Border
+    '#e74a3b', // Red (complementary)
+    '#d4183d', // Danger Red
+    '#f5e6d3'  // Beige Light
   ];
 
   const chartInstances = {};
@@ -233,6 +233,8 @@
           menu.classList.remove('show');
           menu.style.display = 'none';
           btn.setAttribute('aria-expanded', 'false');
+          // Fallback close: mark notifications as read
+          markAllReadForButton(btn);
         } else {
           menu.classList.add('show');
           menu.style.display = 'block';
@@ -241,94 +243,85 @@
       } catch (e) { /* ignore */ }
     }
 
+    // Helper to mark all notifications as read for this button context
+    async function markAllReadForButton(btn) {
+      try {
+        const fd = new FormData(); appendCsrf(fd);
+        await fetch(`${(typeof BASE_URL !== 'undefined' ? BASE_URL : '/') }admin/notifications/mark-read`, { method: 'POST', body: fd, headers: {'X-Requested-With':'XMLHttpRequest'} });
+      } catch (e) { /* ignore errors */ }
+      // Clear badge immediately
+      const dot = btn.querySelector('.notification-badge');
+      if (dot) { dot.textContent = ''; dot.style.display = 'none'; }
+    }
+
     // Helper: fetch notifications and render into dropdown menu for a given button
     async function fetchAndRenderNotifications(btn) {
       const dropdown = btn.closest('.dropdown');
       const menu = dropdown ? dropdown.querySelector('.dropdown-menu') : null;
       if (!menu) return;
+
+      // Loading state
       menu.innerHTML = `
-        <li class="dropdown-header d-flex justify-content-between align-items-center">
-          <span class="small text-muted">Notifications</span>
-          <button class="btn btn-sm btn-link mark-all-read">Mark all read</button>
+        <li class="dropdown-header d-flex justify-content-between align-items-center px-3 py-2">
+          <span class="small text-muted fw-600">Notifications</span>
         </li>
-        <li><hr class="dropdown-divider"></li>
-        <li class="dropdown-item text-center small text-muted">Loading...</li>`;
+        <li><hr class="dropdown-divider m-0"></li>
+        <li class="dropdown-item text-center small text-muted py-3">Loading...</li>`;
 
       try {
         const resp = await fetch(`${(typeof BASE_URL !== 'undefined' ? BASE_URL : '/') }admin/notifications/list`);
         if (!resp.ok) {
-          menu.innerHTML = '<li class="dropdown-item text-muted small">No notifications</li>';
+          menu.innerHTML = `
+            <li class="dropdown-header d-flex justify-content-between align-items-center px-3 py-2">
+              <span class="small text-muted fw-600">Notifications</span>
+            </li>
+            <li><hr class="dropdown-divider m-0"></li>
+            <li class="dropdown-item text-muted small py-3 text-center">No new notifications</li>`;
           return;
         }
-
         const data = await resp.json();
 
         if (!data || data.length === 0) {
           menu.innerHTML = `
-            <li class="dropdown-header d-flex justify-content-between align-items-center">
-              <span class="small text-muted">Notifications</span>
-              <button class="btn btn-sm btn-link mark-all-read">Mark all read</button>
+            <li class="dropdown-header d-flex justify-content-between align-items-center px-3 py-2">
+              <span class="small text-muted fw-600">Notifications</span>
             </li>
-            <li><hr class="dropdown-divider"></li>
-            <li class="dropdown-item text-muted small">No new notifications</li>`;
-        } else {
-          const itemsHtml = data.map(n => {
-            const isUnread = String(n.is_read || '0') === '0' || n.is_read === 0;
-            const time = n.created_at ? new Date(n.created_at).toLocaleString() : '';
-            const content = `
-                  <div class="me-2">
-                    <div class="fw-semibold">${safeText(n.message)}</div>
-                    <div class="small text-muted">${time}</div>
-                  </div>
-                  ${isUnread ? '<span class="badge bg-danger ms-2">new</span>' : ''}
-            `;
+            <li><hr class="dropdown-divider m-0"></li>
+            <li class="dropdown-item text-muted small py-3 text-center">No new notifications</li>`;
+          return;
+        }
 
-            // Render all notifications as non-clickable informational items
-            return `
-              <li class="notification-item ${isUnread ? 'notification-unread' : ''}">
-                <div class="dropdown-item d-flex justify-content-between align-items-start">
-                  ${content}
+        const itemsHtml = data.map(n => {
+          const time = n.created_at ? new Date(n.created_at).toLocaleString() : '';
+          const isUnread = String(n.is_read) === '0' || n.is_read === 0;
+          const badgeHtml = isUnread ? '<span class="badge bg-danger flex-shrink-0" style="font-size:0.65rem;padding:0.35rem 0.5rem;">new</span>' : '';
+          const bgStyle = isUnread ? 'background:#f9fafb;' : 'background:#ffffff;';
+          return `
+            <li class="notification-item ${isUnread ? 'notification-unread' : 'notification-read'}">
+              <div class="dropdown-item d-flex justify-content-between align-items-start gap-2 px-3 py-2 border-bottom" style="cursor: default; ${bgStyle}">
+                <div class="flex-grow-1">
+                  <div class="fw-semibold text-dark" style="font-size:0.95rem;">${safeText(n.message)}</div>
+                  <div class="small text-muted" style="font-size:0.8rem;">${time}</div>
                 </div>
-              </li>`;
-          }).join('');
+                ${badgeHtml}
+              </div>
+            </li>`;
+        }).join('');
 
-          menu.innerHTML = `
-            <li class="dropdown-header d-flex justify-content-between align-items-center">
-              <span class="small text-muted">Notifications</span>
-              <button class="btn btn-sm btn-link mark-all-read">Mark all read</button>
-            </li>
-            <li><hr class="dropdown-divider"></li>
-            ${itemsHtml}`;
-        }
-
-        // Auto-mark as read when dropdown is opened (persist server-side)
-        const dot = btn.querySelector('.notification-dot');
-        if (dot) {
-          try {
-            const fd = new FormData(); appendCsrf(fd);
-            await fetch(`${(typeof BASE_URL !== 'undefined' ? BASE_URL : '/') }admin/notifications/mark-read`, { method: 'POST', body: fd, headers: {'X-Requested-With':'XMLHttpRequest'} });
-          } catch (e) { /* non-fatal */ }
-          dot.textContent = '';
-          dot.style.display = 'none';
-        }
-
-        // Attach handler for "Mark all read" button
-        const markBtn = menu.querySelector('.mark-all-read');
-        if (markBtn) {
-          markBtn.addEventListener('click', async (ev) => {
-            ev.preventDefault();
-            try {
-              const r = await fetch(`${(typeof BASE_URL !== 'undefined' ? BASE_URL : '/') }admin/notifications/mark-read`, { method: 'POST', headers: {'X-Requested-With':'XMLHttpRequest'} });
-              if (r.ok) {
-                menu.querySelectorAll('.notification-unread').forEach(el => el.classList.remove('notification-unread'));
-                const dot2 = btn.querySelector('.notification-dot'); if (dot2) { dot2.textContent = ''; dot2.style.display = 'none'; }
-              }
-            } catch (e) { console.error('Mark read failed', e); }
-          });
-        }
-
+        menu.innerHTML = `
+          <li class="dropdown-header d-flex justify-content-between align-items-center px-3 py-2">
+            <span class="small text-muted fw-600">Notifications</span>
+          </li>
+            <li><hr class="dropdown-divider m-0"></li>
+          ${itemsHtml}`;
       } catch (err) {
-        menu.innerHTML = '<li class="dropdown-item text-danger small">Error loading notifications</li>';
+        console.error('Notification fetch error:', err);
+        menu.innerHTML = `
+          <li class="dropdown-header d-flex justify-content-between align-items-center px-3 py-2">
+            <span class="small text-muted fw-600">Notifications</span>
+          </li>
+          <li><hr class="dropdown-divider m-0"></li>
+          <li class="dropdown-item text-danger small py-3 text-center">Error loading notifications</li>`;
       }
     }
 
@@ -374,9 +367,37 @@
     // Also listen to Bootstrap dropdown events to populate menus reliably (fixes reports page)
     document.addEventListener('show.bs.dropdown', function (e) {
       try {
-        const dropdown = e.target;
-        const btn = dropdown.querySelector('.notification-button');
+        // In Bootstrap 5 the event target is the toggle button itself, not the parent .dropdown
+        let btn = null;
+        if (e.target && e.target.classList && e.target.classList.contains('notification-button')) {
+          btn = e.target;
+        } else if (e.target) {
+          // Attempt to find a descendant button (original logic)
+          btn = e.target.querySelector && e.target.querySelector('.notification-button');
+        }
+        if (!btn && e.target && e.target.closest) {
+          // Fallback: climb to .dropdown and locate button
+          const parentDropdown = e.target.closest('.dropdown');
+          if (parentDropdown) btn = parentDropdown.querySelector('.notification-button');
+        }
         if (btn) fetchAndRenderNotifications(btn);
+      } catch (ex) { /* ignore */ }
+    });
+
+    // Mark as read when dropdown hides
+    document.addEventListener('hide.bs.dropdown', function (e) {
+      try {
+        let btn = null;
+        if (e.target && e.target.classList && e.target.classList.contains('notification-button')) {
+          btn = e.target;
+        } else if (e.target) {
+          btn = e.target.querySelector && e.target.querySelector('.notification-button');
+        }
+        if (!btn && e.target && e.target.closest) {
+          const parentDropdown = e.target.closest('.dropdown');
+          if (parentDropdown) btn = parentDropdown.querySelector('.notification-button');
+        }
+        if (btn) markAllReadForButton(btn);
       } catch (ex) { /* ignore */ }
     });
 
@@ -391,11 +412,13 @@
         if (!resp.ok) return;
         const data = await resp.json();
         const unread = parseInt(data.unread || 0, 10);
+        // cap display to avoid badge stretching
+        const displayCount = unread > 99 ? '99+' : (unread > 0 ? String(unread) : '');
         document.querySelectorAll('.notification-button').forEach(btn => {
-          const dot = btn.querySelector('.notification-dot');
+          const dot = btn.querySelector('.notification-badge');
           if (!dot) return;
-          dot.textContent = unread > 0 ? String(unread) : '';
-          dot.style.display = unread > 0 ? 'inline-block' : 'none';
+          dot.textContent = displayCount;
+          dot.style.display = displayCount ? 'inline-block' : 'none';
         });
       } catch (e) { /* ignore */ }
     }
@@ -674,9 +697,11 @@
   function renderAttractions_API(list) {
     const grid = el('attractionsGrid');
     if (!grid) return;
-    if (!list.length) { grid.innerHTML = '<div class="text-center p-5">No attractions found.</div>'; return; }
-    
-    grid.innerHTML = list.map(a => {
+    // Exclude pending attractions from the main grid; pending items are shown only in the Pending Requests modal
+    const visibleList = (list || []).filter(a => String(a.status || '').trim().toLowerCase() !== 'pending');
+    if (!visibleList.length) { grid.innerHTML = '<div class="text-center p-5">No attractions found.</div>'; return; }
+
+    grid.innerHTML = visibleList.map(a => {
       // Image fallback
       const uploadsPath = (typeof BASE_URL !== 'undefined' ? BASE_URL : '') + 'uploads/spots/';
       const primaryImage = a.primary_image ? `${uploadsPath}${a.primary_image}` : `${uploadsPath}Spot-No-Image.png`;
