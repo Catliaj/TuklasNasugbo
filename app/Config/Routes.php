@@ -23,7 +23,11 @@ $routes->post('verify-email/resend', 'AuthController::resendVerificationEmail');
 $routes->get('verify-email/status', 'AuthController::verificationStatus');
 $routes->get('auth/google', 'AuthController::googleRedirect');
 $routes->get('auth/google/callback', 'AuthController::googleCallback');
-$routes->post('forgot-password/request', 'AuthController::requestPasswordReset');
+$routes->post('forgot-password/request', 'AuthController::requestPasswordReset', ['filter' => 'cors']);
+// Preflight for CORS
+$routes->options('forgot-password/request', static function () {
+    return service('response')->setStatusCode(204);
+}, ['filter' => 'cors']);
 $routes->get('reset-password', 'AuthController::resetPassword');
 $routes->post('reset-password/submit', 'AuthController::submitNewPassword');
 

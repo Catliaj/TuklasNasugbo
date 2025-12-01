@@ -9,8 +9,13 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?= base_url('assets/css/landingPage.css')?>">
+    <style>
+      /* Ensure SweetAlert is above Bootstrap modal/backdrop */
+      .swal2-container { z-index: 20000 !important; }
+    </style>
 </head>
 <body>
     <!-- Navigation -->
@@ -486,7 +491,10 @@
         }
 
         // Forgot password flow (request email)
+        let __forgotDialogOpen = false;
         function openForgotPassword() {
+            if (__forgotDialogOpen) return;
+            __forgotDialogOpen = true;
             // If auth modal is open, temporarily hide to avoid focus trap
             const authEl = document.getElementById('authModal');
             const authInst = authEl ? bootstrap.Modal.getInstance(authEl) || new bootstrap.Modal(authEl) : null;
@@ -499,7 +507,8 @@
               inputPlaceholder: 'you@example.com',
               confirmButtonText: 'Send reset link',
               showCancelButton: true,
-              allowOutsideClick: false,
+              showLoaderOnConfirm: true,
+              allowOutsideClick: () => !Swal.isLoading(),
               allowEscapeKey: true,
               focusConfirm: false,
               didOpen: () => {
@@ -525,7 +534,7 @@
               } else {
                   Swal.fire({ icon: 'error', title: 'Unable to process', text: data.message || 'Please try again later.' });
               }
-            });
+            }).finally(() => { __forgotDialogOpen = false; });
         }
 
         // Toggle signup fields by role
@@ -903,8 +912,15 @@ function handleSignup(event) {
     const token = params.get('reset_token');
     if (token) {
       setAuthTab('login');
-      const authModal = new bootstrap.Modal(document.getElementById('authModal'));
-      authModal.show();
+      // Close any open Bootstrap modals/backdrops to prevent click blocking
+      try {
+        document.querySelectorAll('.modal.show').forEach(m => {
+          const inst = bootstrap.Modal.getInstance(m) || new bootstrap.Modal(m);
+          inst.hide();
+        });
+        document.querySelectorAll('.modal-backdrop').forEach(b => b.parentNode && b.parentNode.removeChild(b));
+        document.body.classList.remove('modal-open');
+      } catch (e) { /* ignore */ }
 
       // Prompt for new password
       Swal.fire({
@@ -914,6 +930,12 @@ function handleSignup(event) {
           <input id="swal-new-pass2" class="swal2-input" type="password" placeholder="Re-enter password">
         `,
         focusConfirm: false,
+        didOpen: (el) => {
+          const input = el.querySelector('#swal-new-pass');
+          if (input) setTimeout(() => input.focus(), 50);
+        },
+        showLoaderOnConfirm: true,
+        allowOutsideClick: () => !Swal.isLoading(),
         preConfirm: () => {
           const p1 = (document.getElementById('swal-new-pass') || {}).value || '';
           const p2 = (document.getElementById('swal-new-pass2') || {}).value || '';
