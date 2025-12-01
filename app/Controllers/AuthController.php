@@ -16,6 +16,95 @@ class AuthController extends BaseController
         return view('Pages/landing_page');
     }
 
+    /**
+     * POST /verify-email/resend
+     * Resends a verification email, throttled to once per minute per address.
+     */
+    public function resendVerificationEmail()
+    {
+        $email = strtolower(trim($this->request->getPost('email') ?? ''));
+        if ($email === '' || !str_ends_with($email, '@gmail.com')) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Provide a valid gmail.com address']);
+        }
+
+        $tokenModel = new EmailVerificationTokenModel();
+        // Find latest pending token for this email
+        $latest = $tokenModel->where('email', $email)
+            ->where('used_at', null)
+            ->orderBy('created_at', 'DESC')
+            ->first();
+
+        // Server-side throttle: 60 seconds from last token creation
+        if ($latest && !empty($latest['created_at'])) {
+            $elapsed = time() - strtotime($latest['created_at']);
+            if ($elapsed < 60) {
+                return $this->response->setJSON([
+                    'status' => 'wait',
+                    'message' => 'Please wait before resending.',
+                    'waitSeconds' => 60 - $elapsed
+                ]);
+            }
+        }
+
+        // Use prior payload if available; otherwise error
+        if (!$latest || empty($latest['payload'])) {
+            return $this->response->setJSON([
+                'status' => 'error',
+                'message' => 'No pending signup to resend for this email.'
+            ]);
+        }
+
+        $payload = json_decode($latest['payload'], true) ?: [];
+        if (empty($payload) || (strtolower($payload['email'] ?? '') !== $email)) {
+            return $this->response->setJSON([
+                'status' => 'error',
+                'message' => 'Pending verification data invalid.'
+            ]);
+        }
+
+        // Create a fresh token (invalidate nothing but allow newest to be used)
+        $newToken = bin2hex(random_bytes(32));
+        $expiresAt = date('Y-m-d H:i:s', time() + 60 * 60 * 24);
+        $tokenModel->insert([
+            'token' => $newToken,
+            'email' => $email,
+            'payload' => json_encode($payload),
+            'expires_at' => $expiresAt,
+            'used_at' => null,
+            'created_at' => date('Y-m-d H:i:s')
+        ]);
+
+        $sent = $this->sendVerificationEmail($email, $newToken);
+        if (!$sent) {
+            return $this->response->setJSON([
+                'status' => 'error',
+                'message' => 'Failed to resend verification email. Please try again later.'
+            ]);
+        }
+
+        return $this->response->setJSON([
+            'status' => 'resent',
+            'message' => 'Verification email resent.',
+            'waitSeconds' => 60
+        ]);
+    }
+
+    /**
+     * GET /verify-email/status?email=...
+     * Returns whether the user has verified their email (account created).
+     */
+    public function verificationStatus()
+    {
+        $email = strtolower(trim($this->request->getGet('email') ?? ''));
+        if ($email === '') {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Missing email']);
+        }
+        $users = new UsersModel();
+        $user = $users->where('email', $email)->first();
+        $verified = $user && (intval($user['email_verified'] ?? 0) === 1);
+        return $this->response->setJSON(['status' => 'ok', 'verified' => $verified]);
+    }
+
     public function handleLogin()
     {
         helper(['form']);

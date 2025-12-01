@@ -19,6 +19,8 @@ $routes->get('/users/logout', 'AuthController::logout');
 $routes->get('verify-otp', 'AuthController::showOtpForm');
 $routes->post('verify-otp', 'AuthController::verifyOtp');
 $routes->get('verify-email', 'AuthController::verifyEmail');
+$routes->post('verify-email/resend', 'AuthController::resendVerificationEmail');
+$routes->get('verify-email/status', 'AuthController::verificationStatus');
 $routes->get('auth/google', 'AuthController::googleRedirect');
 $routes->get('auth/google/callback', 'AuthController::googleCallback');
 
