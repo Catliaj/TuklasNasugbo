@@ -11,15 +11,25 @@ $routes->get('/under-development', 'Home::index');
 $routes->get('/', 'AuthController::login'); 
 $routes->get('/users/login', 'AuthController::login');
 $routes->get('/signup', 'AuthController::signup'); 
-$routes->post('/users/login', 'AuthController::Handlelogin');
+$routes->post('/users/login', 'AuthController::handleLogin');
 $routes->post('signup/submit', 'AuthController::handleSignup');
 $routes->get('/users/logout', 'AuthController::logout');
+
+// OTP & Google Auth routes
+$routes->get('verify-otp', 'AuthController::showOtpForm');
+$routes->post('verify-otp', 'AuthController::verifyOtp');
+$routes->get('verify-email', 'AuthController::verifyEmail');
+$routes->get('auth/google', 'AuthController::googleRedirect');
+$routes->get('auth/google/callback', 'AuthController::googleCallback');
 
 //Admin routes
 $routes->group('admin', ['namespace' => 'App\Controllers', 'filter' => 'auth'], function($routes) {
     $routes->get('dashboard', 'AdminController::dashboard');
     $routes->get('reports', 'AdminController::reports');
     $routes->get('settings', 'AdminController::settings');
+    $routes->get('profile', 'AdminController::profile');
+    $routes->post('profile/update', 'AdminController::updateProfile');
+    $routes->post('settings/update', 'AdminController::updateSettings');
     
 
     // REGISTRATIONS PAGE ROUTES
@@ -77,6 +87,7 @@ $routes->get('spotowner/api/booking-trends', 'SpotOwner\Api::bookingTrends');
 $routes->get('spotowner/api/dashboard-analytics', 'SpotOwnerController::getDashboardAnalytics');
 $routes->get('spotowner/api/spot-analytics/(:num)', 'SpotOwnerController::getSpotAnalytics/$1');
 
+    
 
 
 

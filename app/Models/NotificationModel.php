@@ -55,6 +55,7 @@ class NotificationModel extends Model
 
     /**
      * Get notifications for a user (or admin notifications when $userId is null)
+     * Only returns UNREAD notifications
      *
      * @param int|null $userId
      * @param int $limit
@@ -62,7 +63,9 @@ class NotificationModel extends Model
      */
     public function getUserNotifications(?int $userId = null, int $limit = 20): array
     {
-        $this->orderBy('created_at', 'DESC')->limit($limit);
+        $this->where('is_read', 0)
+             ->orderBy('created_at', 'DESC')
+             ->limit($limit);
 
         if ($userId !== null) {
             $this->where('user_id', $userId);
@@ -72,6 +75,29 @@ class NotificationModel extends Model
         }
 
         return $this->findAll();
+    }
+
+    /**
+     * Get recent notifications (read and unread) for a user or admins (user_id NULL)
+     * Returns latest notifications ordered by created_at DESC.
+     *
+     * @param int|null $userId
+     * @param int $limit
+     * @return array
+     */
+    public function getRecentNotifications(?int $userId = null, int $limit = 20): array
+    {
+        $builder = $this->builder()
+            ->orderBy('created_at', 'DESC')
+            ->limit($limit);
+
+        if ($userId !== null) {
+            $builder->where('user_id', $userId);
+        } else {
+            $builder->where('user_id IS NULL', null, false);
+        }
+
+        return $builder->get()->getResultArray();
     }
 
     /**
@@ -122,6 +148,18 @@ class NotificationModel extends Model
         }
 
         return (bool) $builder->set(['is_read' => 1])->update();
+    }
+
+    /**
+     * Backwards-compatible alias used by controllers expecting markAllRead()
+     * Delegates to markAllAsRead().
+     *
+     * @param int|null $userId
+     * @return bool
+     */
+    public function markAllRead(?int $userId = null): bool
+    {
+        return $this->markAllAsRead($userId);
     }
 
     /**
