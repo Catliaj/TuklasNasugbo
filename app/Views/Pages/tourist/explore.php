@@ -327,7 +327,7 @@
                                         </span>
                                         <div class="spot-rating">
                                             <i class="bi bi-star-fill"></i>
-                                            <span><?= esc($spot['rating'] ?? '4.5') ?></span>
+                                            <span>0</span>
                                         </div>
                                     </div>
                                     <div class="spot-actions">
@@ -391,7 +391,7 @@
 
                                     <div class="spot-rating">
                                         <i class="bi bi-star-fill"></i>
-                                        <span><?= esc($spot['rating'] ?? '4.5') ?></span>
+                                        <span>0</span>
                                     </div>
                                 </div>
 
@@ -912,7 +912,7 @@
         // If offset is zero, clear current list (fresh load). Otherwise we'll append.
         if (offset === 0) {
             reviewsList.innerHTML = '<div class="text-center text-muted">Loading reviews...</div>';
-            reviewsSection.style.display = 'none';
+            reviewsSection.style.display = 'block';
         } else {
             // show loading state on button
             if (loadMoreBtn) { loadMoreBtn.disabled = true; loadMoreBtn.textContent = 'Loading...'; loadMoreBtn.style.display = 'inline-block'; }
@@ -921,6 +921,29 @@
         fetch(`/tourist/spot/${spotId}/reviews?limit=${pageSize}&offset=${offset}`)
             .then(res => res.json())
             .then(data => {
+                // Update rating display with actual average from reviews
+                if (data.average_rating !== undefined) {
+                    const avgRating = parseFloat(data.average_rating) || 0;
+                    const ratingEl = document.getElementById('spotModalRating');
+                    if (ratingEl) {
+                        // Build star markup - round to nearest 0.5
+                        let stars = '';
+                        for (let i = 1; i <= 5; i++) {
+                            if (avgRating >= i) {
+                                // Full star
+                                stars += '<i class="bi bi-star-fill" style="color: #ffb400;"></i>';
+                            } else if (avgRating >= i - 0.5) {
+                                // Half star
+                                stars += '<i class="bi bi-star-half" style="color: #ffb400;"></i>';
+                            } else {
+                                // Empty star
+                                stars += '<i class="bi bi-star" style="color: #ddd;"></i>';
+                            }
+                        }
+                        ratingEl.innerHTML = `${stars} (${avgRating.toFixed(1)})`;
+                    }
+                }
+
                 if (data.success && Array.isArray(data.reviews)) {
                     const reviews = data.reviews;
                     if (reviews.length === 0) {
@@ -964,10 +987,6 @@
                             else stars += '<i class="bi bi-star" style="color: #ddd;"></i>';
                         }
 
-                        const recommendHtml = (review.recommend === 1)
-                            ? '<span class="badge bg-success ms-1"><i class="bi bi-hand-thumbs-up-fill"></i> Recommends</span>'
-                            : (review.recommend === 0 ? '<span class="badge bg-danger ms-1"><i class="bi bi-hand-thumbs-down-fill"></i> Does not recommend</span>' : '');
-
                         return `
                             <div class="card mb-3 ${isMyReview ? 'my-review' : ''}" style="border:1px solid ${isMyReview ? 'rgba(0,123,255,0.18)' : 'rgba(0,75,141,0.06)'};">
                                 <div class="card-body p-3">
@@ -981,7 +1000,6 @@
                                                 </div>
                                                 <div style="text-align:right;">
                                                     <div style="line-height:1">${stars}</div>
-                                                    ${recommendHtml}
                                                 </div>
                                             </div>
                                             <div style="margin-top:0.5rem; color:#333; font-size:0.95rem;">${commentHtml}</div>
@@ -1050,6 +1068,31 @@
             return isoDate;
         }
     }
+
+    // Update all card ratings with real average ratings from reviews
+    function updateCardRatings() {
+        const spotCards = document.querySelectorAll('.spot-card');
+        spotCards.forEach(card => {
+            const spotId = card.dataset.spotId;
+            if (!spotId) return;
+
+            fetch(`/tourist/spot/${spotId}/reviews?limit=1&offset=0`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.average_rating !== undefined) {
+                        const avgRating = parseFloat(data.average_rating) || 0;
+                        const ratingEl = card.querySelector('.spot-rating span');
+                        if (ratingEl) {
+                            ratingEl.textContent = avgRating.toFixed(1);
+                        }
+                    }
+                })
+                .catch(err => console.log('Error fetching rating for spot', spotId, err));
+        });
+    }
+
+    // Update ratings when page loads
+    document.addEventListener('DOMContentLoaded', updateCardRatings);
         
 
         // --- BOOKING FUNCTIONS ---

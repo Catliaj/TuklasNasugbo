@@ -209,6 +209,57 @@ $userInitials = strtoupper(substr($userFirstName,0,1) . substr($userLastName,0,1
                 <h2><i class="bi bi-house-door-fill"></i> Welcome back, <?= esc($FullName ?? 'Traveler') ?>!</h2>
                 <p>Ready to explore Nasugbu today?</p>
             </div>
+             <!-- Stats Grid -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div>
+                            <div class="stat-value"><span class="count-up" id="itineraryCount" data-target="<?= isset($TotalSaveItineray) ? intval($TotalSaveItineray) : 0 ?>">0</span></div>
+                            <div class="stat-label">Saved Itineraries</div>
+                        </div>
+                        <!-- preference modal moved to end-of-body for correct positioning -->
+                        <div class="stat-icon blue">
+                            <i class="bi bi-calendar-check"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div>
+                            <div class="stat-value"><span class="count-up" id="visitedCount" data-target="<?= isset($placesVisited) ? intval($placesVisited) : 0 ?>">0</span></div>
+                            <div class="stat-label">Places Visited</div>
+                        </div>
+                        <div class="stat-icon green">
+                            <i class="bi bi-check-circle"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div>
+                            <div class="stat-value"><span class="count-up" id="favoriteCount" data-target="<?= isset($favoriteCount) ? intval($favoriteCount) : 0 ?>">0</span></div>
+                            <div class="stat-label">Favorite Spots</div>
+                        </div>
+                        <div class="stat-icon orange">
+                            <i class="bi bi-heart"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div>
+                            <div class="stat-value"><span class="count-up" id="bookingCount" data-target="<?= isset($upcomingBookings) ? intval($upcomingBookings) : 0 ?>">0</span></div>
+                            <div class="stat-label">Upcoming Bookings</div>
+                        </div>
+                        <div class="stat-icon purple">
+                            <i class="bi bi-bookmark"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
             
             <!-- Weather Widget and Quick Tip -->
             <div class="row g-3 mb-4">
@@ -251,57 +302,7 @@ $userInitials = strtoupper(substr($userFirstName,0,1) . substr($userLastName,0,1
                 </div>
             </div>
 
-            <!-- Stats Grid -->
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <div>
-                            <div class="stat-value"><span class="count-up" data-target="<?= esc($TotalSaveItineray ?? 0) ?>">0</span></div>
-                            <div class="stat-label">Saved Itineraries</div>
-                        </div>
-                        <!-- preference modal moved to end-of-body for correct positioning -->
-                        <div class="stat-icon blue">
-                            <i class="bi bi-calendar-check"></i>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <div>
-                            <div class="stat-value"><span class="count-up" data-target="<?= esc($placesVisited ?? 0) ?>">0</span></div>
-                            <div class="stat-label">Places Visited</div>
-                        </div>
-                        <div class="stat-icon green">
-                            <i class="bi bi-check-circle"></i>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <div>
-                            <div class="stat-value"><span class="count-up" data-target="<?= esc($favoriteCount ?? 0) ?>">0</span></div>
-                            <div class="stat-label">Favorite Spots</div>
-                        </div>
-                        <div class="stat-icon orange">
-                            <i class="bi bi-heart"></i>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <div>
-                            <div class="stat-value"><span class="count-up" data-target="<?= esc($upcomingBookings ?? 0) ?>">0</span></div>
-                            <div class="stat-label">Upcoming Bookings</div>
-                        </div>
-                        <div class="stat-icon purple">
-                            <i class="bi bi-bookmark"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
+           
 
             <!-- Your Favorites -->
             <div class="recent-activity">
@@ -889,6 +890,7 @@ $userInitials = strtoupper(substr($userFirstName,0,1) . substr($userLastName,0,1
                     return;
                 }
                 const data = await res.json();
+                console.log('Favorites data:', data);
                 const container = document.getElementById('favoritesList');
                 if (!container) return;
                 if (!Array.isArray(data) || data.length === 0) {
@@ -905,21 +907,35 @@ $userInitials = strtoupper(substr($userFirstName,0,1) . substr($userLastName,0,1
                     return;
                 }
 
-                const items = data.slice(0,4).map(spot => {
-                    const img = spot.primary_image ? ('<?= esc(base_url('uploads/spots/')) ?>' + spot.primary_image) : '<?= esc(base_url('uploads/spots/Spot-No-Image.png')) ?>';
-                    const name = spot.spot_name || spot.name || 'Spot';
-                    const category = spot.category || '';
-                    const rating = spot.rating || '4.5';
-                    const spotId = spot.id || spot.spot_id || '';
+                const baseUrl = '<?= esc(base_url('uploads/spots/')) ?>';
+                const fallbackImg = '<?= esc(base_url('uploads/spots/Spot-No-Image.png')) ?>';
+                
+                const items = data.slice(0, 6).map(spot => {
+                    const imgFile = spot.primary_image || '';
+                    const imgSrc = imgFile ? (baseUrl + imgFile) : fallbackImg;
+                    const name = escapeHtml(spot.spot_name || spot.name || 'Spot');
+                    const category = escapeHtml(spot.category || '');
+                    const rating = spot.rating ? parseFloat(spot.rating).toFixed(1) : '0.0';
+                    const spotId = escapeHtml(spot.id || spot.spot_id || '');
+                    
                     return `
-                        <div class="activity-item favorite-card" data-spot-id="${escapeHtml(spotId)}" style="cursor:pointer;" onclick="window.location.href='/tourist/exploreSpots'">
-                            <div class="activity-icon" style="background-image:url('${escapeHtml(img)}');background-size:cover;background-position:center;width:48px;height:48px;border-radius:8px;"></div>
-                            <div class="activity-content">
-                                <h6>${escapeHtml(name)}</h6>
-                                <p>${escapeHtml(category)} • ⭐ ${escapeHtml(rating)}</p>
+                        <div class="favorite-mini-card" 
+                             data-spot-id="${spotId}"
+                             data-spot-name="${name}"
+                             data-category="${category}"
+                             data-rating="${rating}"
+                             style="cursor:pointer;background:white;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);transition:all 0.3s;">
+                            <div style="background-image:url('${imgSrc}');background-size:cover;background-position:center;height:120px;position:relative;background-color:#f0f0f0;">
+                                <img src="${imgSrc}" alt="${name}" style="display:none;" onerror="this.parentElement.style.backgroundImage='url(${fallbackImg})'" />
+                                <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(0,0,0,0.7),transparent);padding:0.5rem;">
+                                    <div style="color:white;font-size:0.75rem;font-weight:600;">${name}</div>
+                                </div>
                             </div>
-                            <div class="activity-time">
-                                <i class="bi bi-heart-fill text-danger"></i>
+                            <div style="padding:0.75rem;">
+                                <div style="display:flex;align-items:center;justify-content:space-between;font-size:0.75rem;color:#666;">
+                                    <span><i class="bi bi-geo-alt"></i> ${category}</span>
+                                    <span><i class="bi bi-star-fill" style="color:#ffc107;"></i> ${rating}</span>
+                                </div>
                             </div>
                         </div>`;
                 }).join('');
@@ -965,6 +981,278 @@ $userInitials = strtoupper(substr($userFirstName,0,1) . substr($userLastName,0,1
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#039;');
         }
+
+        // ===== Refresh Dashboard Stats =====
+        async function refreshDashboardStats() {
+            try {
+                const url = '<?= base_url('/tourist/dashboardStats') ?>';
+                const res = await fetch(url, { credentials: 'same-origin' });
+                if (!res.ok) {
+                    console.warn('Failed to fetch dashboard stats', res.status);
+                    return;
+                }
+                const data = await res.json();
+                console.log('Dashboard stats received:', data);
+                
+                // Update stat cards
+                if (data.savedItineraries !== undefined) {
+                    const el = document.getElementById('itineraryCount');
+                    if (el) {
+                        el.dataset.target = data.savedItineraries;
+                        animateCountUp(el, parseInt(el.textContent) || 0, data.savedItineraries);
+                    }
+                }
+                
+                if (data.placesVisited !== undefined) {
+                    const el = document.getElementById('visitedCount');
+                    if (el) {
+                        el.dataset.target = data.placesVisited;
+                        animateCountUp(el, parseInt(el.textContent) || 0, data.placesVisited);
+                    }
+                }
+                
+                if (data.favoriteCount !== undefined) {
+                    const el = document.getElementById('favoriteCount');
+                    if (el) {
+                        el.dataset.target = data.favoriteCount;
+                        animateCountUp(el, parseInt(el.textContent) || 0, data.favoriteCount);
+                    }
+                }
+                
+                if (data.upcomingBookings !== undefined) {
+                    const el = document.getElementById('bookingCount');
+                    if (el) {
+                        el.dataset.target = data.upcomingBookings;
+                        animateCountUp(el, parseInt(el.textContent) || 0, data.upcomingBookings);
+                    }
+                }
+                
+                // Refresh favorites
+                await refreshFavorites();
+            } catch (err) {
+                console.error('refreshDashboardStats error', err);
+            }
+        }
+
+        // Helper to animate count-up from one value to another
+        function animateCountUp(el, start, target) {
+            const duration = 800;
+            const startTime = performance.now();
+            function tick(now) {
+                const p = Math.min((now - startTime) / duration, 1);
+                const easeOut = 1 - Math.pow(1 - p, 3);
+                const val = Math.floor(start + easeOut * (target - start));
+                el.textContent = val.toString();
+                if (p < 1) requestAnimationFrame(tick);
+            }
+            requestAnimationFrame(tick);
+        }
+
+        // ===== Update Travel Tip Based on Weather =====
+        // Mock travel tips for different weather conditions
+        function updateTravelTip(weatherCode, temperature, humidity, windSpeed) {
+            const tipContainer = document.getElementById('quickTip');
+            if (!tipContainer) return;
+
+            // Weather-based travel tips
+            const travelTips = {
+                // Clear/Sunny weather (0-2)
+                clear: [
+                    '☀️ Perfect beach day! Apply sunscreen with SPF 50+ and bring a hat to protect yourself from UV rays.',
+                    '🏖️ Clear skies are ideal for snorkeling! Visit Fortune Island for the best underwater views.',
+                    '🧢 Sunny weather means strong UV exposure. Wear light-colored, loose clothing to stay cool and protected.',
+                    '📸 Golden hour is best at sunrise! Head to Kaybiang Tunnel early for stunning photos.'
+                ],
+                // Cloudy weather (3-48)
+                cloudy: [
+                    '☁️ Cloudy weather is perfect for hiking! The shade will keep you cool during your mountain adventure.',
+                    '🥾 No sun glare today - perfect conditions for exploring Nasugbu\'s waterfalls and trails.',
+                    '🌤️ Cloudy skies are ideal for cultural site visits. No sun, so you can explore without time constraints.',
+                    '📷 Better lighting for photography without harsh shadows. Great day for landscape shots!'
+                ],
+                // Drizzle/Light Rain (51-55)
+                drizzle: [
+                    '🌧️ Light rain? Perfect time to visit indoor attractions like local museums and restaurants.',
+                    '☔ Bring a light rain jacket and explore wet season trails - the waterfalls will be fuller!',
+                    '🏛️ Quiet weather means fewer crowds. Great for peaceful exploration of temples and historical sites.',
+                    '💧 Rice terraces look more beautiful after rain. Consider a scenic drive through nearby farms.'
+                ],
+                // Heavy Rain (61-82)
+                rain: [
+                    '⛈️ Heavy rain day? Perfect for indoor activities like cooking classes or art workshops.',
+                    '🏨 Stay indoors and enjoy Nasugbu\'s spas and wellness centers. Rain is a great relaxation day!',
+                    '📚 Rainy day = perfect for visiting galleries, bookstores, and learning local history.',
+                    '☕ Visit local cafes and try authentic Nasugbu cuisine. Rainy weather is cozy conversation time!'
+                ],
+                // Snow (71-86)
+                snow: [
+                    '❄️ Rare snow in Nasugbu! Stay safe and bundle up if you venture out to see it.',
+                    '🎿 Snow weather calls for indoor activities. Enjoy hot meals and warm hospitality at local resorts.',
+                    '📸 Capture unique snowy landscapes - this is a rare sight in Nasugbu!',
+                    '🏠 Perfect day to stay warm indoors and plan your next Nasugbu adventure.'
+                ],
+                // Thunderstorm (95-99)
+                storm: [
+                    '⚡ Lightning detected! Stay indoors and avoid beach and mountain activities for safety.',
+                    '🏨 Perfect time for indoor water activities like pools and hot springs at local resorts.',
+                    '🎬 Storm day = movie day! Enjoy cozy indoor entertainment with local snacks.',
+                    '📺 Lightning storms are dangerous outdoors. Stay safe indoors and relax with a good book.'
+                ]
+            };
+
+            // Determine weather category
+            let category = 'clear';
+            if (weatherCode >= 95) category = 'storm';
+            else if (weatherCode >= 71 && weatherCode <= 86) category = 'snow';
+            else if (weatherCode >= 61 && weatherCode <= 82) category = 'rain';
+            else if (weatherCode >= 51 && weatherCode <= 55) category = 'drizzle';
+            else if (weatherCode >= 3 && weatherCode <= 48) category = 'cloudy';
+            
+            // Get random tip for the category
+            const tips = travelTips[category] || travelTips['clear'];
+            const randomTip = tips[Math.floor(Math.random() * tips.length)];
+
+            // Update the tip display
+            const tipText = tipContainer.querySelector('#tipText');
+            if (tipText) {
+                tipText.textContent = randomTip;
+                // Fade in animation
+                tipText.style.opacity = '0.7';
+                tipText.style.transition = 'opacity 0.3s ease';
+                setTimeout(() => {
+                    tipText.style.opacity = '1';
+                }, 10);
+            }
+        }
+
+        // ===== Weather Update =====
+        // Fetches real weather data for Nasugbu via backend endpoint
+        async function refreshWeather() {
+            try {
+                // Call our backend endpoint that fetches from Open-Meteo
+                const url = '<?= esc(base_url('/tourist/getWeather')) ?>';
+                const res = await fetch(url, { credentials: 'same-origin' });
+                if (!res.ok) throw new Error('Weather fetch failed');
+                
+                const data = await res.json();
+                if (!data.success) throw new Error(data.message || 'Weather data error');
+                
+                const container = document.getElementById('weatherWidget');
+                if (!container) return;
+                
+                // Map WMO weather codes to human-readable descriptions
+                const weatherDesc = {
+                    0: 'Clear Sky',
+                    1: 'Mainly Clear',
+                    2: 'Partly Cloudy',
+                    3: 'Overcast',
+                    45: 'Foggy',
+                    48: 'Foggy',
+                    51: 'Light Drizzle',
+                    53: 'Moderate Drizzle',
+                    55: 'Dense Drizzle',
+                    61: 'Slight Rain',
+                    63: 'Moderate Rain',
+                    65: 'Heavy Rain',
+                    71: 'Slight Snow',
+                    73: 'Moderate Snow',
+                    75: 'Heavy Snow',
+                    77: 'Snow Grains',
+                    80: 'Slight Rain Showers',
+                    81: 'Moderate Rain Showers',
+                    82: 'Violent Rain Showers',
+                    85: 'Slight Snow Showers',
+                    86: 'Heavy Snow Showers',
+                    95: 'Thunderstorm',
+                    96: 'Thunderstorm with Slight Hail',
+                    99: 'Thunderstorm with Heavy Hail'
+                };
+                
+                // Map weather codes to Bootstrap Icons
+                const weatherIcon = {
+                    0: 'bi-sun-fill',
+                    1: 'bi-cloud-sun',
+                    2: 'bi-cloud-sun',
+                    3: 'bi-cloud',
+                    45: 'bi-cloud-fog2',
+                    48: 'bi-cloud-fog2',
+                    51: 'bi-cloud-drizzle',
+                    53: 'bi-cloud-drizzle',
+                    55: 'bi-cloud-drizzle',
+                    61: 'bi-cloud-rain',
+                    63: 'bi-cloud-rain',
+                    65: 'bi-cloud-rain-heavy',
+                    71: 'bi-snow',
+                    73: 'bi-snow',
+                    75: 'bi-snow',
+                    77: 'bi-snow',
+                    80: 'bi-cloud-rain',
+                    81: 'bi-cloud-rain-heavy',
+                    82: 'bi-cloud-rain-heavy',
+                    85: 'bi-snow',
+                    86: 'bi-snow',
+                    95: 'bi-cloud-lightning',
+                    96: 'bi-cloud-lightning-rain',
+                    99: 'bi-cloud-lightning-rain'
+                };
+                
+                const temp = Math.round(data.temperature);
+                const desc = weatherDesc[data.weather_code] || 'Unknown';
+                const icon = weatherIcon[data.weather_code] || 'bi-cloud';
+                const humidity = data.humidity;
+                const windSpeed = Math.round(data.wind_speed * 10) / 10;
+                
+                // Update travel tip based on weather
+                updateTravelTip(data.weather_code, temp, humidity, windSpeed);
+                
+                container.innerHTML = `
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+                        <div style="flex:1;">
+                            <div style="font-size:3rem;font-weight:700;color:#1a73e8;margin-bottom:0.25rem;">
+                                ${temp}°C
+                            </div>
+                            <div style="font-size:1rem;color:#666;margin-bottom:0.5rem;">
+                                ${desc}
+                            </div>
+                        </div>
+                        <div style="font-size:3.5rem;color:#fdb813;">
+                            <i class="bi ${icon}"></i>
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;border-top:1px solid #eee;padding-top:1rem;">
+                        <div>
+                            <div style="font-size:0.75rem;color:#999;margin-bottom:0.25rem;">Humidity</div>
+                            <div style="font-size:1.25rem;font-weight:600;color:#333;">${humidity}%</div>
+                        </div>
+                        <div>
+                            <div style="font-size:0.75rem;color:#999;margin-bottom:0.25rem;">Wind Speed</div>
+                            <div style="font-size:1.25rem;font-weight:600;color:#333;">${windSpeed} km/h</div>
+                        </div>
+                    </div>
+                    <div style="font-size:0.7rem;color:#bbb;margin-top:1rem;text-align:center;">
+                        Last updated: ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                    </div>`;
+            } catch (err) {
+                console.error('refreshWeather error:', err);
+                const container = document.getElementById('weatherWidget');
+                if (container) {
+                    container.innerHTML = `
+                        <div style="text-align:center;color:#999;padding:1rem;">
+                            <i class="bi bi-exclamation-triangle" style="font-size:2rem;color:#fdb813;"></i>
+                            <p style="margin-top:0.5rem;">Unable to load weather data</p>
+                            <small>Please try refreshing the page</small>
+                        </div>`;
+                }
+            }
+        }
+
+        // Call on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            refreshDashboardStats();
+            refreshWeather();
+            // Refresh weather every 10 minutes
+            setInterval(refreshWeather, 600000);
+        });
     </script>
     <script>
 (function(){

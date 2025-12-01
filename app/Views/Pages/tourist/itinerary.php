@@ -25,6 +25,10 @@
         z-index: 20040 !important;
       }
       .modal .modal-footer .btn { pointer-events: auto; }
+      /* SweetAlert2 z-index above Bootstrap modals */
+      .swal2-container {
+        z-index: 20100 !important;
+      }
       /* Enhanced Page Header (from Explore) */
       :root { --ocean-accent:#4ecbff; --ocean-accent-soft:#b5ecff; --ocean-text:#e6f8ff; }
       .page-header {background:#002e55;color:var(--ocean-text);height:210px;min-height:210px;padding:1.6rem 2.4rem 1.8rem;border-radius:28px;position:relative;overflow:hidden;box-shadow:0 12px 34px -10px rgba(0,56,108,.55);display:flex;flex-direction:column;justify-content:center;margin-bottom:2rem;}
@@ -989,6 +993,10 @@
         }
     </style>
 
+    <!-- SweetAlert2 CSS & JS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <!-- Bootstrap JS only (no app logic) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="<?= base_url('assets/js/tourist-ui.js') ?>"></script>
@@ -1195,9 +1203,9 @@
         function handleActivitySave(e) {
           if (e) e.preventDefault();
           console.log('Activity save triggered', { formExists: !!form, targetDay: form?.dataset?.targetDay });
-          if (!form) { alert('Form not found; cannot save activity.'); return; }
+          if (!form) { Swal.fire('Error', 'Form not found; cannot save activity.', 'error'); return; }
           const targetDay = form.dataset.targetDay || '';
-          if (!targetDay) { alert('Please open Add Activity from a specific day.'); return; }
+          if (!targetDay) { Swal.fire('Error', 'Please open Add Activity from a specific day.', 'error'); return; }
 
           // If user selected suggested cards, add them first
           const grid = document.getElementById('suggestedGrid');
@@ -1353,6 +1361,51 @@
       const currentUserID = "<?= esc($userID ?? '') ?>";
       let lastItineraryRequest = null;
 
+      // Store references to Flatpickr instances for real-time updates
+      let dateRangePickerInstance;
+      let autoGenRangePickerInstance;
+
+      // Function to get disabled dates from existing itineraries
+      async function getDisabledDates() {
+        try {
+          const response = await fetch('/itinerary/list');
+          if (!response.ok) return [];
+          const data = await response.json();
+          if (!data.trips || !Array.isArray(data.trips)) return [];
+          
+          const disabledRanges = [];
+          data.trips.forEach(trip => {
+            if (trip.start_date && trip.end_date) {
+              disabledRanges.push({
+                from: new Date(trip.start_date),
+                to: new Date(trip.end_date)
+              });
+            }
+          });
+          return disabledRanges;
+        } catch (err) {
+          console.error('Failed to fetch disabled dates:', err);
+          return [];
+        }
+      }
+
+      // Function to refresh disabled dates in both Flatpickr instances
+      async function refreshDisabledDates() {
+        const disabledRanges = await getDisabledDates();
+        
+        // Refresh the newTripDateRange picker
+        const dateRangeInput = document.getElementById('newTripDateRange');
+        if (dateRangeInput && dateRangeInput._flatpickr) {
+          dateRangeInput._flatpickr.set('disable', disabledRanges);
+        }
+        
+        // Refresh the autoGenDateRange picker
+        const autoGenRangeInput = document.getElementById('autoGenDateRange');
+        if (autoGenRangeInput && autoGenRangeInput._flatpickr) {
+          autoGenRangeInput._flatpickr.set('disable', disabledRanges);
+        }
+      }
+
       function placeholderMarkup() {
         return `
           <div class="mb-3 text-center text-muted" style="font-weight:600;letter-spacing:.3px;">
@@ -1391,7 +1444,7 @@
         };
 
         if (!formData.start_date || !formData.end_date || !formData.day) {
-          alert('Please select a complete date range first.');
+          Swal.fire('Incomplete Form', 'Please select a complete date range first.', 'warning');
           return;
         }
 
@@ -1412,7 +1465,17 @@
 
           if (response.status === 409) {
             const data = await response.json();
-            throw new Error(data.error || 'Date range conflict detected.');
+            const errorMsg = data.error || 'An itinerary already exists for these dates.';
+            Swal.fire({
+              title: 'Schedule Conflict',
+              text: errorMsg,
+              html: '<p style="text-align: left;"><strong>You already have a trip planned for those dates.</strong></p><p style="text-align: left; margin-top: 10px;">You can:</p><ul style="text-align: left;"><li>Choose different dates</li><li>Cancel your existing trip and create a new one</li></ul>',
+              icon: 'warning',
+              confirmButtonText: 'OK'
+            });
+            generateBtn.disabled = false;
+            previewSection.style.display = 'none';
+            return;
           }
 
           if (!response.ok) throw new Error('Network response was not OK');
@@ -1484,21 +1547,13 @@
         } catch (err) {
           console.error('Auto-generate error:', err);
           const errorMsg = err.name === 'AbortError' 
-            ? 'Request timed out. The AI recommendation service is not available. Please ensure the Django server is running on port 8000.'
+            ? 'Request timed out. The recommendation service is temporarily unavailable. Please try again in a moment.'
             : err.message.includes('Failed to fetch') || err.message.includes('NetworkError')
-            ? 'Cannot connect to AI recommendation service. Please start the Django server or try again later.'
+            ? 'Cannot connect to the recommendation service. Please check your internet connection and try again.'
             : err.message;
           previewContent.innerHTML = `
             <div class="alert alert-danger">
               <strong><i class="bi bi-exclamation-triangle"></i> Error:</strong> ${errorMsg}
-            </div>
-            <div class="alert alert-info">
-              <strong>To enable AI recommendations:</strong>
-              <ol class="mb-0 mt-2">
-                <li>Open PowerShell in <code>python-algo</code> folder</li>
-                <li>Run: <code>.\\venv\\Scripts\\python.exe manage.py runserver 127.0.0.1:8000</code></li>
-                <li>Click Generate again once server is running</li>
-              </ol>
             </div>
           `;
           generateBtn.disabled = false;
@@ -1545,7 +1600,7 @@
 
         applyBtn?.addEventListener('click', async () => {
           if (!lastItineraryRequest) {
-            alert('No generated itinerary found. Please generate first.');
+            Swal.fire('No Itinerary', 'No generated itinerary found. Please generate first.', 'info');
             return;
           }
           applyBtn.disabled = true;
@@ -1576,7 +1631,9 @@
 
             if (saveData.saved) {
               const count = saveData.saved_count || 0;
-              alert(`Itinerary saved to your trips (${count} items).`);
+              Swal.fire('Success', `Itinerary saved to your trips (${count} items).`, 'success');
+              // Refresh disabled dates in calendar pickers
+              refreshDisabledDates();
               bootstrap.Modal.getInstance(modalEl).hide();
               setTimeout(async () => {
                 if (typeof window.__renderTripItinerary === 'function') {
@@ -1595,11 +1652,11 @@
               }, 500);
             } else {
               const err = saveData.saved_error || 'Unknown error while saving';
-              alert('Failed to save itinerary: ' + err);
+              Swal.fire('Failed', 'Failed to save itinerary: ' + err, 'error');
             }
           } catch (err) {
             console.error('Save error', err);
-            alert('Failed to save itinerary: ' + err.message);
+            Swal.fire('Error', 'Failed to save itinerary: ' + err.message, 'error');
           } finally {
             applyBtn.disabled = false;
           }
@@ -2023,7 +2080,7 @@
         // Simple alert helper that shows transient alerts in #toastContainer
         function showAlert(message, type='info'){
           const container = document.getElementById('toastContainer');
-          if (!container) { alert(message); return; }
+          if (!container) { Swal.fire({title: type === 'success' ? 'Success' : type === 'danger' ? 'Error' : type === 'warning' ? 'Warning' : 'Info', text: message, icon: type === 'danger' ? 'error' : type}); return; }
           const el = document.createElement('div');
           const map = { success: 'success', danger: 'danger', warning: 'warning', info: 'info' };
           const cls = 'alert alert-' + (map[type] || 'info');
@@ -2411,7 +2468,7 @@
               if (typeof window.__renderTripItinerary === 'function') window.__renderTripItinerary(data);
             } catch (err) {
               console.error('Failed to load trip details from history view', err);
-              alert('Failed to load trip details. ' + (err && err.message ? err.message : ''));
+              Swal.fire('Error', 'Failed to load trip details. ' + (err && err.message ? err.message : ''), 'error');
             }
           });
         });
@@ -2420,15 +2477,24 @@
           btn.addEventListener('click', async (e) => {
             e.preventDefault();
             const tripTitle = decodeURIComponent(btn.dataset.tripTitle);
-            if (!confirm(`Delete trip "${tripTitle}"? This action cannot be undone.`)) return;
+            const result = await Swal.fire({
+              title: 'Delete Trip?',
+              text: `Are you sure you want to delete "${tripTitle}"? This action cannot be undone.`,
+              icon: 'warning',
+              showCancelButton: true,
+              confirmButtonColor: '#dc3545',
+              cancelButtonColor: '#6c757d',
+              confirmButtonText: 'Yes, delete it!'
+            });
+            if (!result.isConfirmed) return;
             try {
               const resp = await fetch(`/itinerary/delete?trip_title=${encodeURIComponent(tripTitle)}`, { method: 'DELETE' });
               if (!resp.ok) throw new Error('Delete failed: ' + resp.status);
-              alert(`Deleted trip: ${tripTitle}`);
+              Swal.fire('Deleted', `Trip "${tripTitle}" has been deleted.`, 'success');
               bsModal.hide();
             } catch (err) {
               console.error(err);
-              alert('Failed to delete: ' + err.message);
+              Swal.fire('Failed', 'Failed to delete: ' + err.message, 'error');
             }
           });
         });
@@ -2446,7 +2512,7 @@
           if (typeof window.__renderTripItinerary === 'function') window.__renderTripItinerary(data);
         } catch (err) {
           console.error('Error loading saved trip:', err);
-          alert('Note: Trip saved but could not auto-load details. Error: ' + err.message);
+          Swal.fire('Info', 'Trip saved but could not auto-load details. Error: ' + err.message, 'info');
         }
       };
     })();
@@ -2566,7 +2632,7 @@
               const form = document.getElementById('activityForm');
               const targetDay = (form && form.dataset.targetDay) || window.lastAddActivityTargetDay || '';
               if (!targetDay) {
-                alert('Open Add Activity from a specific day first.');
+                Swal.fire('Error', 'Open Add Activity from a specific day first.', 'error');
                 return;
               }
               const title = card.dataset.title || card.querySelector('.sugg-title')?.textContent || 'Untitled';
@@ -2639,7 +2705,7 @@
                   if (typeof window.__updateMapControls === 'function') window.__updateMapControls();
                 } catch(e) { console.warn('post-add suggested refresh failed', e); }
               } else {
-                alert('Could not find the target day list to add activity.');
+                Swal.fire('Error', 'Could not find the target day list to add activity.', 'error');
               }
             }
 
@@ -2842,7 +2908,7 @@
                 if (typeof window.loadSavedTrip === 'function') {
                   window.loadSavedTrip(tripTitle, startDate);
                 } else {
-                  alert(`View trip: ${tripTitle} (${startDate})`);
+                  Swal.fire('Info', `View trip: ${tripTitle} (${startDate})`, 'info');
                 }
               });
             });
@@ -3084,41 +3150,116 @@
         });
       }
 
+      // Function to get disabled dates from existing itineraries
+      async function getDisabledDates() {
+        try {
+          const response = await fetch('/itinerary/list');
+          if (!response.ok) return [];
+          const data = await response.json();
+          if (!data.trips || !Array.isArray(data.trips)) return [];
+          
+          const disabledRanges = [];
+          data.trips.forEach(trip => {
+            if (trip.start_date && trip.end_date) {
+              disabledRanges.push({
+                from: new Date(trip.start_date),
+                to: new Date(trip.end_date)
+              });
+            }
+          });
+          return disabledRanges;
+        } catch (err) {
+          console.error('Failed to fetch disabled dates:', err);
+          return [];
+        }
+      }
+
+      // Function to refresh disabled dates in both Flatpickr instances
+      async function refreshDisabledDates() {
+        const disabledRanges = await getDisabledDates();
+        
+        // Refresh the newTripDateRange picker
+        const dateRangeInput = document.getElementById('newTripDateRange');
+        if (dateRangeInput && dateRangeInput._flatpickr) {
+          dateRangeInput._flatpickr.set('disable', disabledRanges);
+        }
+        
+        // Refresh the autoGenDateRange picker
+        const autoGenRangeInput = document.getElementById('autoGenDateRange');
+        if (autoGenRangeInput && autoGenRangeInput._flatpickr) {
+          autoGenRangeInput._flatpickr.set('disable', disabledRanges);
+        }
+      }
+
+      // Store references to Flatpickr instances for real-time updates
+      let dateRangePickerInstance;
+      let autoGenRangePickerInstance;
+
       // Initialize Flatpickr range for Create New Itinerary
       const dateRangeInput = document.getElementById('newTripDateRange');
       if (dateRangeInput && window.flatpickr) {
-        flatpickr(dateRangeInput, {
-          mode: 'range',
-          dateFormat: 'Y-m-d',
-          minDate: 'today',
-          onChange: function(selectedDates) {
-            const startEl = document.getElementById('newTripStart');
-            const endEl = document.getElementById('newTripEnd');
-            if (selectedDates.length > 0 && startEl) startEl.value = selectedDates[0].toISOString().split('T')[0];
-            if (selectedDates.length > 1 && endEl) endEl.value = selectedDates[1].toISOString().split('T')[0];
-            updateSelectedSpotDetails(); // Recompute if date impacts pricing later
-          }
+        getDisabledDates().then(disabledRanges => {
+          dateRangePickerInstance = flatpickr(dateRangeInput, {
+            mode: 'range',
+            dateFormat: 'Y-m-d',
+            minDate: 'today',
+            disable: disabledRanges,
+            onChange: function(selectedDates) {
+              const startEl = document.getElementById('newTripStart');
+              const endEl = document.getElementById('newTripEnd');
+              if (selectedDates.length > 0 && startEl) {
+                const date = selectedDates[0];
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                startEl.value = `${year}-${month}-${day}`;
+              }
+              if (selectedDates.length > 1 && endEl) {
+                const date = selectedDates[1];
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                endEl.value = `${year}-${month}-${day}`;
+              }
+              updateSelectedSpotDetails(); // Recompute if date impacts pricing later
+            }
+          });
         });
       }
 
       // Initialize Flatpickr range for Auto-generate modal
       const autoGenRangeInput = document.getElementById('autoGenDateRange');
       if (autoGenRangeInput && window.flatpickr) {
-        flatpickr(autoGenRangeInput, {
-          mode: 'range',
-          dateFormat: 'Y-m-d',
-          minDate: 'today',
-          onChange: function(selectedDates) {
-            const startEl = document.getElementById('autoGenStartDate');
-            const endEl = document.getElementById('autoGenEndDate');
-            if (selectedDates.length > 0 && startEl) startEl.value = selectedDates[0].toISOString().split('T')[0];
-            if (selectedDates.length > 1 && endEl) endEl.value = selectedDates[1].toISOString().split('T')[0];
-            if (selectedDates.length === 2) {
-              const diffDays = Math.round((selectedDates[1] - selectedDates[0]) / (1000*60*60*24)) + 1; // inclusive
-              const dayInput = document.getElementById('autoGenDay');
-              if (dayInput) dayInput.value = diffDays;
+        getDisabledDates().then(disabledRanges => {
+          autoGenRangePickerInstance = flatpickr(autoGenRangeInput, {
+            mode: 'range',
+            dateFormat: 'Y-m-d',
+            minDate: 'today',
+            disable: disabledRanges,
+            onChange: function(selectedDates) {
+              const startEl = document.getElementById('autoGenStartDate');
+              const endEl = document.getElementById('autoGenEndDate');
+              if (selectedDates.length > 0 && startEl) {
+                const date = selectedDates[0];
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                startEl.value = `${year}-${month}-${day}`;
+              }
+              if (selectedDates.length > 1 && endEl) {
+                const date = selectedDates[1];
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                endEl.value = `${year}-${month}-${day}`;
+              }
+              if (selectedDates.length === 2) {
+                const diffDays = Math.round((selectedDates[1] - selectedDates[0]) / (1000*60*60*24)) + 1; // inclusive
+                const dayInput = document.getElementById('autoGenDay');
+                if (dayInput) dayInput.value = diffDays;
+              }
             }
-          }
+          });
         });
       }
 
@@ -3211,11 +3352,13 @@
             const data = await resp.json();
             if (!resp.ok) {
               console.error('Failed creating itinerary', data);
-              alert('Failed to create itinerary: ' + (data.error || resp.statusText));
+              Swal.fire('Failed', 'Failed to create itinerary: ' + (data.error || resp.statusText), 'error');
               return;
             }
 
             if (data.success) {
+              // Refresh disabled dates in calendar pickers
+              refreshDisabledDates();
               // Close modal
               bootstrap.Modal.getInstance(createModal).hide();
               // Try to reload/display the saved trip in the timeline (if loader exists)
@@ -3227,11 +3370,11 @@
               }
             } else {
               console.warn('Create itinerary returned:', data);
-              alert('Could not create itinerary. Check console for details.');
+              Swal.fire('Error', 'Could not create itinerary. Check console for details.', 'error');
             }
           } catch (err) {
             console.error('Create itinerary error', err);
-            alert('An error occurred while creating itinerary');
+            Swal.fire('Error', 'An error occurred while creating itinerary', 'error');
           }
         });
       }
@@ -3338,9 +3481,9 @@
         addBtn.addEventListener('click', (e) => {
           try {
             const input = document.getElementById('newDayNumber');
-            if (!input) { alert('Day input not found'); return; }
+            if (!input) { Swal.fire('Error', 'Day input not found', 'error'); return; }
             const count = parseInt(input.value, 10);
-            if (!count || count < 1) { alert('Please enter a valid number of days to add (>= 1)'); return; }
+            if (!count || count < 1) { Swal.fire('Invalid Input', 'Please enter a valid number of days to add (>= 1)', 'warning'); return; }
 
             // Find last existing day number
             const dayCards = Array.from(document.querySelectorAll('.day-card'));
@@ -3354,7 +3497,7 @@
             });
 
             const timeline = document.querySelector('.timeline-section');
-            if (!timeline) { alert('Timeline section not found'); return; }
+            if (!timeline) { Swal.fire('Error', 'Timeline section not found', 'error'); return; }
 
             const newDays = [];
             for (let i = 1; i <= count; i++) {
@@ -3418,7 +3561,7 @@
             } catch(e) { console.warn('map refresh after add days failed', e); }
           } catch (err) {
             console.error('Failed to add day(s)', err);
-            alert('Could not add day(s): ' + (err && err.message));
+            Swal.fire('Error', 'Could not add day(s): ' + (err && err.message), 'error');
           }
         });
       })();

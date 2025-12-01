@@ -349,10 +349,38 @@ public function touristDashboard()
             $TotalSaveItineray = 0;
         }
 
-        // Places visited
+        // Places visited - count from bookings with checked-in/checked-out status
         $placesVisited = 0;
         try {
-            if ($db->tableExists('createuservisits')) {
+            $bookingModel = new \App\Models\BookingModel();
+            $fields = [];
+            if ($db->tableExists('bookings')) {
+                $fields = $db->getFieldNames('bookings');
+            }
+            
+            // Check if we should use customer_id or user_id
+            if (!empty($fields) && in_array('user_id', $fields, true)) {
+                $placesVisited = (int) $bookingModel
+                    ->where('user_id', $userID)
+                    ->whereIn('booking_status', ['Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out', 'Confirmed', 'Completed'])
+                    ->countAllResults();
+            } elseif (!empty($fields) && in_array('customer_id', $fields, true)) {
+                // Try resolve customer_id from user_id
+                try {
+                    $customerModel = new \App\Models\CustomerModel();
+                    $customerRow = $customerModel->where('user_id', $userID)->first();
+                    $customerID = $customerRow['customer_id'] ?? null;
+                    if ($customerID) {
+                        $placesVisited = (int) $bookingModel
+                            ->where('customer_id', $customerID)
+                            ->whereIn('booking_status', ['Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out', 'Confirmed', 'Completed'])
+                            ->countAllResults();
+                    }
+                } catch (\Throwable $e) {
+                    $placesVisited = 0;
+                }
+            } elseif ($db->tableExists('createuservisits')) {
+                // Fallback to createuservisits table if bookings doesn't work
                 $placesVisited = (int) $db->table('createuservisits')->where('user_id', $userID)->countAllResults();
             }
         } catch (\Throwable $e) {
@@ -413,7 +441,7 @@ public function touristDashboard()
     public function exploreSpots()
     {
         $spotModel = new TouristSpotModel();
-        $spots = $spotModel->getAllTouristSpots();
+        $spots = $spotModel->getApprovedTouristSpots();
 
         // Get user's favorite spot IDs
         $userID = session()->get('UserID');
@@ -1257,15 +1285,29 @@ public function listUserTrips()
             }
 
             if (!empty($ids)) {
-                // keep original order: fetch records and map by id
+                // Fetch spots with ratings calculated from reviews
                 $spots = $spotModel->whereIn('spot_id', $ids)->findAll();
                 foreach ($spots as $s) {
+                    // Calculate average rating from review_feedback
+                    $avgRating = 0;
+                    try {
+                        $ratingResult = $db->table('review_feedback')
+                            ->selectAvg('rating', 'avg_rating')
+                            ->where('spot_id', $s['spot_id'] ?? null)
+                            ->get()
+                            ->getRowArray();
+                        $avgRating = $ratingResult['avg_rating'] ? round((float)$ratingResult['avg_rating'], 1) : 0;
+                    } catch (\Throwable $e) {
+                        $avgRating = 0;
+                    }
+                    
                     $out[] = [
                         'id' => $s['spot_id'] ?? null,
+                        'spot_id' => $s['spot_id'] ?? null,
                         'spot_name' => $s['spot_name'] ?? ($s['name'] ?? ''),
-                        'primary_image' => $s['primary_image'] ?? '', // filename only; client concatenates base_url
+                        'primary_image' => $s['primary_image'] ?? '',
                         'category' => $s['category'] ?? '',
-                        'rating' => $s['rating'] ?? null,
+                        'rating' => $avgRating > 0 ? $avgRating : 0,
                     ];
                 }
             }
@@ -2457,22 +2499,21 @@ public function getVisitedPlacesAjax()
                     $limit = $limit > 0 ? min($limit, 50) : 10;
                     $offset = max(0, $offset);
 
-                    // Fetch published reviews for this spot with customer names (paginated)
+                    // Fetch all reviews for this spot with customer names (paginated)
                     $reviews = $db->table('review_feedback rf')
-                        ->select('rf.review_id, rf.rating, rf.comment, rf.recommend, rf.created_at, rf.customer_id, c.FirstName, c.LastName, c.user_id, c.Email')
+                        ->select('rf.review_id, rf.rating, rf.comment, rf.created_at, rf.customer_id, u.FirstName, u.LastName, u.email')
                         ->join('customers c', 'rf.customer_id = c.customer_id', 'left')
+                        ->join('users u', 'c.user_id = u.UserID', 'left')
                         ->where('rf.spot_id', $spotId)
-                        ->where('rf.status', 'published')
                         ->orderBy('rf.created_at', 'DESC')
                         ->limit($limit, $offset)
                         ->get()
                         ->getResultArray();
 
-                    // Compute aggregate (average rating and total published reviews)
+                    // Compute aggregate (average rating and total reviews)
                     $agg = $db->table('review_feedback')
                         ->select('IFNULL(ROUND(AVG(rating),2),0) AS average_rating, COUNT(*) AS total_reviews')
                         ->where('spot_id', $spotId)
-                        ->where('status', 'published')
                         ->get()
                         ->getRowArray();
 
@@ -2485,11 +2526,9 @@ public function getVisitedPlacesAjax()
                             'review_id' => $review['review_id'],
                             'rating' => (int)$review['rating'],
                             'comment' => $review['comment'],
-                            'recommend' => (int)$review['recommend'],
                             'created_at' => $review['created_at'],
                             'customer_id' => $review['customer_id'] ?? null,
-                            'user_id' => $review['user_id'] ?? null,
-                            'customer_email' => $review['Email'] ?? $review['email'] ?? null,
+                            'customer_email' => $review['email'] ?? null,
                             'customer_name' => trim(($review['FirstName'] ?? 'Anonymous') . ' ' . ($review['LastName'] ?? '')),
                         ];
                     }, $reviews);
@@ -2513,6 +2552,98 @@ public function getVisitedPlacesAjax()
                 'success' => false,
                 'reviews' => [],
                 'message' => 'Server error'
+            ])->setStatusCode(500);
+        }
+    }
+
+    /**
+     * Get current weather for Nasugbu
+     * Uses Open-Meteo free weather API (no authentication needed)
+     * Nasugbu coordinates: 13.8938° N, 120.5744° E
+     */
+    public function getWeather()
+    {
+        try {
+            // Nasugbu coordinates: 13.8938° N, 120.5744° E
+            $url = 'https://api.open-meteo.com/v1/forecast?latitude=13.8938&longitude=120.5744&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m&timezone=auto';
+            
+            $response = null;
+            $error = null;
+            
+            // Try cURL first (most reliable)
+            if (function_exists('curl_init')) {
+                $ch = curl_init();
+                curl_setopt_array($ch, [
+                    CURLOPT_URL => $url,
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_TIMEOUT => 5,
+                    CURLOPT_CONNECTTIMEOUT => 5,
+                    CURLOPT_SSL_VERIFYPEER => false,
+                    CURLOPT_SSL_VERIFYHOST => false,
+                    CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                ]);
+                
+                $response = curl_exec($ch);
+                if ($response === false) {
+                    $error = curl_error($ch);
+                }
+                curl_close($ch);
+            }
+            
+            // Fallback to file_get_contents if cURL unavailable
+            if ($response === null && !$error) {
+                $context = stream_context_create([
+                    'http' => [
+                        'method' => 'GET',
+                        'timeout' => 5,
+                        'header' => 'User-Agent: Mozilla/5.0'
+                    ],
+                    'ssl' => [
+                        'verify_peer' => false,
+                        'verify_peer_name' => false
+                    ]
+                ]);
+                
+                $response = @file_get_contents($url, false, $context);
+                if ($response === false) {
+                    $error = 'file_get_contents failed';
+                }
+            }
+            
+            if ($response === null || $response === false) {
+                log_message('error', 'Failed to fetch weather from Open-Meteo API: ' . ($error ?? 'unknown'));
+                return $this->response->setJSON([
+                    'success' => false,
+                    'message' => 'Unable to fetch weather data'
+                ])->setStatusCode(503);
+            }
+            
+            $data = json_decode($response, true);
+            
+            if (!$data || !isset($data['current'])) {
+                log_message('error', 'Invalid weather API response: ' . substr($response, 0, 200));
+                return $this->response->setJSON([
+                    'success' => false,
+                    'message' => 'Invalid weather data received'
+                ])->setStatusCode(500);
+            }
+            
+            $current = $data['current'];
+            
+            return $this->response->setJSON([
+                'success' => true,
+                'temperature' => $current['temperature_2m'] ?? 0,
+                'weather_code' => $current['weather_code'] ?? 0,
+                'humidity' => $current['relative_humidity_2m'] ?? 0,
+                'wind_speed' => $current['wind_speed_10m'] ?? 0,
+                'timestamp' => time()
+            ]);
+            
+        } catch (\Throwable $e) {
+            log_message('error', 'getWeather error: ' . $e->getMessage());
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Server error fetching weather'
             ])->setStatusCode(500);
         }
     }

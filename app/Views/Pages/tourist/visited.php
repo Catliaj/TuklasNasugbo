@@ -143,7 +143,7 @@ $FullName = trim(($userFirstName . ' ' . $userLastName));
                     <div class="stat-card">
                         <div class="stat-header">
                             <div>
-                                <div class="stat-value"><span class="count-up" data-target="12">12</span></div>
+                                <div class="stat-value"><span id="stat-total-visits">0</span></div>
                                 <div class="stat-label">Total Places Visited</div>
                             </div>
                             <div class="stat-icon blue"><i class="bi bi-geo-alt-fill"></i></div>
@@ -194,95 +194,12 @@ $FullName = trim(($userFirstName . ' ' . $userLastName));
 
                     <!-- Timeline View -->
                     <div class="timeline active" id="timelineView">
-                        <div class="timeline-item">
-                            
-                            <div class="timeline-content">
-                                <div class="timeline-header">
-                                    <div><h4 class="timeline-title">Mount Batulao Hike</h4><p class="timeline-date"><i class="bi bi-calendar"></i> November 20, 2024</p></div>
-                                    <span class="check-in-badge"><i class="bi bi-check-circle"></i> Checked In</span>
-                                </div>
-                                <div class="timeline-meta">
-                                    <div class="timeline-meta-item"><i class="bi bi-geo-alt"></i><span>Nasugbu, Batangas</span></div>
-                                    <div class="timeline-meta-item"><i class="bi bi-people"></i><span>With 3 friends</span></div>
-                                    <div class="timeline-meta-item"><i class="bi bi-star-fill"></i><span>Rated 5/5</span></div>
-                                </div>
-                                <p style="color: #666; font-size: 0.9rem;">Amazing sunrise hike! The rolling hills were breathtaking. Definitely coming back!</p>
-                                <div class="timeline-photos">
-                                    <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=100&h=100&fit=crop" alt="Photo" class="photo-thumbnail">
-                                    <img src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=100&h=100&fit=crop" alt="Photo" class="photo-thumbnail">
-                                    <div class="more-photos">+5</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="timeline-item">
-                            
-                            <div class="timeline-content">
-                                <div class="timeline-header">
-                                    <div><h4 class="timeline-title">Caleruega Church Visit</h4><p class="timeline-date"><i class="bi bi-calendar"></i> October 15, 2024</p></div>
-                                    <span class="check-in-badge"><i class="bi bi-check-circle"></i> Checked In</span>
-                                </div>
-                                <div class="timeline-meta">
-                                    <div class="timeline-meta-item"><i class="bi bi-geo-alt"></i><span>Caleruega, Nasugbu</span></div>
-                                    <div class="timeline-meta-item"><i class="bi bi-people"></i><span>Solo trip</span></div>
-                                    <div class="timeline-meta-item"><i class="bi bi-star-fill"></i><span>Rated 5/5</span></div>
-                                </div>
-                                <p style="color: #666; font-size: 0.9rem;">Perfect place for meditation and reflection. The gardens are beautiful!</p>
-                                <div class="timeline-photos">
-                                    <img src="https://images.unsplash.com/photo-1519290916420-e67e00a83cde?w=100&h=100&fit=crop" alt="Photo" class="photo-thumbnail">
-                                    <div class="more-photos">+3</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="timeline-item">
-                            
-                            <div class="timeline-content">
-                                <div class="timeline-header">
-                                    <div><h4 class="timeline-title">Fortune Island Adventure</h4><p class="timeline-date"><i class="bi bi-calendar"></i> September 8, 2024</p></div>
-                                    <span class="check-in-badge"><i class="bi bi-check-circle"></i> Checked In</span>
-                                </div>
-                                <div class="timeline-meta">
-                                    <div class="timeline-meta-item"><i class="bi bi-geo-alt"></i><span>Fortune Island</span></div>
-                                    <div class="timeline-meta-item"><i class="bi bi-people"></i><span>With partner</span></div>
-                                    <div class="timeline-meta-item"><i class="bi bi-star-fill"></i><span>Rated 5/5</span></div>
-                                </div>
-                                <div class="timeline-photos">
-                                    <img src="https://images.unsplash.com/photo-1505142468610-359e7d316be0?w=100&h=100&fit=crop" alt="Photo" class="photo-thumbnail">
-                                    <div class="more-photos">+7</div>
-                                </div>
-                            </div>
-                        </div>
+                        <!-- Populated by JavaScript from AJAX -->
                     </div>
 
                     <!-- Grid View -->
                     <div class="grid-view" id="gridView">
-                        <div class="grid-card">
-                           <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=200&fit=crop" alt="Mount Batulao">
-                           <div class="grid-card-content">
-                               <h4>Mount Batulao</h4>
-                               <p><i class="bi bi-calendar"></i> Nov 20, 2024</p>
-                           </div>
-                        </div>
-                        <div class="grid-card">
-                           <img src="https://images.unsplash.com/photo-1519290916420-e67e00a83cde?w=300&h=200&fit=crop" alt="Caleruega Church">
-                           <div class="grid-card-content">
-                               <h4>Caleruega Church</h4>
-                               <p><i class="bi bi-calendar"></i> Oct 15, 2024</p>
-                           </div>
-                        </div>
-                        <div class="grid-card">
-                           <img src="https://images.unsplash.com/photo-1505142468610-359e7d316be0?w=300&h=200&fit=crop" alt="Fortune Island">
-                           <div class="grid-card-content">
-                               <h4>Fortune Island</h4>
-                               <p><i class="bi bi-calendar"></i> Sep 8, 2024</p>
-                           </div>
-                        </div>
-                        <div class="grid-card">
-                           <img src="https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=300&h=200&fit=crop" alt="Canyon Cove">
-                           <div class="grid-card-content">
-                               <h4>Canyon Cove Resort</h4>
-                               <p><i class="bi bi-calendar"></i> Aug 22, 2024</p>
-                           </div>
-                        </div>
+                        <!-- Populated by JavaScript from AJAX -->
                     </div>
                 </div>
             </div>
@@ -767,11 +684,13 @@ $FullName = trim(($userFirstName . ' ' . $userLastName));
     }
     .grid-view {
         display: none;
+        width: 100%;
     }
     .grid-view.active {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
         gap: 1.25rem;
+        padding: 0;
         animation: fadeInUp 0.35s ease both;
     }
     .grid-card {
@@ -787,10 +706,13 @@ $FullName = trim(($userFirstName . ' ' . $userLastName));
         transform: translateY(-4px);
         box-shadow: 0 12px 32px rgba(0, 46, 85, 0.22);
     }
-    .grid-card img {
+    .grid-card img,
+    .grid-card-img {
         width: 100%;
         height: 200px;
         object-fit: cover;
+        display: block;
+        background: #f0f0f0;
     }
     .grid-card-content {
         padding: 1rem;
@@ -823,9 +745,20 @@ $FullName = trim(($userFirstName . ' ' . $userLastName));
   'use strict';
 
   // Ensure BASE_URL is defined on the page. If not, default to '/'.
-  const BASE = (typeof BASE_URL !== 'undefined' ? BASE_URL.replace(/\/+$/, '') + '/' : '/');
-
-    const FALLBACK_IMAGE = BASE + 'uploads/spots/Spot-No-Image.png';
+  // Try to get from CodeIgniter config or use root
+  let BASE = '/';
+  
+  // Check if BASE_URL is defined globally
+  if (typeof BASE_URL !== 'undefined' && BASE_URL) {
+    BASE = BASE_URL.replace(/\/+$/, '') + '/';
+  } else {
+    // Fallback: use current origin
+    BASE = window.location.origin + '/';
+  }
+  
+  console.log('BASE URL:', BASE);
+  
+  const FALLBACK_IMAGE = BASE + 'uploads/spots/Spot-No-Image.png';
 
   function escHtml(s) {
     if (s === null || s === undefined) return '';
@@ -897,13 +830,27 @@ $FullName = trim(($userFirstName . ' ' . $userLastName));
   }
 
   function buildImageTag(fileName, altText = '') {
-    // If primary_image is empty/null use fallback immediately, otherwise construct path and add onerror fallback
+    // If primary_image is empty/null use fallback immediately
     if (!fileName) {
-      return `<img src="${FALLBACK_IMAGE}" alt="${escHtml(altText)}" class="photo-thumbnail">`;
+      console.log('Timeline Image (no file):', { altText, src: FALLBACK_IMAGE });
+      return `<img src="${FALLBACK_IMAGE}" alt="${escHtml(altText)}" class="photo-thumbnail" data-retry="false">`;
     }
     const src = BASE + 'uploads/spots/' + escHtml(fileName);
+    console.log('Timeline Image:', { altText, fileName, fullPath: src });
     // Use onerror to swap to fallback if the file is missing or 404s
-    return `<img src="${src}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';" alt="${escHtml(altText)}" class="photo-thumbnail">`;
+    return `<img src="${src}" alt="${escHtml(altText)}" class="photo-thumbnail" data-retry="true" data-fallback="${FALLBACK_IMAGE}" onerror="handleImageError(this)">`;
+  }
+
+  function handleImageError(img) {
+    if (img.dataset.retry === 'true') {
+      img.src = img.dataset.fallback;
+      img.dataset.retry = 'false';
+      img.onerror = null;
+    } else {
+      // Fallback also failed, use SVG placeholder
+      img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect fill=%22%23e0e0e0%22 width=%22100%22 height=%22100%22/%3E%3Ctext x=%2250%22 y=%2250%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-family=%22Arial%22 font-size=%2214%22 fill=%22%23999%22%3ENo Image%3C/text%3E%3C/svg%3E';
+      img.onerror = null;
+    }
   }
 
   function renderVisited(items) {
@@ -965,7 +912,10 @@ $FullName = trim(($userFirstName . ' ' . $userLastName));
         grid.innerHTML = '<p class="text-muted p-3">No visited places to show.</p>';
       } else {
         const html = items.map(it => {
-          const imgTag = buildImageTag(it.primary_image, it.spot_name);
+          // Build image tag with proper src
+          const imgSrc = !it.primary_image ? FALLBACK_IMAGE : (BASE + 'uploads/spots/' + escHtml(it.primary_image));
+          console.log('Grid Image:', { spot: it.spot_name, fileName: it.primary_image, fullPath: imgSrc });
+          const imgTag = `<img src="${imgSrc}" alt="${escHtml(it.spot_name)}" class="grid-card-img" data-retry="${!it.primary_image ? 'false' : 'true'}" data-fallback="${FALLBACK_IMAGE}" onerror="handleImageError(this)">`;
           const hasReview = it.review_id && it.review_id > 0;
           const reviewBtn = hasReview 
             ? `<button class="btn-view-details w-100 mt-2" onclick="viewReview(${it.spot_id}, ${it.review_id})"><i class="bi bi-eye"></i> View Review</button>`
@@ -973,7 +923,7 @@ $FullName = trim(($userFirstName . ' ' . $userLastName));
           
           return `
             <div class="grid-card">
-               ${imgTag.replace('photo-thumbnail', '')}
+               ${imgTag}
                <div class="grid-card-content">
                    <h4>${escHtml(it.spot_name)}</h4>
                    <p><i class="bi bi-calendar"></i> ${formatDate(it.visit_date || it.booking_date)}</p>
@@ -986,13 +936,30 @@ $FullName = trim(($userFirstName . ' ' . $userLastName));
         grid.innerHTML = html;
       }
     }
+
+    // Update total visits count
+    const totalVisitsEl = document.getElementById('stat-total-visits');
+    if (totalVisitsEl) {
+      totalVisitsEl.textContent = items.length;
+    }
   }
 
   // Expose reload and auto-run on DOM ready
   window.reloadVisitedPlaces = loadVisitedPlaces;
+  window.handleImageError = handleImageError;
   document.addEventListener('DOMContentLoaded', loadVisitedPlaces);
 
-  // Fetch review summary for a spot and update the placeholder
+  // After rendering visited places, request review summaries for visible spots
+  const origRenderVisited = renderVisited;
+  renderVisited = function(items) {
+    origRenderVisited(items);
+    if (!Array.isArray(items)) return;
+    items.forEach(it => {
+      if (it && it.spot_id) loadReviewSummaryForSpot(it.spot_id);
+    });
+  };
+
+  // Fetch review summary for a spot and update the placeholder (without re-rendering)
   async function loadReviewSummaryForSpot(spotId) {
     const elId = 'review-summary-' + spotId;
     const el = document.getElementById(elId);
@@ -1039,23 +1006,10 @@ $FullName = trim(($userFirstName . ' ' . $userLastName));
 
       // recalc aggregations
       recalcReviewStats();
-
-      // re-render visited list according to current filter (useful if review status changed)
-      try { renderVisited(getFilteredVisitedItems()); } catch (e) { /* ignore */ }
     } catch (err) {
       console.error('Failed loading review summary for spot', spotId, err);
     }
   }
-
-  // After rendering visited places, request review summaries for visible spots
-  const origRenderVisited = renderVisited;
-  renderVisited = function(items) {
-    origRenderVisited(items);
-    if (!Array.isArray(items)) return;
-    items.forEach(it => {
-      if (it && it.spot_id) loadReviewSummaryForSpot(it.spot_id);
-    });
-  };
 
   // Recalculate aggregate reviews (total reviews and average rating) from per-spot data attributes
   function recalcReviewStats() {

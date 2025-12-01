@@ -119,6 +119,8 @@ $routes->get('tourist/visited/ajax', 'TouristController::getVisitedPlacesAjax');
 $routes->get('/tourist/getFavorites', 'TouristController::getFavorites');
 // Dashboard live stats (AJAX)
 $routes->get('/tourist/dashboardStats', 'TouristController::dashboardStats');
+// Weather data for dashboard
+$routes->get('/tourist/getWeather', 'TouristController::getWeather');
 // Feedback/Review endpoints
 $routes->post('/tourist/feedback', 'TouristController::createFeedback');
 $routes->get('/tourist/feedback/(:num)', 'TouristController::getFeedback/$1');
