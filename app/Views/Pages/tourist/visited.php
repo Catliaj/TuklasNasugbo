@@ -83,26 +83,15 @@ $FullName = trim(($userFirstName . ' ' . $userLastName));
                 <div class="page-header-actions">
                     <div style="position: relative;">
                         <button class="notification-btn" onclick="toggleNotificationDropdown()">
-                            <i class="bi bi-bell-fill"></i>
-                            <span class="notification-badge" id="notifBadge">3</span>
+                          <i class="bi bi-bell-fill"></i>
+                          <span class="notification-badge" id="notifBadge" style="display:none">0</span>
                         </button>
                         <div class="notification-dropdown" id="notificationDropdown" style="position:absolute; z-index:20060; right:0;">
                             <div class="notification-header">
                                 <h6>Notifications</h6>
                                 <button class="mark-all-read" onclick="markAllAsRead()">Mark all as read</button>
                             </div>
-                            <ul class="notification-list" id="notificationList">
-                                <li class="notification-item unread" onclick="openNotificationDetail(this)" style="cursor:pointer;">
-                                    <div class="notification-content">
-                                        <div class="notification-icon success"><i class="bi bi-check-circle-fill"></i></div>
-                                        <div class="notification-text">
-                                            <h6>Check-in Logged</h6>
-                                            <p>Added Mount Batulao to your visited list</p>
-                                            <div class="notification-time">1 hour ago</div>
-                                        </div>
-                                    </div>
-                                </li>
-                            </ul>
+                            <ul class="notification-list" id="notificationList"></ul>
                             <div class="notification-footer">
                                 <a href="#" onclick="viewAllNotifications(event)">View all notifications</a>
                             </div>
