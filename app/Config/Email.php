@@ -7,7 +7,7 @@ use CodeIgniter\Config\BaseConfig;
 class Email extends BaseConfig
 {
     // Gmail SMTP configuration (override via .env)
-    public string $fromEmail  = 'tuklasnasugbu@gmail.com';
+    public string $fromEmail  = 'notifications@tuklasnasugbu.com';
     public string $fromName   = 'Tuklas Nasugbu';
     public string $recipients = '';
 

@@ -6,6 +6,7 @@ use App\Controllers\BaseController;
 use App\Models\UsersModel;
 use App\Models\EmailVerificationModel;
 use App\Models\EmailVerificationTokenModel;
+use App\Models\PasswordResetTokenModel;
 use Google_Client;
 use Google_Service_Oauth2;
 
@@ -360,8 +361,9 @@ class AuthController extends BaseController
             ];
 
             // Ensure From and Subject are non-empty strings to avoid CI Email errors
-            $fromAddress = env('email.fromAddress');
-            $fromName    = env('email.fromName', $appName) ?: $appName;
+            $emailConfig = config('Email');
+            $fromAddress = env('email.fromAddress') ?: ($emailConfig->fromEmail ?? '');
+            $fromName    = env('email.fromName', $appName) ?: ($emailConfig->fromName ?? $appName);
             if (empty($fromAddress)) {
                 // Safe default for local dev
                 $fromAddress = 'no-reply@localhost';
@@ -527,6 +529,147 @@ class AuthController extends BaseController
         $client->setAccessType('offline');
         $client->setPrompt('select_account consent');
         return $client;
+    }
+
+    /**
+     * POST /forgot-password/request
+     * Accepts { email } and sends a password reset link if account exists.
+     * Always returns a generic success response for privacy.
+     */
+    public function requestPasswordReset()
+    {
+        $email = strtolower(trim($this->request->getPost('email') ?? ''));
+        if ($email === '') {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Email is required']);
+        }
+
+        $users = new UsersModel();
+        $user = $users->where('email', $email)->first();
+
+        if ($user) {
+            $tokenModel = new PasswordResetTokenModel();
+            $token = bin2hex(random_bytes(32));
+            $expiresAt = date('Y-m-d H:i:s', time() + 60 * 60); // 1 hour
+            $tokenModel->insert([
+                'token' => $token,
+                'email' => $email,
+                'user_id' => $user['UserID'] ?? null,
+                'expires_at' => $expiresAt,
+                'used_at' => null,
+                'created_at' => date('Y-m-d H:i:s')
+            ]);
+            $this->sendPasswordResetEmail($email, $token);
+        }
+
+        return $this->response->setJSON([
+            'status' => 'ok',
+            'message' => 'If an account exists for that email, a reset link has been sent.'
+        ]);
+    }
+
+    /**
+     * GET /reset-password?token=...
+     * Validates token and redirects back to landing with query params to trigger UI.
+     */
+    public function resetPassword()
+    {
+        $token = $this->request->getGet('token');
+        if (!$token) {
+            return redirect()->to(base_url('/'))->with('error', 'Missing reset token');
+        }
+        $tokenModel = new PasswordResetTokenModel();
+        $row = $tokenModel->where('token', $token)->first();
+        if (!$row || !empty($row['used_at']) || strtotime($row['expires_at']) < time()) {
+            return redirect()->to(base_url('/'))->with('error', 'Invalid or expired reset link');
+        }
+        $email = $row['email'];
+        // Redirect to landing with token so front-end can prompt for new password
+        $url = base_url('/?auth_tab=login&reset_token=' . urlencode($token) . '&email=' . urlencode($email));
+        return redirect()->to($url);
+    }
+
+    /**
+     * POST /reset-password/submit
+     * Accepts { token, password, confirmPassword }, validates and updates user password.
+     */
+    public function submitNewPassword()
+    {
+        $token = $this->request->getPost('token');
+        $password = $this->request->getPost('password');
+        $confirm = $this->request->getPost('confirmPassword');
+        if (!$token || !$password || !$confirm) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Missing required fields']);
+        }
+        if ($password !== $confirm) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Passwords do not match']);
+        }
+        if (strlen($password) < 6) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Password must be at least 6 characters']);
+        }
+
+        $tokenModel = new PasswordResetTokenModel();
+        $row = $tokenModel->where('token', $token)->first();
+        if (!$row || !empty($row['used_at']) || strtotime($row['expires_at']) < time()) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Invalid or expired reset token']);
+        }
+
+        $email = $row['email'];
+        $users = new UsersModel();
+        $user = $users->where('email', $email)->first();
+        if (!$user) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Account not found']);
+        }
+
+        $users->update($user['UserID'], [
+            'password' => password_hash($password, PASSWORD_DEFAULT),
+            'updated_at' => date('Y-m-d H:i:s')
+        ]);
+        $tokenModel->update($row['id'], ['used_at' => date('Y-m-d H:i:s')]);
+
+        return $this->response->setJSON(['status' => 'ok', 'message' => 'Password has been reset. You can now log in.']);
+    }
+
+    private function sendPasswordResetEmail(string $email, string $token): bool
+    {
+        $emailService = \Config\Services::email();
+        $appConfig = new \Config\App();
+        $appName = env('app.name', 'Tuklas Nasugbu');
+        $baseURL = rtrim($appConfig->baseURL, '/');
+        $resetUrl = $baseURL . '/reset-password?token=' . urlencode($token);
+
+        $primaryColor = env('theme.primaryColor', '#0d6efd');
+        $accentColor  = env('theme.accentColor', '#22c55e');
+        $textColor    = env('theme.textColor', '#1f2937');
+        $logoUrl      = rtrim($baseURL, '/') . '/fulllogo.png';
+        $supportEmail = env('email.support', env('email.fromAddress'));
+        $footerLinks = [
+            'Visit Website' => $baseURL,
+            'Privacy' => $baseURL . '/privacy',
+            'Help' => $baseURL . '/help',
+        ];
+
+        $emailConfig = config('Email');
+        $fromAddress = env('email.fromAddress') ?: ($emailConfig->fromEmail ?? 'no-reply@localhost');
+        $fromName    = env('email.fromName', $appName) ?: ($emailConfig->fromName ?? $appName);
+
+        $emailService->setTo($email);
+        $emailService->setFrom($fromAddress, $fromName);
+        $subject = 'Reset your password for ' . ($appName ?: 'Tuklas Nasugbu');
+        $emailService->setSubject($subject);
+
+        $viewData = compact('appName','resetUrl','supportEmail','primaryColor','accentColor','textColor','logoUrl','footerLinks');
+        $message = view('Emails/reset_password', $viewData);
+        $emailService->setMessage($message);
+        $emailService->setMailType('html');
+        if (method_exists($emailService, 'setAltMessage')) {
+            $emailService->setAltMessage('Click the link to reset your password: ' . $resetUrl);
+        }
+
+        $sent = $emailService->send();
+        if (!$sent) {
+            log_message('error', 'Password reset email failed: ' . $emailService->printDebugger(['headers','subject','body']));
+        }
+        return $sent;
     }
 }
 
