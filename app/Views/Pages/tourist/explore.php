@@ -33,7 +33,7 @@
             .total-row { font-size:.95rem; }
             /* Enhanced Explore Header */
             :root { --ocean-accent:#4ecbff; --ocean-accent-soft:#b5ecff; --ocean-text:#e6f8ff; }
-            .page-header {background:#002e55;color:var(--ocean-text);height:210px;min-height:210px;padding:1.6rem 2.4rem 1.8rem;border-radius:28px;position:relative;overflow:hidden;box-shadow:0 12px 34px -10px rgba(0,56,108,.55);display:flex;flex-direction:column;justify-content:center;}            
+            .page-header {background:#002e55;color:var(--ocean-text);height:210px;min-height:210px;padding:1.6rem 2.4rem 1.8rem;border-radius:28px;position:relative;overflow:visible;box-shadow:0 12px 34px -10px rgba(0,56,108,.55);display:flex;flex-direction:column;justify-content:center;}            
             .page-header h2 {font-weight:700;display:flex;align-items:center;gap:.85rem;margin:0 0 .55rem;color:#e2e8f0;font-size:.10rem;letter-spacing:.6px;line-height:1.1;position:relative;top:-6px;}
             .page-header h2 i {background:rgba(255,255,255,.12);padding:.8rem;border-radius:18px;font-size:2.2rem;animation:slow-spin 18s linear infinite;color:var(--ocean-text);position:relative;top:-4px;} 
             @keyframes slow-spin {from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
@@ -42,6 +42,8 @@
             .page-header:before {content:"";position:absolute;left:0;right:0;bottom:0;height:110px;pointer-events:none;display:block;background:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none"><path d="M0,80 C150,120 300,40 450,70 C600,100 750,50 900,80 C1050,110 1200,60 1200,60 L1200,120 L0,120 Z" fill="%2300487a"/></svg>') repeat-x;background-size:1200px 110px;opacity:.55;filter:drop-shadow(0 4px 8px rgba(0,0,0,.3));}
             .page-header:after {content:"";position:absolute;left:0;right:0;bottom:0;height:90px;pointer-events:none;display:block;background:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none"><path d="M0,60 C200,100 400,20 600,60 C800,100 1000,30 1200,70 L1200,120 L0,120 Z" fill="%23005fae"/></svg>') repeat-x;background-size:1200px 90px;opacity:.35;}
             .page-header-actions {position:absolute;top:1.1rem;right:1.3rem;display:flex;align-items:center;gap:1rem;z-index:5;}
+            /* Ensure dropdown overlays header without clipping */
+            .notification-dropdown { z-index: 2050; }
             .page-header-actions .user-avatar {background:linear-gradient(135deg,#004b8d,#001d33);color:#e2e8f0;font-weight:600;width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 12px -3px rgba(0,0,0,.5);transition:.25s;border:2px solid rgba(255,255,255,.18);}
             .page-header-actions .user-avatar:hover {transform:translateY(-2px);background:linear-gradient(135deg,#005fae,#002e55);}
             .page-header h2 i {background:rgba(255,255,255,.10);} /* subtle adjust */
@@ -211,7 +213,7 @@
                             <div style="position:relative;display:flex;align-items:center;gap:1rem;">
                         <button class="notification-btn" onclick="toggleNotificationDropdown()">
                             <i class="bi bi-bell-fill"></i>
-                            <span class="notification-badge" id="notifBadge">3</span>
+                            <span class="notification-badge" id="notifBadge" style="display:none">0</span>
                         </button>
                         <!-- Notification Dropdown -->
                         <div class="notification-dropdown" id="notificationDropdown">
@@ -219,28 +221,7 @@
                                 <h6>Notifications</h6>
                                 <button class="mark-all-read" onclick="markAllAsRead()">Mark all read</button>
                             </div>
-                            <ul class="notification-list">
-                                <li class="notification-item unread" onclick="openNotificationDetail(this)" style="cursor:pointer;">
-                                    <div class="notification-content">
-                                        <div class="notification-icon success"><i class="bi bi-check-circle-fill"></i></div>
-                                        <div class="notification-text">
-                                            <h6>New Spot Available</h6>
-                                            <p>Punta Fuego Beach is now open for bookings</p>
-                                            <div class="notification-time"><i class="bi bi-clock"></i> 30 minutes ago</div>
-                                        </div>
-                                    </div>
-                                </li>
-                                <li class="notification-item unread" onclick="openNotificationDetail(this)" style="cursor:pointer;">
-                                    <div class="notification-content">
-                                        <div class="notification-icon info"><i class="bi bi-star-fill"></i></div>
-                                        <div class="notification-text">
-                                            <h6>Special Offer</h6>
-                                            <p>Get 20% off Canyon Cove bookings this weekend</p>
-                                            <div class="notification-time"><i class="bi bi-clock"></i> 1 day ago</div>
-                                        </div>
-                                    </div>
-                                </li>
-                            </ul>
+                            <ul class="notification-list" id="notificationList"></ul>
                             <div class="notification-footer">
                                 <a href="#" onclick="viewAllNotifications(event)">View all notifications</a>
                             </div>
@@ -780,11 +761,13 @@
             if(modal) bootstrap.Modal.getOrCreateInstance(modal).show();
         }
 
-        function markAllAsRead() {
-            const items = document.querySelectorAll('.notification-item.unread');
-            items.forEach(item => item.classList.remove('unread'));
-            const badge = document.querySelector('.notification-badge');
-            if (badge) badge.textContent = '0';
+        if (typeof window.markAllAsRead === 'undefined') {
+            function markAllAsRead() {
+                const items = document.querySelectorAll('.notification-item.unread');
+                items.forEach(item => item.classList.remove('unread'));
+                const badge = document.querySelector('.notification-badge');
+                if (badge) { badge.textContent = '0'; badge.style.display = 'none'; }
+            }
         }
 
         function viewAllNotifications(event) {
@@ -1611,5 +1594,6 @@
       </div>
     </div>
 
+    <script src="<?= base_url('assets/js/tourist-ui.js') ?>"></script>
 </body>
 </html>

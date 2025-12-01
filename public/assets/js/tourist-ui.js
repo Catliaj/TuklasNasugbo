@@ -128,3 +128,115 @@
   setTimeout(applySwalTheme, 500);
   setTimeout(applySwalTheme, 1500);
 })(window, document);
+
+// Tourist Notifications: shared fetch/render logic across pages
+(function(window, document){
+  'use strict';
+
+  if (window._touristNotificationsLoaded) return;
+  window._touristNotificationsLoaded = true;
+
+  function apiUrl(path){
+    try { return new URL(path, window.location.origin).toString(); } catch { return path; }
+  }
+
+  function formatTime(ts){
+    if (!ts) return '';
+    try { return new Date(String(ts).replace(' ', 'T')).toLocaleString(); } catch { return ts; }
+  }
+
+  function escapeHtml(str){
+    return String(str || '').replace(/[&<>"']/g, function(s){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[s]);
+    });
+  }
+
+  async function refreshUnreadBadge(){
+    var badge = document.getElementById('notifBadge');
+    if (!badge) return; // page may not have notifications UI
+    try {
+      var res = await fetch(apiUrl('/tourist/notifications/unread-count'));
+      var data = await res.json();
+      var count = Number((data && data.count) || 0);
+      if (count > 0){
+        badge.textContent = String(count);
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+      }
+    } catch (e){
+      // silent fail to avoid breaking page
+      try { console.warn('Unread badge fetch failed', e); } catch(_){ }
+    }
+  }
+
+  async function loadNotifications(){
+    var listEl = document.getElementById('notificationList');
+    if (!listEl) return; // page may not have dropdown list
+    listEl.innerHTML = '<li class="notification-item"><div class="notification-content"><div class="notification-text"><p>Loading...</p></div></div></li>';
+    try {
+      var res = await fetch(apiUrl('/tourist/notifications/list'));
+      var data = await res.json();
+      var items = Array.isArray(data && data.notifications) ? data.notifications : [];
+      if (items.length === 0){
+        listEl.innerHTML = '<li class="notification-item"><div class="notification-content"><div class="notification-text"><p>No notifications yet.</p></div></div></li>';
+        return;
+      }
+      listEl.innerHTML = '';
+      items.forEach(function(n){
+        var li = document.createElement('li');
+        li.className = 'notification-item' + (Number(n.is_read) ? '' : ' unread');
+        li.innerHTML = ''+
+          '<div class="notification-content">'
+            + '<div class="notification-icon ' + (Number(n.is_read) ? 'info' : 'success') + '">'
+              + '<i class="bi ' + (Number(n.is_read) ? 'bi-info-circle-fill' : 'bi-check-circle-fill') + '"></i>'
+            + '</div>'
+            + '<div class="notification-text">'
+              + '<h6>' + escapeHtml(n.message || 'Notification') + '</h6>'
+              + (n.url ? ('<p><a href="' + encodeURI(n.url) + '">View details</a></p>') : '')
+              + '<div class="notification-time">' + formatTime(n.created_at) + '</div>'
+            + '</div>'
+          + '</div>';
+        li.addEventListener('click', function(){ markNotificationRead(n.id); });
+        listEl.appendChild(li);
+      });
+    } catch (e){
+      try { console.error('Notifications list fetch failed', e); } catch(_){ }
+      listEl.innerHTML = '<li class="notification-item"><div class="notification-content"><div class="notification-text"><p>Failed to load notifications.</p></div></div></li>';
+    }
+  }
+
+  async function markNotificationRead(id){
+    try {
+      await fetch(apiUrl('/tourist/notifications/mark-read/' + encodeURIComponent(id)), { method: 'POST' });
+      refreshUnreadBadge();
+      loadNotifications();
+    } catch (e){ try { console.warn('Mark read failed', e); } catch(_){ } }
+  }
+
+  async function markAllAsRead(){
+    try {
+      await fetch(apiUrl('/tourist/notifications/mark-all-read'), { method: 'POST' });
+      refreshUnreadBadge();
+      loadNotifications();
+    } catch (e){ try { console.warn('Mark all read failed', e); } catch(_){ } }
+  }
+
+  function boot(){
+    refreshUnreadBadge();
+    loadNotifications();
+  }
+
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+
+  // expose to global so existing pages can call
+  window.refreshUnreadBadge = refreshUnreadBadge;
+  window.loadNotifications = loadNotifications;
+  window.markNotificationRead = markNotificationRead;
+  window.markAllAsRead = markAllAsRead;
+
+})(window, document);

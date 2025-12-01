@@ -7,6 +7,7 @@ use CodeIgniter\HTTP\ResponseInterface;
 use App\Models\UsersModel;
 use App\Models\TouristSpotModel;
 use App\Models\BookingModel;
+use App\Models\NotificationModel;
 
 class TouristController extends BaseController
 {
@@ -101,6 +102,69 @@ public function viewSpot($spot_id)
         'gallery' => $gallery
     ]);
 }
+
+    // ====================
+    // Notifications (Tourist)
+    // ====================
+
+    public function getUnreadNotificationCount()
+    {
+        $session = session();
+        $userID = $session->get('UserID');
+        if (! $userID) {
+            return $this->response->setJSON(['count' => 0]);
+        }
+
+        $model = new NotificationModel();
+        $count = (int) $model->getUnreadCount($userID);
+        return $this->response->setJSON(['count' => $count]);
+    }
+
+    public function getNotifications()
+    {
+        $session = session();
+        $userID = $session->get('UserID');
+        if (! $userID) {
+            return $this->response->setJSON(['notifications' => []]);
+        }
+
+        $model = new NotificationModel();
+        // Return recent (read and unread) for better UX
+        $list = $model->getRecentNotifications($userID, 20);
+        return $this->response->setJSON(['notifications' => $list]);
+    }
+
+    public function markNotificationAsRead($id)
+    {
+        $session = session();
+        $userID = $session->get('UserID');
+        if (! $userID) {
+            return $this->response->setStatusCode(401)->setJSON(['error' => 'Unauthorized']);
+        }
+
+        $model = new NotificationModel();
+        // Ensure the notification belongs to the user
+        $row = $model->where('id', (int)$id)->where('user_id', $userID)->first();
+        if (! $row) {
+            return $this->response->setStatusCode(404)->setJSON(['error' => 'Not found']);
+        }
+
+        $ok = $model->markAsRead((int)$id);
+        return $this->response->setJSON(['success' => (bool)$ok]);
+    }
+
+    public function markAllNotificationsAsRead()
+    {
+        $session = session();
+        $userID = $session->get('UserID');
+        if (! $userID) {
+            return $this->response->setStatusCode(401)->setJSON(['error' => 'Unauthorized']);
+        }
+
+        $model = new NotificationModel();
+        $ok = $model->markAllAsRead($userID);
+        return $this->response->setJSON(['success' => (bool)$ok]);
+    }
 
 
 public function touristDashboard()
