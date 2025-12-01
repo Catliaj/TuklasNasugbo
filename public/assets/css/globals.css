@@ -1,3 +1,25 @@
+.ocean-time-group { width: 100%; }
+.ocean-time-group .form-control {
+  border: 2px solid rgba(0,75,141,.25);
+  border-right: 0;
+  border-top-left-radius: 12px;
+  border-bottom-left-radius: 12px;
+  height: 48px;
+  font-weight: 600;
+}
+.ocean-time-group .input-group-text {
+  background: linear-gradient(135deg,#004b8d,#002e55);
+  color: #fff;
+  border: 2px solid rgba(0,75,141,.25);
+  border-left: 0;
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+.ocean-time-group .form-control:focus {
+  box-shadow: 0 0 0 4px rgba(78,203,255,.25);
+  border-color: #4ecbff;
+}
+.ocean-time-group input[type="time"]::-webkit-calendar-picker-indicator { opacity: .85; filter: invert(1); }
 @custom-variant dark (&:is(.dark *));
 
 :root {
@@ -567,6 +589,165 @@ html {
   height: 46px;
   border-radius: 50%;
   background: linear-gradient(135deg, #004b8d, #001d33);
+
+/* =====================================================
+   SweetAlert2 Ocean Theme (matches header design)
+   Applied via JS mixin to add class `ocean-alert` on popup
+   ===================================================== */
+:root {
+  --ocean-bg: #002e55;
+  --ocean-bg-2: #001d33;
+  --ocean-text: #e6f8ff; /* used by header and alerts */
+  --ocean-accent: #4ecbff;
+  --ocean-accent-soft: #b5ecff;
+}
+
+.swal2-popup.ocean-alert {
+  background: #ffffff;
+  color: #0b2236;
+  border-radius: 18px;
+  border: 1px solid rgba(0, 75, 141, 0.25);
+  box-shadow: 0 18px 50px -12px rgba(0, 46, 85, 0.45);
+  padding: 0 1.25rem 1rem;
+}
+
+.swal2-popup.ocean-alert .swal2-title,
+.ocean-alert-title {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  background: linear-gradient(135deg,#004b8d,#002e55);
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: .3px;
+  margin: 0 -1.25rem 0 -1.25rem;
+  padding: .9rem 1.25rem;
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+  box-shadow: inset 0 -1px 0 rgba(255,255,255,0.08);
+}
+
+.swal2-popup.ocean-alert .swal2-html-container,
+.ocean-alert-text {
+  color: #e6edf5;
+}
+
+.swal2-popup.ocean-alert .swal2-actions,
+.ocean-alert-actions {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  justify-content: flex-end; /* keep buttons together neatly on the right */
+  gap: 12px;
+  padding: 0 1.5rem; /* keep away from popup/card border */
+  margin-top: 1rem;
+  flex-wrap: wrap;
+  box-sizing: border-box;
+}
+@media (max-width: 576px) {
+  .swal2-popup.ocean-alert .swal2-actions,
+  .ocean-alert-actions {
+    padding: 0 1rem;
+    justify-content: center; /* center on small screens */
+    gap: 10px;
+  }
+}
+
+/* Reset SweetAlert default styled button look inside our ocean popups */
+.swal2-popup.ocean-alert .swal2-actions .swal2-styled {
+  box-shadow: none !important;
+  border: none !important;
+}
+.swal2-popup.ocean-alert .swal2-actions .btn-add-day {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 110px; height: 42px;
+}
+.swal2-popup.ocean-alert .swal2-actions .ocean-btn-cancel {
+  min-width: 110px; height: 42px;
+}
+
+/* Stronger cancel button styling to avoid conflicts */
+.swal2-container .swal2-popup.ocean-alert .swal2-actions .swal2-cancel:not(.btn-add-day),
+.swal2-container .swal2-popup.ocean-alert .swal2-actions .ocean-btn-cancel {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: linear-gradient(135deg, #f3f4f6, #e5e7eb) !important; /* gray */
+  color: #1f2937 !important; /* slate-800 */
+  border: 1px solid #d1d5db !important; /* gray-300 */
+  border-radius: 14px !important; /* match Save button shape */
+  padding: .55rem 1.1rem !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 8px -4px rgba(0,46,85,.25) !important;
+  min-width: 110px !important;
+  height: 42px !important;
+}
+.swal2-container .swal2-popup.ocean-alert .swal2-actions .swal2-cancel:not(.btn-add-day):hover,
+.swal2-container .swal2-popup.ocean-alert .swal2-actions .ocean-btn-cancel:hover {
+  background: linear-gradient(135deg, #eef0f3, #e2e8f0) !important;
+}
+
+/* Buttons (match Add Day / ocean buttons) */
+.ocean-btn {
+  background: linear-gradient(135deg, #005fae, #003a6e);
+  color: #fff;
+  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: .55rem 1.1rem;
+  box-shadow: 0 6px 18px -6px rgba(0,46,85,.45);
+}
+.ocean-btn:hover { background: linear-gradient(135deg, #1a75c7, #004b8d); }
+.ocean-btn:active { transform: translateY(1px); }
+
+.ocean-btn-cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f3f4f6, #e5e7eb); /* gray */
+  color: #1f2937;
+  border: 1px solid #d1d5db;
+  border-radius: 14px; /* match Save */
+  padding: .55rem 1.1rem;
+  box-shadow: 0 2px 8px -4px rgba(0,46,85,.25);
+  min-width: 110px;
+  height: 42px;
+}
+.ocean-btn-cancel:hover { background: linear-gradient(135deg, #eef0f3, #e2e8f0); }
+
+/* Inputs */
+.swal2-popup.ocean-alert .swal2-input,
+.swal2-popup.ocean-alert .swal2-textarea,
+.swal2-popup.ocean-alert .swal2-select {
+  background: #ffffff;
+  color: #0b2236;
+  border: 2px solid rgba(0, 75, 141, 0.25);
+  border-radius: 12px;
+  height: 48px;
+}
+.swal2-popup.ocean-alert input[type="time"] {
+  width: 100%;
+  padding: .4rem .6rem;
+  font-weight: 600;
+}
+.swal2-popup.ocean-alert input[type="time"]::-webkit-calendar-picker-indicator { opacity: .7; filter: invert(22%) sepia(52%) saturate(1312%) hue-rotate(181deg) brightness(96%) contrast(95%); }
+.swal2-popup.ocean-alert input[type="time"]::-ms-clear { display: none; }
+.swal2-popup.ocean-alert .swal2-input-label { margin-bottom: .35rem; }
+.swal2-popup.ocean-alert .swal2-input::placeholder,
+.swal2-popup.ocean-alert .swal2-textarea::placeholder { color: #64748b; }
+.swal2-popup.ocean-alert .swal2-input:focus { outline: none; box-shadow: 0 0 0 4px rgba(78,203,255,.25); border-color: #4ecbff; }
+.swal2-popup.ocean-alert .swal2-input-label { color: #0d4d7d; font-weight: 600; text-align: center; }
+
+/* Icons */
+.swal2-popup.ocean-alert .swal2-icon { box-shadow: 0 6px 18px -10px rgba(0,46,85,.55); }
+.swal2-popup.ocean-alert .swal2-icon.swal2-success { border-color: #22c55e; color: #22c55e; }
+.swal2-popup.ocean-alert .swal2-icon.swal2-error { border-color: #ef4444; color: #ef4444; }
+.swal2-popup.ocean-alert .swal2-icon.swal2-info { border-color: var(--ocean-accent); color: var(--ocean-accent); }
+.swal2-popup.ocean-alert .swal2-icon.swal2-warning { border-color: #f59e0b; color: #f59e0b; }
+
+/* Backdrop tint slightly oceanic */
+.swal2-container.swal2-backdrop-show { background: rgba(0, 24, 44, 0.45) !important; }
+
   color: #e2e8f0;
   font-weight: 600;
   display: flex;
