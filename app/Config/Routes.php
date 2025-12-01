@@ -23,6 +23,9 @@ $routes->post('verify-email/resend', 'AuthController::resendVerificationEmail');
 $routes->get('verify-email/status', 'AuthController::verificationStatus');
 $routes->get('auth/google', 'AuthController::googleRedirect');
 $routes->get('auth/google/callback', 'AuthController::googleCallback');
+$routes->post('forgot-password/request', 'AuthController::requestPasswordReset');
+$routes->get('reset-password', 'AuthController::resetPassword');
+$routes->post('reset-password/submit', 'AuthController::submitNewPassword');
 
 //Admin routes
 $routes->group('admin', ['namespace' => 'App\Controllers', 'filter' => 'auth'], function($routes) {
