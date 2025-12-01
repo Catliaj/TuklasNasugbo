@@ -229,7 +229,7 @@
                       <label class="form-label">Password</label>
                       <div class="position-relative"><i class="bi bi-lock input-icon"></i><input type="password" name="InputPassword" class="form-control" style="padding-left: 2.5rem;" placeholder="Enter your password" required></div>
                     </div>
-                    <div class="mb-4"><a href="#" class="text-decoration-none" style="color: var(--ocean-light);">Forgot password?</a></div>
+                    <div class="mb-4"><a href="#" onclick="openForgotPassword();return false;" class="text-decoration-none" style="color: var(--ocean-light);">Forgot password?</a></div>
                     <button type="submit" class="btn btn-primary w-100">Sign In</button>
                   </form>
                 </div>
@@ -483,6 +483,49 @@
             } else if (loginTab) {
                 loginTab.click();
             }
+        }
+
+        // Forgot password flow (request email)
+        function openForgotPassword() {
+            // If auth modal is open, temporarily hide to avoid focus trap
+            const authEl = document.getElementById('authModal');
+            const authInst = authEl ? bootstrap.Modal.getInstance(authEl) || new bootstrap.Modal(authEl) : null;
+            if (authInst) authInst.hide();
+
+            Swal.fire({
+              title: 'Reset your password',
+              input: 'email',
+              inputLabel: 'Enter your account email',
+              inputPlaceholder: 'you@example.com',
+              confirmButtonText: 'Send reset link',
+              showCancelButton: true,
+              allowOutsideClick: false,
+              allowEscapeKey: true,
+              focusConfirm: false,
+              didOpen: () => {
+                const input = Swal.getInput();
+                if (input) input.focus();
+              },
+              preConfirm: (email) => {
+                if (!email) { Swal.showValidationMessage('Email is required'); return false; }
+                const fd = new FormData();
+                fd.append('email', email);
+                return fetch('<?= base_url('forgot-password/request') ?>', { method: 'POST', body: fd })
+                  .then(r => r.json())
+                  .catch(() => ({ status: 'error', message: 'Network error' }));
+              }
+            }).then((res) => {
+              // Reopen auth modal on close to keep user on login tab
+              setAuthTab('login');
+              if (authInst) authInst.show();
+              if (!res.isConfirmed) return;
+              const data = res.value || {};
+              if (data.status === 'ok' || data.status === 'success') {
+                  Swal.fire({ icon: 'success', title: 'Check your email', text: 'If an account exists, a reset link has been sent.' });
+              } else {
+                  Swal.fire({ icon: 'error', title: 'Unable to process', text: data.message || 'Please try again later.' });
+              }
+            });
         }
 
         // Toggle signup fields by role
@@ -851,6 +894,61 @@ function handleSignup(event) {
   document.addEventListener('DOMContentLoaded', loadTopSpots);
   window.reloadTopAttractions = loadTopSpots;
 })();
+  </script>
+
+  <script>
+  // Detect reset token in URL and prompt for new password (stay on Login tab)
+  document.addEventListener('DOMContentLoaded', () => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('reset_token');
+    if (token) {
+      setAuthTab('login');
+      const authModal = new bootstrap.Modal(document.getElementById('authModal'));
+      authModal.show();
+
+      // Prompt for new password
+      Swal.fire({
+        title: 'Set a new password',
+        html: `
+          <input id="swal-new-pass" class="swal2-input" type="password" placeholder="New password">
+          <input id="swal-new-pass2" class="swal2-input" type="password" placeholder="Re-enter password">
+        `,
+        focusConfirm: false,
+        preConfirm: () => {
+          const p1 = (document.getElementById('swal-new-pass') || {}).value || '';
+          const p2 = (document.getElementById('swal-new-pass2') || {}).value || '';
+          if (!p1 || !p2) { Swal.showValidationMessage('Please fill in both fields'); return false; }
+          if (p1 !== p2) { Swal.showValidationMessage('Passwords do not match'); return false; }
+          const fd = new FormData();
+          fd.append('token', token);
+          fd.append('password', p1);
+          fd.append('confirmPassword', p2);
+          return fetch('<?= base_url('reset-password/submit') ?>', { method: 'POST', body: fd })
+            .then(r => r.json())
+            .catch(() => ({ status: 'error', message: 'Network error' }));
+        },
+        confirmButtonText: 'Save password',
+        showCancelButton: true
+      }).then((res) => {
+        // Clean URL query params regardless of result
+        const url = new URL(window.location.href);
+        url.searchParams.delete('reset_token');
+        url.searchParams.delete('email');
+        url.searchParams.set('auth_tab','login');
+        window.history.replaceState({}, '', url.toString());
+
+        if (!res.isConfirmed) return;
+        const data = res.value || {};
+        if (data.status === 'ok' || data.status === 'success') {
+          Swal.fire({ icon: 'success', title: 'Password updated', text: 'You can now log in.' });
+        } else {
+          Swal.fire({ icon: 'error', title: 'Unable to reset', text: data.message || 'Please try again.' });
+        }
+      });
+    } else if (params.get('auth_tab') === 'login') {
+      setAuthTab('login');
+    }
+  });
   </script>
 
 
