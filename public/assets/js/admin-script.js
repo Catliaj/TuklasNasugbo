@@ -477,8 +477,9 @@
     const canvasId = 'userPreferenceChart';
     destroyChartIfExists(canvasId);
 
-    const labels = data.map(d => d.category || d.preference || 'Other');
-    const values = data.map(d => Number(d.total || d.count || d.preference_count || 0));
+    // Support multiple shapes: controller now sends { label, count }
+    const labels = data.map(d => d.label || d.category || d.preference || 'Other');
+    const values = data.map(d => Number(d.count || d.total || d.preference_count || 0));
 
     const ctx = el(canvasId).getContext('2d');
     chartInstances[canvasId] = new Chart(ctx, {

@@ -54,7 +54,8 @@ class TouristSpotModel extends Model
     //getTotal Tourist Spots
     public function getTotalTouristSpots()
     {
-        return $this->countAllResults();
+        // Align with public listing: count only approved spots
+        return $this->where('status', 'approved')->countAllResults();
     }
 
     //get total categories
@@ -206,16 +207,32 @@ class TouristSpotModel extends Model
 
         public function getTopRecommendedHiddenSpots($limit = 5)
     {
-        // Logic: Get spots with the Highest Average Rating
-        // This replaces the RAND() placeholder.
-        return $this->select('tourist_spots.spot_name, tourist_spots.location')
-                    ->selectAvg('review_feedback.rating', 'recommendation_count') // Alias as recommendation_count for frontend compatibility
-                    ->join('review_feedback', 'review_feedback.spot_id = tourist_spots.spot_id', 'left')
-                    ->where('tourist_spots.status', 'approved')
-                    ->groupBy('tourist_spots.spot_id')
-                    ->orderBy('recommendation_count', 'DESC')
-                    ->limit($limit)
-                    ->find();
+        // Highest average ratings among approved spots, with counts
+        // Keep alias 'recommendation_count' for compatibility with the view
+        $builder = $this->db->table($this->table . ' ts');
+        $builder->select('ts.spot_id, ts.spot_name, ts.location');
+        $builder->selectAvg('rf.rating', 'recommendation_count');
+        $builder->selectCount('rf.review_id', 'rating_count');
+        // Join reviews (allowing spots to appear only when they truly have ratings via HAVING)
+        $builder->join('review_feedback rf', 'rf.spot_id = ts.spot_id AND rf.rating IS NOT NULL', 'left');
+        // Match tourist listing exactly: only lowercase 'approved'
+        $builder->where('ts.status', 'approved');
+        $builder->groupBy('ts.spot_id, ts.spot_name, ts.location');
+        // Only include spots with at least one rating
+        $builder->having('rating_count >', 0);
+        $builder->orderBy('recommendation_count', 'DESC');
+        $builder->orderBy('rating_count', 'DESC');
+        $builder->limit((int)$limit);
+        $rows = $builder->get()->getResultArray();
+        // Normalize null averages to 0.0 to avoid null rendering
+        foreach ($rows as &$r) {
+            if (!isset($r['recommendation_count']) || $r['recommendation_count'] === null) {
+                $r['recommendation_count'] = 0.0;
+            } else {
+                $r['recommendation_count'] = (float)$r['recommendation_count'];
+            }
+        }
+        return $rows;
     }
 
     public function getTopSpotsByViews(int $limit = 6): array

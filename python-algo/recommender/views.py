@@ -8,6 +8,10 @@ import google.generativeai as genai
 from django.db.models import Q
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import hashlib
+import math
+import re
+from collections import Counter, defaultdict
+from datetime import time, timedelta
 
 # -----------------------------
 # AI setup
@@ -15,6 +19,85 @@ import hashlib
 api_key = "AIzaSyCPgoCu1dHDsgrFEfrnvavV8V-BHpzxbTY"
 genai.configure(api_key=api_key)
 ai_model = genai.GenerativeModel("gemini-2.5-flash")
+
+
+# -----------------------------
+# Naive Bayes helpers (text -> category)
+# -----------------------------
+def _nb_tokenize(text: str):
+    if not text:
+        return []
+    return [t for t in re.split(r"[^a-z0-9]+", text.lower()) if t]
+
+
+class _NaiveBayes:
+    def __init__(self):
+        self.class_counts = Counter()
+        self.token_counts = defaultdict(Counter)
+        self.total_tokens = Counter()
+        self.vocab = set()
+        self.trained = False
+
+    def fit(self, samples):
+        # samples: iterable of (text, label)
+        for text, label in samples:
+            if not label:
+                continue
+            toks = _nb_tokenize(text)
+            self.class_counts[label] += 1
+            for tk in toks:
+                self.token_counts[label][tk] += 1
+                self.total_tokens[label] += 1
+                self.vocab.add(tk)
+        self.trained = True
+
+    def predict_proba(self, text):
+        if not self.trained:
+            return {}
+        toks = _nb_tokenize(text)
+        if not toks:
+            return {c: 1.0 / max(1, len(self.class_counts)) for c in self.class_counts}
+        V = max(1, len(self.vocab))
+        total_docs = sum(self.class_counts.values()) or 1
+        logps = {}
+        for c in self.class_counts:
+            logp = math.log(self.class_counts[c] / total_docs)
+            denom = self.total_tokens[c] + V
+            for tk in toks:
+                num = self.token_counts[c][tk] + 1
+                logp += math.log(num / denom)
+            logps[c] = logp
+        m = max(logps.values()) if logps else 0.0
+        exps = {c: math.exp(lp - m) for c, lp in logps.items()}
+        Z = sum(exps.values()) or 1.0
+        return {c: v / Z for c, v in exps.items()}
+
+
+def _get_nb_model():
+    # Cache the trained model object for a short time to avoid repeated training
+    cache_key_model = "nb_model_obj"
+    cache_key_time = "nb_model_time"
+    model = cache.get(cache_key_model)
+    ts = cache.get(cache_key_time)
+    now = timezone.now()
+    # Refresh every 10 minutes
+    if model is not None and ts and (now - ts).total_seconds() < 600:
+        return model
+
+    samples = []
+    for s in TouristSpots.objects.only('spot_name', 'location', 'category'):
+        label = (s.category or '').strip()
+        if not label:
+            continue
+        text = f"{s.spot_name or ''} {s.location or ''} {s.category or ''}"
+        samples.append((text, label))
+
+    nb = _NaiveBayes()
+    if samples:
+        nb.fit(samples)
+    cache.set(cache_key_model, nb, 600)
+    cache.set(cache_key_time, now, 600)
+    return nb
 
 
 def generate_ai_description_cached(spot_name, category, lat, lng):
@@ -87,7 +170,7 @@ def recommend_itinerary(request):
     except (KeyError, ValueError):
         return JsonResponse({'error': 'Missing or invalid required parameters'}, status=400)
 
-    # Get optional date parameters
+    # Get  date parameters
     start_date = request.GET.get('start_date') or None
     end_date = request.GET.get('end_date') or None
 
@@ -121,6 +204,22 @@ def recommend_itinerary(request):
     prefs = request.GET.get('preference', '')
     pref_list = [p.strip().lower() for p in prefs.split(',') if p.strip()]
 
+    # Use Naive Bayes to infer likely categories from free-text preference
+    nb_text = request.GET.get('pref_text') or prefs
+    nb_top = []
+    try:
+        nb = _get_nb_model()
+        probs = nb.predict_proba(nb_text)
+        nb_top = sorted(probs.items(), key=lambda kv: kv[1], reverse=True)[:3]
+    except Exception:
+        nb_top = []
+    nb_weights = {}
+    if nb_top:
+        # Heavier weight to top-1, then degrade
+        for idx, (lbl, p) in enumerate(nb_top):
+            w = 2.0 if idx == 0 else (1.0 if idx == 1 else 0.5)
+            nb_weights[lbl.lower()] = w
+
     # Optimize DB query - only select needed fields
     spots_qs = TouristSpots.objects.only(
         'spot_id', 'spot_name', 'category', 'price_per_person',
@@ -142,13 +241,40 @@ def recommend_itinerary(request):
     total_people = max(adults + children + seniors, 1)
 
     # -----------------------------
+    #  reproducible seed
+    # -----------------------------
+    seed_param = request.GET.get('seed')
+    used_seed = None
+    if seed_param is not None and seed_param != '':
+        try:
+            used_seed = int(seed_param)
+        except ValueError:
+            # Hash non-integer seed strings for stable int seed
+            used_seed = int(hashlib.md5(seed_param.encode()).hexdigest(), 16) % (2**32)
+        random.seed(used_seed)
+
+    # -----------------------------
     # Score spots (Optimized)
     # -----------------------------
+    #  jitter to force variability even when scores identical
+    try:
+        jitter = float(request.GET.get('jitter', '0'))
+        if jitter < 0:
+            jitter = 0.0
+    except ValueError:
+        jitter = 0.0
+
+    random_mode = request.GET.get('random_mode') in ('1', 'true', 'yes')
     scored = []
     for s in all_spots:
         score = 0
         if s.category and s.category.lower() in pref_list:
             score += 2
+
+        # NB boost if category is predicted from text
+        cat_key = (s.category or '').lower()
+        if cat_key in nb_weights:
+            score += nb_weights[cat_key]
 
         price_per_person = float(s.price_per_person or 0)
         child_price = float(s.child_price or 0)
@@ -157,6 +283,20 @@ def recommend_itinerary(request):
 
         if total_cost <= budget:
             score += 1
+
+        # Jitter / random_mode support (fast version)
+        try:
+            jitter = float(request.GET.get('jitter', '0'))
+            if jitter < 0:
+                jitter = 0.0
+        except ValueError:
+            jitter = 0.0
+        random_mode = request.GET.get('random_mode') in ('1', 'true', 'yes')
+        if jitter > 0 and not random_mode:
+            score += random.uniform(0, jitter)
+
+        if jitter > 0 and not random_mode:
+            score += random.uniform(0, jitter)
 
         scored.append({
             'score': score,
@@ -167,8 +307,12 @@ def recommend_itinerary(request):
             'senior_price': senior_price,
         })
 
-    # Sort by score descending
-    scored.sort(key=lambda x: (x['score'], random.random()), reverse=True)
+    # Sort by score descending then apply a deterministic shuffle if seed set
+    if not random_mode:
+        scored.sort(key=lambda x: (x['score'], random.random()), reverse=True)
+    else:
+        # In random mode, ignore scores and just shuffle the pool once
+        random.shuffle(scored)
 
     # -----------------------------
     # Build itinerary WITHOUT AI first
@@ -176,6 +320,32 @@ def recommend_itinerary(request):
     itinerary = []
     remaining_budget = budget
     spots_to_describe = []  # Collect spots that need AI descriptions
+    # Per-day constraints
+    try:
+        per_day_limit = max(1, int(request.GET.get('max_per_day', '4')))
+    except ValueError:
+        per_day_limit = 4
+    # Default time slots for a day (assign in order)
+    time_slots = [
+        '09:00', '11:00', '14:00', '16:00'
+    ]
+
+    # Helper to compute start/end times across 07:00-18:00
+    def _slot_times(index, total):
+        start_minutes = 7 * 60
+        end_minutes = 18 * 60
+        total_minutes = end_minutes - start_minutes  # 11 hours = 660
+        if total <= 0:
+            total = 1
+        segment = total_minutes / total
+        s_min = int(start_minutes + index * segment)
+        e_min = int(start_minutes + (index + 1) * segment)
+        # Format HH:MM
+        def fmt(m):
+            h = m // 60
+            mm = m % 60
+            return f"{h:02d}:{mm:02d}"
+        return fmt(s_min), fmt(min(e_min, end_minutes))
 
     # Track which spot_ids have already been added across all days
     selected_spot_ids = set()
@@ -189,10 +359,14 @@ def recommend_itinerary(request):
         day_spots = []
         day_budget = remaining_budget / (days - day_num + 1)
 
-        # Shuffle for variety
-        random.shuffle(scored)
-
-        for item in scored:
+        # Build a randomized order of remaining candidates each day
+        if random_mode:
+            candidate_pool = [it for it in scored if it['spot'].spot_id not in selected_spot_ids]
+            random.shuffle(candidate_pool)
+        else:
+            candidate_pool = [it for it in scored if it['spot'].spot_id not in selected_spot_ids]
+            random.shuffle(candidate_pool)
+        for idx_for_day, item in enumerate(candidate_pool):
             spot = item['spot']
             total_cost = item['total_cost']
 
@@ -203,6 +377,10 @@ def recommend_itinerary(request):
             if total_cost > day_budget:
                 continue
 
+            # Assign time slot across 07:00-18:00 window
+            current_idx = len(day_spots)
+            # Use planned per_day_limit as divider; if fewer spots, spacing still fine
+            st, et = _slot_times(current_idx, max(1, per_day_limit))
             spot_data = {
                 'spot_id': spot.spot_id,
                 'name': spot.spot_name,
@@ -215,6 +393,8 @@ def recommend_itinerary(request):
                 'lat': float(spot.latitude or 0),
                 'lng': float(spot.longitude or 0),
                 'location': spot.location,
+                'start_time': st,
+                'end_time': et,
             }
 
             day_spots.append(spot_data)
@@ -224,25 +404,80 @@ def recommend_itinerary(request):
             day_budget -= total_cost
             remaining_budget -= total_cost
 
+            # Stop if per-day limit reached
+            if len(day_spots) >= per_day_limit:
+                break
+
             # If we've used all unique spots available, stop
             if len(selected_spot_ids) >= total_unique_spots:
                 all_spots_added = True
                 break
 
+        # Fallback: ensure at least one spot per day
         if not day_spots:
-            day_spots.append({
-                'spot_id': None,
-                'name': 'No spots available',
-                'category': '',
-                'description': 'Budget constraints prevented adding spots for this day.',
-                'price_per_person': 0,
-                'child_price': 0,
-                'senior_price': 0,
-                'total_cost_for_day': 0,
-                'lat': 0,
-                'lng': 0,
-                'location': '',
-            })
+            remaining_candidates = [it for it in scored if it['spot'].spot_id not in selected_spot_ids]
+            # Prefer free spots within remaining budget
+            free_pool = [it for it in remaining_candidates if it['total_cost'] == 0]
+            if free_pool:
+                random.shuffle(free_pool)
+                take = min(per_day_limit, len(free_pool))
+                for _ in range(take):
+                    it = free_pool.pop(0)
+                    s = it['spot']
+                    st, et = _slot_times(len(day_spots), max(1, per_day_limit))
+                    day_spots.append({
+                        'spot_id': s.spot_id,
+                        'name': s.spot_name,
+                        'category': s.category,
+                        'description': '',
+                        'price_per_person': it['price_per_person'],
+                        'child_price': it['child_price'],
+                        'senior_price': it['senior_price'],
+                        'total_cost_for_day': it['total_cost'],
+                        'lat': float(s.latitude or 0),
+                        'lng': float(s.longitude or 0),
+                        'location': s.location,
+                        'start_time': st,
+                        'end_time': et,
+                    })
+                    selected_spot_ids.add(s.spot_id)
+            elif remaining_candidates:
+                # Pick the cheapest remaining, even if exceeding day_budget
+                cheapest = min(remaining_candidates, key=lambda it: it['total_cost'])
+                s = cheapest['spot']
+                st, et = _slot_times(len(day_spots), max(1, per_day_limit))
+                day_spots.append({
+                    'spot_id': s.spot_id,
+                    'name': s.spot_name,
+                    'category': s.category,
+                    'description': '',
+                    'price_per_person': cheapest['price_per_person'],
+                    'child_price': cheapest['child_price'],
+                    'senior_price': cheapest['senior_price'],
+                    'total_cost_for_day': cheapest['total_cost'],
+                    'lat': float(s.latitude or 0),
+                    'lng': float(s.longitude or 0),
+                    'location': s.location,
+                    'start_time': st,
+                    'end_time': et,
+                })
+                selected_spot_ids.add(s.spot_id)
+                remaining_budget -= cheapest['total_cost']
+            else:
+                # As a last resort (no candidates), keep placeholder
+                day_spots.append({
+                    'spot_id': None,
+                    'name': 'No spots available',
+                    'category': '',
+                    'description': 'No eligible spots found for this day.',
+                    'price_per_person': 0,
+                    'child_price': 0,
+                    'senior_price': 0,
+                    'total_cost_for_day': 0,
+                    'lat': 0,
+                    'lng': 0,
+                    'location': '',
+                })
 
         itinerary.append({'day': day_num, 'spots': day_spots})
 
@@ -261,7 +496,17 @@ def recommend_itinerary(request):
     # -----------------------------
     # Build response
     # -----------------------------
-    response = {'itinerary': itinerary, 'remaining_budget': remaining_budget}
+    response = {
+        'itinerary': itinerary,
+        'remaining_budget': remaining_budget,
+        'randomization': {
+            'mode': 'random' if random_mode else 'scored',
+            'jitter': jitter,
+            'seed': used_seed,
+        }
+    }
+    if used_seed is not None:
+        response['seed'] = used_seed
 
     if len(itinerary) < days:
         response['warning'] = "Only some days could be generated due to budget constraints."
@@ -362,6 +607,15 @@ def recommend_itinerary_fast(request):
     if not all_spots:
         return JsonResponse({'error': 'No spots found matching preferences'}, status=404)
 
+    #  jitter/random_mode
+    try:
+        jitter = float(request.GET.get('jitter', '0'))
+        if jitter < 0:
+            jitter = 0.0
+    except ValueError:
+        jitter = 0.0
+    random_mode = request.GET.get('random_mode') in ('1', 'true', 'yes')
+
     scored = []
     for s in all_spots:
         score = 0
@@ -385,23 +639,56 @@ def recommend_itinerary_fast(request):
             'senior_price': senior_price,
         })
 
-    scored.sort(key=lambda x: (x['score'], random.random()), reverse=True)
+    #  seed for reproducibility
+    seed_param = request.GET.get('seed')
+    used_seed = None
+    if seed_param is not None and seed_param != '':
+        try:
+            used_seed = int(seed_param)
+        except ValueError:
+            used_seed = int(hashlib.md5(seed_param.encode()).hexdigest(), 16) % (2**32)
+        random.seed(used_seed)
+
+    if not random_mode:
+        scored.sort(key=lambda x: (x['score'], random.random()), reverse=True)
+    else:
+        random.shuffle(scored)
 
     itinerary = []
     remaining_budget = budget
+    selected_spot_ids = set()
+    # Per-day constraints and slots (same as main recommender)
+    try:
+        per_day_limit = max(1, int(request.GET.get('max_per_day', '4')))
+    except ValueError:
+        per_day_limit = 4
+    time_slots = ['09:00', '11:00', '14:00', '16:00']
+
+    # Helper to compute start/end times across 07:00-18:00
+    def _slot_times(index, total):
+        start_minutes = 7 * 60
+        end_minutes = 18 * 60
+        total_minutes = end_minutes - start_minutes
+        if total <= 0:
+            total = 1
+        segment = total_minutes / total
+        s_min = int(start_minutes + index * segment)
+        e_min = int(start_minutes + (index + 1) * segment)
+        def fmt(m):
+            h = m // 60
+            mm = m % 60
+            return f"{h:02d}:{mm:02d}"
+        return fmt(s_min), fmt(min(e_min, end_minutes))
 
     for day_num in range(1, days + 1):
         day_spots = []
         day_budget = remaining_budget / (days - day_num + 1)
 
-        random.shuffle(scored)
-
-        for item in scored:
+        candidate_pool = [it for it in scored if it['spot'].spot_id not in selected_spot_ids]
+        random.shuffle(candidate_pool)
+        for item in candidate_pool:
             spot = item['spot']
             total_cost = item['total_cost']
-
-            if spot.spot_id in [s['spot_id'] for s in day_spots]:
-                continue
 
             if total_cost > day_budget:
                 continue
@@ -409,6 +696,8 @@ def recommend_itinerary_fast(request):
             # Use generic description instead of AI
             description = f"Visit {spot.spot_name}, a wonderful {spot.category} destination in {spot.location}. Perfect for creating memorable experiences! 🌟"
 
+            # Assign time slot across 07:00-18:00
+            st, et = _slot_times(len(day_spots), max(1, per_day_limit))
             day_spots.append({
                 'spot_id': spot.spot_id,
                 'name': spot.spot_name,
@@ -421,27 +710,91 @@ def recommend_itinerary_fast(request):
                 'lat': float(spot.latitude or 0),
                 'lng': float(spot.longitude or 0),
                 'location': spot.location,
+                'start_time': st,
+                'end_time': et,
             })
+            selected_spot_ids.add(spot.spot_id)
 
             day_budget -= total_cost
             remaining_budget -= total_cost
 
+            if len(day_spots) >= per_day_limit:
+                break
+
+        # Fallback: ensure at least one spot per day
         if not day_spots:
-            day_spots.append({
-                'spot_id': None,
-                'name': 'No spots available',
-                'category': '',
-                'description': 'Budget constraints prevented adding spots for this day.',
-                'price_per_person': 0,
-                'child_price': 0,
-                'senior_price': 0,
-                'total_cost_for_day': 0,
-                'lat': 0,
-                'lng': 0,
-                'location': '',
-            })
+            remaining_candidates = [it for it in scored if it['spot'].spot_id not in selected_spot_ids]
+            free_pool = [it for it in remaining_candidates if it['total_cost'] == 0]
+            if free_pool:
+                random.shuffle(free_pool)
+                take = min(per_day_limit, len(free_pool))
+                for _ in range(take):
+                    it = free_pool.pop(0)
+                    s = it['spot']
+                    st, et = _slot_times(len(day_spots), max(1, per_day_limit))
+                    day_spots.append({
+                        'spot_id': s.spot_id,
+                        'name': s.spot_name,
+                        'category': s.category,
+                        'description': f"Visit {s.spot_name}, a wonderful {s.category} destination in {s.location}. Perfect for creating memorable experiences! 🌟",
+                        'price_per_person': it['price_per_person'],
+                        'child_price': it['child_price'],
+                        'senior_price': it['senior_price'],
+                        'total_cost_for_day': it['total_cost'],
+                        'lat': float(s.latitude or 0),
+                        'lng': float(s.longitude or 0),
+                        'location': s.location,
+                        'start_time': st,
+                        'end_time': et,
+                    })
+                    selected_spot_ids.add(s.spot_id)
+            elif remaining_candidates:
+                cheapest = min(remaining_candidates, key=lambda it: it['total_cost'])
+                s = cheapest['spot']
+                st, et = _slot_times(len(day_spots), max(1, per_day_limit))
+                day_spots.append({
+                    'spot_id': s.spot_id,
+                    'name': s.spot_name,
+                    'category': s.category,
+                    'description': f"Visit {s.spot_name}, a wonderful {s.category} destination in {s.location}. Perfect for creating memorable experiences! 🌟",
+                    'price_per_person': cheapest['price_per_person'],
+                    'child_price': cheapest['child_price'],
+                    'senior_price': cheapest['senior_price'],
+                    'total_cost_for_day': cheapest['total_cost'],
+                    'lat': float(s.latitude or 0),
+                    'lng': float(s.longitude or 0),
+                    'location': s.location,
+                    'start_time': st,
+                    'end_time': et,
+                })
+                selected_spot_ids.add(s.spot_id)
+                remaining_budget -= cheapest['total_cost']
+            else:
+                day_spots.append({
+                    'spot_id': None,
+                    'name': 'No spots available',
+                    'category': '',
+                    'description': 'No eligible spots found for this day.',
+                    'price_per_person': 0,
+                    'child_price': 0,
+                    'senior_price': 0,
+                    'total_cost_for_day': 0,
+                    'lat': 0,
+                    'lng': 0,
+                    'location': '',
+                })
 
         itinerary.append({'day': day_num, 'spots': day_spots})
 
-    response = {'itinerary': itinerary, 'remaining_budget': remaining_budget}
+    response = {
+        'itinerary': itinerary,
+        'remaining_budget': remaining_budget,
+        'randomization': {
+            'mode': 'random' if random_mode else 'scored',
+            'jitter': jitter,
+            'seed': used_seed,
+        }
+    }
+    if used_seed is not None:
+        response['seed'] = used_seed
     return JsonResponse(response)

@@ -93,3 +93,38 @@
   }
 
 })(window, document);
+
+// Apply a global SweetAlert2 theme to match the Ocean header design
+(function(window, document){
+  'use strict';
+  function applySwalTheme(){
+    if (!window.Swal || window._oceanSwalApplied) return;
+    try {
+      var themed = window.Swal.mixin({
+        customClass: {
+          popup: 'ocean-alert',
+          title: 'ocean-alert-title',
+          htmlContainer: 'ocean-alert-text',
+          actions: 'ocean-alert-actions',
+          confirmButton: 'ocean-btn',
+          cancelButton: 'ocean-btn-cancel',
+          icon: 'ocean-alert-icon'
+        },
+        buttonsStyling: false,
+        backdrop: true
+      });
+      window.Swal = themed;
+      window._oceanSwalApplied = true;
+    } catch (e) {
+      try { console.warn('Failed to apply SweetAlert theme', e); } catch(_){}
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applySwalTheme);
+  } else {
+    applySwalTheme();
+  }
+  // Retry in case SweetAlert loads after this file
+  setTimeout(applySwalTheme, 500);
+  setTimeout(applySwalTheme, 1500);
+})(window, document);

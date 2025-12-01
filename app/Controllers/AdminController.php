@@ -51,22 +51,54 @@ class AdminController extends BaseController
         $data['totalFeedbackCount']     = $feedbackModel->countAll();
 
         // 2. CHARTS DATA (Safely Encoded for JS)
-        // We use the ?: [] operator to ensure we don't encode nulls
+        // Normalize shapes for the frontend charts
         $peakRaw = $bookingModel->getPeakVisitTimes();
-        $data['peakVisitTimes'] = json_encode($peakRaw ?: []);
+        $peakNorm = array_map(function($row){
+            return [
+                'label' => $row['day'] ?? ($row['label'] ?? ''),
+                'value' => (int)($row['total_visits'] ?? ($row['total'] ?? 0))
+            ];
+        }, $peakRaw ?: []);
+        $data['peakVisitTimes'] = json_encode($peakNorm, JSON_NUMERIC_CHECK);
 
         $prefRaw = $userPrefModel->getUserPreferenceDistribution();
-        $data['userPreferences'] = json_encode($prefRaw ?: []);
+        $prefNorm = array_map(function($row){
+            return [
+                'label' => $row['category'] ?? ($row['label'] ?? ''),
+                'count' => (int)($row['total'] ?? ($row['count'] ?? 0))
+            ];
+        }, $prefRaw ?: []);
+        $data['userPreferences'] = json_encode($prefNorm, JSON_NUMERIC_CHECK);
 
-        // 3. MONTHLY TREND (Manual Construction)
+        // 3. MONTHLY TREND (Manual Construction) with revenue
         $getTotalBookingsByMonth = method_exists($bookingModel, 'getMonthlyBookingsTrend') ? $bookingModel->getMonthlyBookingsTrend() : [];
+        // Monthly revenue (confirmed/finalized bookings only)
+        $db = \Config\Database::connect();
+        $statuses = [
+            'Confirmed','Completed','Checked-in','Checked-out','Checked-In','Checked-Out'
+        ];
+        $placeholders = implode(',', array_fill(0, count($statuses), '?'));
+        $revQuery = $db->query(
+            "SELECT MONTH(booking_date) as month, COALESCE(SUM(total_price),0) as total_revenue
+             FROM bookings
+             WHERE YEAR(booking_date) = YEAR(CURDATE())
+               AND booking_status IN ($placeholders)
+             GROUP BY MONTH(booking_date)
+             ORDER BY MONTH(booking_date)",
+            $statuses
+        )->getResultArray();
+        $revenueByMonth = [];
+        foreach (($revQuery ?: []) as $row) {
+            $revenueByMonth[(int)$row['month']] = (float)$row['total_revenue'];
+        }
         
         // Initialize array for 12 months
         $BookingData = [];
         for ($m = 1; $m <= 12; $m++) {
             $BookingData[$m] = [
                 'month' => date('F', mktime(0, 0, 0, $m, 1)),
-                'total_bookings' => 0
+                'total_bookings' => 0,
+                'total_revenue'  => 0.0
             ];
         }
         
@@ -79,6 +111,10 @@ class AdminController extends BaseController
                 }
             }
         }
+        // Inject revenue
+        foreach ($BookingData as $m => &$row) {
+            $row['total_revenue'] = isset($revenueByMonth[$m]) ? (float)$revenueByMonth[$m] : 0.0;
+        }
         
         // Slice to current month so the line chart doesn't flatline for future months
         $currentMonth = (int)date('n');
@@ -86,9 +122,48 @@ class AdminController extends BaseController
         
         $data['monthlyBookingsTrend'] = json_encode(array_values($BookingData), JSON_NUMERIC_CHECK);
 
-        // 4. LISTS DATA
+        // 4. CONVERSION (Confirmed / All bookings) current vs previous month
+        $currentYm = date('Y-m');
+        $prevYm = date('Y-m', strtotime('-1 month'));
+        $allCurrent = $db->query(
+            "SELECT COUNT(*) as c FROM bookings WHERE DATE_FORMAT(booking_date,'%Y-%m') = ?",
+            [$currentYm]
+        )->getRowArray();
+        $confCurrent = $db->query(
+            "SELECT COUNT(*) as c FROM bookings WHERE DATE_FORMAT(booking_date,'%Y-%m') = ? AND booking_status IN ($placeholders)",
+            array_merge([$currentYm], $statuses)
+        )->getRowArray();
+        $allPrev = $db->query(
+            "SELECT COUNT(*) as c FROM bookings WHERE DATE_FORMAT(booking_date,'%Y-%m') = ?",
+            [$prevYm]
+        )->getRowArray();
+        $confPrev = $db->query(
+            "SELECT COUNT(*) as c FROM bookings WHERE DATE_FORMAT(booking_date,'%Y-%m') = ? AND booking_status IN ($placeholders)",
+            array_merge([$prevYm], $statuses)
+        )->getRowArray();
+
+        $convCurrent = ((int)($allCurrent['c'] ?? 0)) > 0
+            ? round(((int)($confCurrent['c'] ?? 0)) / max(1, (int)$allCurrent['c']) * 100, 1)
+            : 0.0;
+        $convPrev = ((int)($allPrev['c'] ?? 0)) > 0
+            ? round(((int)($confPrev['c'] ?? 0)) / max(1, (int)$allPrev['c']) * 100, 1)
+            : 0.0;
+        $convTrend = round($convCurrent - $convPrev, 1);
+
+        $data['metrics'] = json_encode([
+            'conversionRate' => $convCurrent,
+            'conversionTrend' => $convTrend
+        ], JSON_NUMERIC_CHECK);
+
+        // 5. LISTS DATA
         $data['topHiddenSpots'] = $touristSpotModel->getTopRecommendedHiddenSpots(5);
         $data['topViewedBusinesses'] = $businessModel->getTopViewedBusinesses(5);
+        // Performance metrics: Top 3 spots by revenue (last 30 days)
+        $perfStart = date('Y-m-d', strtotime('-29 days'));
+        $perfEnd   = date('Y-m-d');
+        $data['topSpotsPerformance'] = method_exists($bookingModel, 'getTopSpotsPerformanceMetrics')
+            ? ($bookingModel->getTopSpotsPerformanceMetrics($perfStart, $perfEnd, 3) ?: [])
+            : [];
         
         // Categories
         $data['TotalCategories'] = $touristSpotModel->getTotalCategories();
@@ -104,6 +179,7 @@ class AdminController extends BaseController
             'userID'                  => session()->get('UserID'),
             'FullName'                => session()->get('FirstName') . ' ' . session()->get('LastName'),
             'email'                   => session()->get('Email'),
+            'Email'                   => session()->get('Email'),
             'currentID'               => session()->get('UserID'),
             
             // Explicit variables for View
@@ -119,10 +195,12 @@ class AdminController extends BaseController
             'peakVisitTimes'          => $data['peakVisitTimes'],
             'userPreferences'         => $data['userPreferences'],
             'TotalCategories'         => $data['TotalCategoriesJSON'],
+            'metricsJSON'             => $data['metrics'],
             
             // Lists
             'topHiddenSpots'          => $data['topHiddenSpots'],
-            'topViewedBusinesses'     => $data['topViewedBusinesses']
+            'topViewedBusinesses'     => $data['topViewedBusinesses'],
+            'topSpotsPerformance'     => $data['topSpotsPerformance']
             , 'unreadNotifications'    => $unread
         ]);
     }
@@ -501,6 +579,7 @@ class AdminController extends BaseController
             $bookingModel = new BookingModel();
             $feedbackModel = new FeedbackModel();
             $spotModel = new TouristSpotModel();
+            $db = \Config\Database::connect();
 
             // Calculate Summary Metrics dynamically
             $totalBookings = $bookingModel->where('booking_status', 'Confirmed')
@@ -523,6 +602,42 @@ class AdminController extends BaseController
 
             $avgRating = isset($rowAvg['rating']) ? (float)$rowAvg['rating'] : 0;
 
+            // Monthly bookings: include Confirmed + Checked-in/Checked-out across date range
+            $statusList = ['Confirmed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out'];
+            $placeholders = implode(',', array_fill(0, count($statusList), '?'));
+            $monthlyRows = $db->query(
+                "SELECT DATE_FORMAT(booking_date, '%Y-%m') as ym, COUNT(*) as total
+                 FROM bookings
+                 WHERE booking_status IN ($placeholders)
+                   AND DATE(booking_date) BETWEEN ? AND ?
+                 GROUP BY ym
+                 ORDER BY ym ASC",
+                array_merge($statusList, [$startDate, $endDate])
+            )->getResultArray();
+
+            // Build zero-filled series for each month in range
+            $series = [];
+            try {
+                $map = [];
+                foreach (($monthlyRows ?: []) as $r) { $map[$r['ym']] = (int)($r['total'] ?? 0); }
+                $startMonth = new \DateTime(date('Y-m-01', strtotime($startDate)));
+                $endMonth = new \DateTime(date('Y-m-01', strtotime($endDate)));
+                $endMonth->modify('first day of next month');
+                for ($dt = clone $startMonth; $dt < $endMonth; $dt->modify('+1 month')) {
+                    $ym = $dt->format('Y-m');
+                    $series[] = [
+                        'month' => $dt->format('F'),
+                        'total_bookings' => (int)($map[$ym] ?? 0)
+                    ];
+                }
+            } catch (\Throwable $e) {
+                // If DateTime fails, fallback to raw rows mapping without zero fill
+                foreach (($monthlyRows ?: []) as $r) {
+                    $label = date('F', strtotime(($r['ym'] ?? '') . '-01'));
+                    $series[] = [ 'month' => $label, 'total_bookings' => (int)($r['total'] ?? 0) ];
+                }
+            }
+
             $data = [
                 'success' => true,
                 'summary' => [
@@ -537,7 +652,8 @@ class AdminController extends BaseController
                     'peakBookingDays' => $bookingModel->getPeakDays($startDate, $endDate)['peak_booking_days'] ?? [],
                     'bookingLeadTime' => $bookingModel->getBookingLeadTime($startDate, $endDate) ?: [],
                     'revenueByCategory' => $bookingModel->getRevenueByCategory($startDate, $endDate) ?: [],
-                    'performanceMetrics' => $bookingModel->getTopSpotsPerformanceMetrics($startDate, $endDate) ?: []
+                    'performanceMetrics' => $bookingModel->getTopSpotsPerformanceMetrics($startDate, $endDate) ?: [],
+                    'monthlyBookings' => $series
                 ],
                 'tables' => [
                     'topPerformingSpots' => $bookingModel->getTopSpotsPerformanceMetrics($startDate, $endDate),

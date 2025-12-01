@@ -76,16 +76,55 @@ class UsersModel extends Model
     /**
      * Get the distribution of user preferences for the dashboard doughnut chart.
      *
+     * The 'category' column may contain comma-separated values per user (e.g., "History,Adventure,Rural").
+     * This method splits them and counts each category once per user.
+     *
      * Returns array of rows: ['category' => '...', 'total' => int]
      *
      * @return array
      */
     public function getUserPreferenceDistribution()
     {
-        return $this->db->table('user_preferences')
-            ->select('category, COUNT(preference_id) as total')
-            ->groupBy('category')
+        $rows = $this->db->table('user_preferences')
+            ->select('user_id, category')
             ->get()->getResultArray();
+
+        if (empty($rows)) return [];
+
+        $counts = [];
+        $seenPairs = [];
+
+        foreach ($rows as $r) {
+            $userId = $r['user_id'] ?? null;
+            $cats = $r['category'] ?? '';
+            if ($userId === null || $cats === null) continue;
+
+            // Split comma-separated categories and normalize
+            $parts = array_filter(array_map(function($s){
+                $s = trim($s);
+                // Normalize whitespace and casing
+                $s = preg_replace('/\s+/', ' ', $s);
+                return $s;
+            }, explode(',', (string)$cats)), function($v){ return $v !== ''; });
+
+            foreach ($parts as $p) {
+                $norm = strtolower($p);
+                $key = $userId . '|' . $norm; // ensure one count per user per category
+                if (isset($seenPairs[$key])) continue;
+                $seenPairs[$key] = true;
+                if (!isset($counts[$norm])) $counts[$norm] = 0;
+                $counts[$norm]++;
+            }
+        }
+
+        // Transform to array with Title Case labels and sort by total desc
+        $out = [];
+        foreach ($counts as $norm => $cnt) {
+            $label = ucwords($norm);
+            $out[] = [ 'category' => $label, 'total' => (int)$cnt ];
+        }
+        usort($out, function($a,$b){ return $b['total'] <=> $a['total'] ?: strcmp($a['category'],$b['category']); });
+        return $out;
     }
 
     /**

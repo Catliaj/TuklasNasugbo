@@ -275,19 +275,30 @@
 
                 <!-- Search and Filter -->
                 <?php
-                // Build recommended, favorites, and other spots collections
+                // Build recommended, favorites, free, and other spots collections
                 $recommendedSpots = [];
                 $favoriteSpots = [];
+                $freeSpots = [];
                 $otherSpots = [];
                 foreach ($spots as $s) {
                     $idVal = $s['spot_id'] ?? $s['id'] ?? null;
                     $ratingVal = isset($s['rating']) ? (float)$s['rating'] : 0.0;
                     $isFav = isset($favoriteSpotIds) && in_array($idVal, $favoriteSpotIds);
+                    // Determine if spot is free (treat missing or zero prices as free)
+                    $adult = isset($s['price_per_person']) ? (float)$s['price_per_person'] : 0.0;
+                    $child = isset($s['child_price']) ? (float)$s['child_price'] : 0.0;
+                    $senior = isset($s['senior_price']) ? (float)$s['senior_price'] : 0.0;
+                    $isFree = ($adult <= 0) && ($child <= 0) && ($senior <= 0);
                     
                     if ($isFav) {
                         $favoriteSpots[] = $s;
                     }
-                    
+                    // Put free spots in their own section and skip from others
+                    if ($isFree) {
+                        $freeSpots[] = $s;
+                        continue;
+                    }
+
                     // Criteria: Favorited OR high rating (>=4.6) -> recommended
                     if ($isFav || $ratingVal >= 4.6) {
                         $recommendedSpots[] = $s;
@@ -343,20 +354,65 @@
                 </div>
                 <?php endif; ?>
 
+                <?php if (!empty($freeSpots)): ?>
+                <div class="free-section mb-4">
+                    <h4 class="d-flex align-items-center gap-2 mb-3" style="font-weight:700;color:#003a6e;">
+                        <i class="bi bi-gift" style="font-size:1.3rem;color:#10b981;"></i> Free
+                    </h4>
+                    <div class="free-spots-grid d-flex flex-wrap gap-3">
+                        <?php foreach ($freeSpots as $spot): ?>
+                            <?php 
+                                $imagePath = 'uploads/spots/' . $spot['primary_image'];
+                                if (!is_file(FCPATH . $imagePath)) { 
+                                    $imagePath = 'uploads/spots/Spot-No-Image.png';
+                                }
+                                $isFav = in_array(($spot['spot_id'] ?? $spot['id'] ?? null), $favoriteSpotIds ?? []);
+                            ?>
+                            <div class="spot-card" data-category="<?= esc($spot['category']) ?>" data-spot-id="<?= esc($spot['spot_id'] ?? $spot['id'] ?? '') ?>" style="width:280px;">
+                                <div class="spot-image" style="background-image: url('<?= base_url($imagePath) ?>');height:180px;">
+                                    <button class="favorite-btn<?= $isFav ? ' active' : '' ?>" data-spot-id="<?= esc($spot['spot_id'] ?? $spot['id'] ?? '') ?>" onclick="toggleFavorite(this)">
+                                        <i class="bi bi-heart"></i>
+                                    </button>
+                                </div>
+                                <div class="spot-content" style="min-height:200px;display:flex;flex-direction:column;">
+                                    <h3 class="spot-title" style="font-size:1rem;height:2.4em;overflow:hidden;line-height:1.2em;"><?= esc($spot['spot_name']) ?></h3>
+                                    <p class="spot-description" style="height:54px;overflow:hidden;line-height:1.35em;flex-grow:0;"><?= esc($spot['description']) ?></p>
+                                    <div class="spot-meta">
+                                        <span class="spot-category">
+                                            <i class="bi bi-geo-alt"></i>
+                                            <?= esc($spot['category']) ?>
+                                        </span>
+                                        <div class="spot-rating">
+                                            <i class="bi bi-star-fill"></i>
+                                            <span>0</span>
+                                        </div>
+                                    </div>
+                                    <div class="spot-actions">
+                                        <button class="btn-view" onclick="viewDetails(this)">View Details</button>
+                                        <!-- Book button intentionally omitted for Free spots -->
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
+
                 <div class="search-filter-section">
                     <div class="search-box">
                         <input type="text" id="searchInput" placeholder="Search for tourist spots...">
                         <i class="bi bi-search"></i>
                     </div>
                     
-                    <div class="filter-tags" style="display:grid;grid-template-columns:repeat(7,1fr);gap:0.5rem;max-width:100%;">
+                    <div class="filter-tags" style="display:grid;grid-template-columns:repeat(8,1fr);gap:0.5rem;max-width:100%;">
                         <button class="filter-tag active" data-filter="all">All</button>
-                        <?php
-                        $uiCategories = ['Historical','Cultural','Natural','Recreational','Religious','Adventure','Ecotourism','Urban','Rural','Beach','Mountain','Resort','Park','Restaurant'];
-                        foreach ($uiCategories as $uc):
-                        ?>
-                            <button class="filter-tag" data-filter="<?= strtolower($uc) ?>"><?= esc($uc) ?></button>
-                        <?php endforeach; ?>
+                        <button class="filter-tag" data-filter="heritage">Heritage</button>
+                        <button class="filter-tag" data-filter="restaurant">Restaurant</button>
+                        <button class="filter-tag" data-filter="mountain">Mountain</button>
+                        <button class="filter-tag" data-filter="beach">Beach</button>
+                        <button class="filter-tag" data-filter="resort">Resort</button>
+                        <button class="filter-tag" data-filter="river">River</button>
+                        <button class="filter-tag" data-filter="islands">Islands</button>
                     </div>
                 </div>
                 
@@ -558,9 +614,17 @@
                     <div class="spot-meta-lines">
                         <div class="spot-meta-chip category"><i class="bi bi-tag"></i><span id="spotModalCategory"></span></div>
                         <div class="spot-meta-chip rating"><i class="bi bi-star-fill"></i><span id="spotModalRating"></span></div>
+                        <div class="spot-meta-chip" id="spotModalFreeChip" style="display:none;background:linear-gradient(135deg,#16a34a,#0d7a35);"><i class="bi bi-gift"></i><span>Free</span></div>
                     </div>
                     <div id="spotModalDetails" class="spot-details-panel">
                         <!-- dynamically inserted details -->
+                    </div>
+                    <!-- Amenities Section: will be populated dynamically -->
+                    <div class="amenities-section" id="spotAmenitiesSection" style="margin-top:1rem;">
+                        <h6 style="margin:0 0 .5rem; color:#003a6e; font-weight:700; display:flex; align-items:center; gap:.5rem;"><i class="bi bi-collection" style="color:#004b8d;"></i> Amenities</h6>
+                        <div id="spotModalAmenities" class="amenities-list" style="display:flex;flex-wrap:wrap;gap:.5rem;">
+                            <!-- amenity chips inserted dynamically -->
+                        </div>
                     </div>
                     <!-- Reviews Section -->
                     <div id="spotReviewsSection" style="display:none;">
@@ -795,6 +859,8 @@
         const ratingEl = document.getElementById('spotModalRating');
         const imagesContainer = document.getElementById('spotModalImages');
         const detailsEl = document.getElementById('spotModalDetails'); // extra details container
+        const freeChipEl = document.getElementById('spotModalFreeChip');
+        const amenitiesSection = document.getElementById('spotAmenitiesSection');
         modalLabel.innerHTML = '<i class="bi bi-compass"></i> Loading...';
         descEl.textContent = 'Loading...';
         categoryEl.textContent = '';
@@ -819,6 +885,16 @@
                 descEl.textContent = spot.description || '';
                 categoryEl.textContent = spot.category || '';
                 ratingEl.textContent = spot.rating !== undefined ? spot.rating : '';
+
+                // Determine if spot is Free
+                const adult = parseFloat(spot.price_per_person || 0) || 0;
+                const child = parseFloat(spot.child_price || 0) || 0;
+                const senior = parseFloat(spot.senior_price || 0) || 0;
+                const isFree = adult <= 0 && child <= 0 && senior <= 0;
+
+                // Toggle Free badge and amenities visibility for free spots
+                if (freeChipEl) freeChipEl.style.display = isFree ? 'inline-flex' : 'none';
+                if (amenitiesSection) amenitiesSection.style.display = isFree ? 'none' : '';
 
                 // Build carousel items
                 imagesContainer.innerHTML = '';
@@ -847,36 +923,89 @@
                     `;
                     imagesContainer.appendChild(item);
                 }
-                                // Modern details layout (glass cards + icons)
-                                detailsEl.innerHTML = `
-                                    <div class="detail-grid">
-                                        <div class="detail-item">
-                                            <div class="detail-icon gradient"><i class="bi bi-geo-alt"></i></div>
-                                            <div class="detail-content">
-                                                <div class="detail-label">Location</div>
-                                                <div class="detail-value">${spot.location || '—'}</div>
+                                // Details layout: simplified for Free spots
+                                if (isFree) {
+                                    detailsEl.innerHTML = `
+                                        <div class="detail-grid">
+                                            <div class="detail-item">
+                                                <div class="detail-icon gradient"><i class="bi bi-gift"></i></div>
+                                                <div class="detail-content">
+                                                    <div class="detail-label">Access</div>
+                                                    <div class="detail-value">This spot is free to visit.</div>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div class="detail-item">
-                                            <div class="detail-icon gradient"><i class="bi bi-clock"></i></div>
-                                            <div class="detail-content">
-                                                <div class="detail-label">Visiting Hours</div>
-                                                <div class="detail-value">${(spot.opening_time || '—') + ' - ' + (spot.closing_time || '—')}</div>
-                                            </div>
-                                        </div>
-                                        <div class="detail-item">
-                                            <div class="detail-icon gradient"><i class="bi bi-cash-stack"></i></div>
-                                            <div class="detail-content">
-                                                <div class="detail-label">Pricing</div>
-                                                <div class="pricing-tags">
-                                                    <span class="price-pill">Adult: ${spot.price_per_person ? '₱' + parseFloat(spot.price_per_person).toLocaleString() : '—'}</span>
-                                                    <span class="price-pill">Child: ${spot.child_price ? '₱' + parseFloat(spot.child_price).toLocaleString() : '—'}</span>
-                                                    <span class="price-pill">Senior: ${spot.senior_price ? '₱' + parseFloat(spot.senior_price).toLocaleString() : '—'}</span>
+                                            <div class="detail-item">
+                                                <div class="detail-icon gradient"><i class="bi bi-geo-alt"></i></div>
+                                                <div class="detail-content">
+                                                    <div class="detail-label">Location</div>
+                                                    <div class="detail-value">${spot.location || '—'}</div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                `;
+                                    `;
+                                } else {
+                                    // Modern details layout (glass cards + icons)
+                                    detailsEl.innerHTML = `
+                                        <div class="detail-grid">
+                                            <div class="detail-item">
+                                                <div class="detail-icon gradient"><i class="bi bi-geo-alt"></i></div>
+                                                <div class="detail-content">
+                                                    <div class="detail-label">Location</div>
+                                                    <div class="detail-value">${spot.location || '—'}</div>
+                                                </div>
+                                            </div>
+                                            <div class="detail-item">
+                                                <div class="detail-icon gradient"><i class="bi bi-clock"></i></div>
+                                                <div class="detail-content">
+                                                    <div class="detail-label">Visiting Hours</div>
+                                                    <div class="detail-value">${(spot.opening_time || '—') + ' - ' + (spot.closing_time || '—')}</div>
+                                                </div>
+                                            </div>
+                                            <div class="detail-item">
+                                                <div class="detail-icon gradient"><i class="bi bi-cash-stack"></i></div>
+                                                <div class="detail-content">
+                                                    <div class="detail-label">Pricing</div>
+                                                    <div class="pricing-tags">
+                                                        <span class="price-pill">Adult: ${spot.price_per_person ? '₱' + parseFloat(spot.price_per_person).toLocaleString() : '—'}</span>
+                                                        <span class="price-pill">Child: ${spot.child_price ? '₱' + parseFloat(spot.child_price).toLocaleString() : '—'}</span>
+                                                        <span class="price-pill">Senior: ${spot.senior_price ? '₱' + parseFloat(spot.senior_price).toLocaleString() : '—'}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }
+                                // Amenities: support array or comma-separated string (only for non-free spots)
+                                const amenitiesEl = document.getElementById('spotModalAmenities');
+                                if (!isFree && amenitiesEl) {
+                                    amenitiesEl.innerHTML = '';
+                                    let raw = spot.amenities || spot.amenity || spot.facilities || '';
+                                    let list = [];
+                                    if (Array.isArray(raw)) {
+                                        list = raw;
+                                    } else if (typeof raw === 'string') {
+                                        try {
+                                            const parsed = JSON.parse(raw);
+                                            if (Array.isArray(parsed)) list = parsed;
+                                            else list = raw.split(',').map(s => s.trim()).filter(Boolean);
+                                        } catch (e) {
+                                            list = raw.split(',').map(s => s.trim()).filter(Boolean);
+                                        }
+                                    }
+
+                                    if (list.length > 0) {
+                                        list.forEach(a => {
+                                            const chip = document.createElement('div');
+                                            chip.className = 'spot-meta-chip';
+                                            chip.style.fontSize = '0.8rem';
+                                            chip.style.padding = '6px 10px';
+                                            chip.innerHTML = `<i class=\"bi bi-check-lg\" style=\"margin-right:.45rem;color:#fff;font-size:.85rem;\"></i> ${a}`;
+                                            amenitiesEl.appendChild(chip);
+                                        });
+                                    } else {
+                                        amenitiesEl.innerHTML = '<div class="text-muted">No amenities listed.</div>';
+                                    }
+                                }
                 // Fetch and display reviews for this spot
                 fetchSpotReviews(spotId);
         
@@ -1338,23 +1467,45 @@
 
         // Check if viewSpot parameter exists in URL and auto-open modal
         const urlParams = new URLSearchParams(window.location.search);
-        const viewSpotId = urlParams.get('viewSpot');
-        
-        if (viewSpotId) {
-            // Find the spot card with this ID
-            const spotCard = document.querySelector(`.spot-card[data-spot-id="${viewSpotId}"]`);
-            if (spotCard) {
-                // Scroll to the spot
-                spotCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                
-                // Wait a bit for scroll, then open the modal
-                setTimeout(() => {
-                    const viewBtn = spotCard.querySelector('.btn-view');
-                    if (viewBtn) {
-                        viewBtn.click();
-                    }
-                }, 500);
+        const rawViewSpotId = urlParams.get('viewSpot');
+
+        function findSpotCardById(id) {
+            if (!id) return null;
+            const trimmed = String(id).trim();
+            // Direct selector first
+            let card = document.querySelector(`.spot-card[data-spot-id="${trimmed}"]`);
+            if (card) return card;
+            // Fallback: iterate and compare trimmed and numeric
+            const candidates = document.querySelectorAll('.spot-card[data-spot-id]');
+            for (const el of candidates) {
+                const ds = (el.dataset.spotId || '').trim();
+                if (!ds) continue;
+                if (ds === trimmed) return el;
+                const a = parseInt(ds, 10), b = parseInt(trimmed, 10);
+                if (!Number.isNaN(a) && !Number.isNaN(b) && a === b) return el;
             }
+            return null;
+        }
+
+        if (rawViewSpotId) {
+            const tryOpen = () => {
+                const spotCard = findSpotCardById(rawViewSpotId);
+                if (spotCard) {
+                    spotCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    setTimeout(() => {
+                        const viewBtn = spotCard.querySelector('.btn-view');
+                        if (viewBtn) {
+                            viewBtn.click();
+                        } else {
+                            // Fallback: call viewDetails using the card element
+                            if (typeof viewDetails === 'function') viewDetails(spotCard);
+                        }
+                    }, 400);
+                }
+            };
+            // Try immediately and once more shortly after
+            tryOpen();
+            setTimeout(tryOpen, 300);
         }
     </script>
     <script>
