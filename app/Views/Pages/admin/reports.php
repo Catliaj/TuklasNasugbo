@@ -192,6 +192,20 @@
                 <div class="col-lg-8 mb-3"><div class="card border-0 shadow-sm h-100 rounded-4"><div class="card-body"><h5 class="card-title mb-3 d-flex align-items-center gap-2"><i class="bi bi-trophy-fill text-warning"></i><span>Top Performing Attractions</span></h5><div class="table-responsive"><table class="table table-hover align-middle table-enhanced"><thead class="table-light"><tr><th>Rank</th><th>Attraction</th><th>Bookings</th><th>Revenue</th></tr></thead><tbody id="topAttractionsTable"></tbody></table></div></div></div></div>
                 <div class="col-lg-4 mb-3"><div class="card border-0 shadow-sm h-100 rounded-4"><div class="card-body"><h5 class="card-title mb-3 d-flex align-items-center gap-2"><i class="bi bi-exclamation-triangle-fill text-danger"></i><span>Lowest Rated</span></h5><div class="table-responsive"><table class="table table-hover align-middle table-enhanced"><thead class="table-light"><tr><th>Attraction</th><th>Rating</th></tr></thead><tbody id="lowestRatedTable"></tbody></table></div></div></div></div>
             </div>
+
+            <!-- Export Buttons (bottom) -->
+            <div class="row mb-5">
+                <div class="col-12">
+                    <div class="d-flex flex-wrap gap-2 justify-content-end">
+                        <button id="exportReportCsvBtn" class="btn btn-outline-primary">
+                            <i class="bi bi-file-earmark-text me-2"></i>Export Full Report (CSV)
+                        </button>
+                        <button id="exportReportPdfBtn" class="btn btn-outline-primary">
+                            <i class="bi bi-file-earmark-pdf me-2"></i>Export Full Report (PDF)
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -240,6 +254,8 @@
                 const performanceMetrics = Array.isArray(charts.performanceMetrics) ? charts.performanceMetrics : [];
                 const revenueByCategory = Array.isArray(charts.revenueByCategory) ? charts.revenueByCategory : [];
                 const monthlyBookings = Array.isArray(charts.monthlyBookings) ? charts.monthlyBookings : [];
+                // Keep references for any client-side needs
+                window._reportsMonthlyBookings = monthlyBookings;
                 const visitorDemographics = charts.visitorDemographics || {};
                 const peakBookingDays = Array.isArray(charts.peakBookingDays) ? charts.peakBookingDays : [];
                 const bookingLeadTime = Array.isArray(charts.bookingLeadTime) ? charts.bookingLeadTime : [];
@@ -362,6 +378,21 @@
             if (applyBtn) applyBtn.addEventListener('click', triggerAnalytics);
             // Initial load
             triggerAnalytics();
+
+            // Server-side export: open endpoints with date range
+            const exportServer = (type) => {
+                const start = document.getElementById('reportFromDate')?.value || '';
+                const end = document.getElementById('reportToDate')?.value || '';
+                const qs = new URLSearchParams();
+                if (start) qs.set('startDate', start);
+                if (end) qs.set('endDate', end);
+                const url = `${BASE_URL}admin/reports/export/${type}` + (qs.toString() ? `?${qs.toString()}` : '');
+                window.open(url, '_blank');
+            };
+            const csvBtn = document.getElementById('exportReportCsvBtn');
+            const pdfBtn = document.getElementById('exportReportPdfBtn');
+            if (csvBtn) csvBtn.addEventListener('click', () => exportServer('csv'));
+            if (pdfBtn) pdfBtn.addEventListener('click', () => exportServer('pdf'));
         })();
     </script>
 </body>

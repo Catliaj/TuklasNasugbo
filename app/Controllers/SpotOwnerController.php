@@ -10,6 +10,7 @@ use App\Models\BookingModel;
 use App\Models\UsersModel;
 use App\Models\SpotGalleryModel;
 use App\Models\CreateVisitorCheckIn;
+use Dompdf\Dompdf;
 
 class SpotOwnerController extends BaseController
 {
@@ -290,6 +291,137 @@ public function recordCheckin()
     public function settings()
     {
         return view('Pages/spotowner/profile');
+    }
+
+    private function getBusinessIdForCurrentOwner(): ?int
+    {
+        $userID = session()->get('UserID');
+        if (!$userID) return null;
+        $businessModel = new BusinessModel();
+        $business = $businessModel->where('user_id', $userID)->first();
+        return $business['business_id'] ?? null;
+    }
+
+    private function fetchEarningsRows(int $businessID, string $startDate, string $endDate): array
+    {
+        $db = \Config\Database::connect();
+        $statuses = ['Confirmed','Completed','Checked-in','Checked-out','Checked-In','Checked-Out'];
+        $placeholders = implode(',', array_fill(0, count($statuses), '?'));
+        $sql = "
+            SELECT 
+                b.booking_id,
+                DATE(b.booking_date) AS booking_date,
+                COALESCE(ts.spot_name, 'N/A') AS spot_name,
+                COALESCE(b.total_guests, 0) AS total_guests,
+                COALESCE(b.total_price, 0) AS total_price,
+                COALESCE(b.booking_status, '') AS booking_status,
+                COALESCE(b.payment_status, '') AS payment_status
+            FROM bookings b
+            INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
+            WHERE ts.business_id = ?
+              AND b.booking_status IN ($placeholders)
+              AND DATE(b.booking_date) BETWEEN ? AND ?
+            ORDER BY b.booking_date ASC, b.booking_id ASC
+        ";
+        $params = array_merge([$businessID], $statuses, [$startDate, $endDate]);
+        return $db->query($sql, $params)->getResultArray() ?: [];
+    }
+
+    public function exportEarningsCSV()
+    {
+        if (!session()->get('isLoggedIn') || session()->get('Role') !== 'Spot Owner') {
+            return $this->response->setStatusCode(401)->setBody('Unauthorized');
+        }
+        $businessID = $this->getBusinessIdForCurrentOwner();
+        if (!$businessID) {
+            return $this->response->setStatusCode(400)->setBody('Business not found');
+        }
+        $start = $this->request->getGet('start') ?: date('Y-m-d', strtotime('-29 days'));
+        $end   = $this->request->getGet('end') ?: date('Y-m-d');
+
+        $rows = $this->fetchEarningsRows((int)$businessID, $start, $end);
+
+        $filename = 'earnings_' . $businessID . '_' . $start . '_to_' . $end . '.csv';
+        $response = $this->response;
+        $response->setHeader('Content-Type', 'text/csv; charset=utf-8');
+        $response->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"');
+
+        $fh = fopen('php://temp', 'w+');
+        // CSV header
+        fputcsv($fh, ['Booking ID','Booking Date','Spot Name','Total Guests','Total Price','Booking Status','Payment Status']);
+        foreach ($rows as $r) {
+            fputcsv($fh, [
+                $r['booking_id'],
+                $r['booking_date'],
+                $r['spot_name'],
+                (int)$r['total_guests'],
+                number_format((float)$r['total_price'], 2, '.', ''),
+                $r['booking_status'],
+                $r['payment_status']
+            ]);
+        }
+        rewind($fh);
+        $csv = stream_get_contents($fh);
+        fclose($fh);
+        return $response->setBody($csv);
+    }
+
+    public function exportEarningsPDF()
+    {
+        if (!session()->get('isLoggedIn') || session()->get('Role') !== 'Spot Owner') {
+            return $this->response->setStatusCode(401)->setBody('Unauthorized');
+        }
+        $businessID = $this->getBusinessIdForCurrentOwner();
+        if (!$businessID) {
+            return $this->response->setStatusCode(400)->setBody('Business not found');
+        }
+        $start = $this->request->getGet('start') ?: date('Y-m-d', strtotime('-29 days'));
+        $end   = $this->request->getGet('end') ?: date('Y-m-d');
+
+        $rows = $this->fetchEarningsRows((int)$businessID, $start, $end);
+
+        // Minimal HTML template for PDF
+        $total = array_reduce($rows, function($acc, $r){ return $acc + (float)$r['total_price']; }, 0.0);
+        $html = '<html><head><style>
+            body{font-family: DejaVu Sans, Arial, sans-serif;}
+            h2{margin:0 0 6px 0}
+            .muted{color:#666;font-size:12px;margin-bottom:10px}
+            table{width:100%;border-collapse:collapse;font-size:12px}
+            th,td{border:1px solid #ddd;padding:6px}
+            th{background:#f5f5f5;text-align:left}
+            tfoot td{font-weight:bold}
+        </style></head><body>';
+        $html .= '<h2>Earnings Report</h2>';
+        $html .= '<div class="muted">Business ID: ' . htmlspecialchars((string)$businessID) . ' — Period: ' . htmlspecialchars($start) . ' to ' . htmlspecialchars($end) . '</div>';
+        $html .= '<table><thead><tr>
+                    <th>#</th><th>Date</th><th>Spot</th><th>Guests</th><th>Total Price (PHP)</th><th>Status</th><th>Payment</th>
+                  </tr></thead><tbody>';
+        $i = 1;
+        foreach ($rows as $r) {
+            $html .= '<tr>'
+                  .  '<td>' . $i++ . '</td>'
+                  .  '<td>' . htmlspecialchars($r['booking_date']) . '</td>'
+                  .  '<td>' . htmlspecialchars($r['spot_name']) . '</td>'
+                  .  '<td>' . (int)$r['total_guests'] . '</td>'
+                  .  '<td style="text-align:right">' . number_format((float)$r['total_price'], 2) . '</td>'
+                  .  '<td>' . htmlspecialchars($r['booking_status']) . '</td>'
+                  .  '<td>' . htmlspecialchars($r['payment_status']) . '</td>'
+                  .  '</tr>';
+        }
+        $html .= '</tbody><tfoot><tr><td colspan="4">Total</td><td style="text-align:right">' . number_format($total, 2) . '</td><td colspan="2"></td></tr></tfoot></table>';
+        $html .= '</body></html>';
+
+        $dompdf = new Dompdf();
+        $dompdf->set_option('isRemoteEnabled', true);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        $filename = 'earnings_' . $businessID . '_' . $start . '_to_' . $end . '.pdf';
+        return $this->response
+            ->setHeader('Content-Type', 'application/pdf')
+            ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
+            ->setBody($dompdf->output());
     }
 
 

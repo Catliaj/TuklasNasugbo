@@ -12,6 +12,7 @@ use App\Models\SpotGalleryModel;
 use App\Models\UsersModel;
 use App\Models\UserPreferenceModel;
 use App\Models\NotificationModel;
+use Dompdf\Dompdf;
 
 class AdminController extends BaseController
 {
@@ -664,6 +665,241 @@ class AdminController extends BaseController
             return $this->response->setJSON($data);
         } catch (\Exception $e) {
             return $this->response->setStatusCode(500)->setJSON(['error' => 'Server Error', 'message' => $e->getMessage()]);
+        }
+    }
+
+    // ==========================================================
+    //  EXPORT: FULL REPORT (CSV)
+    // ==========================================================
+    public function exportReportsCSV()
+    {
+        if ($redirect = $this->ensureAdmin()) return $redirect;
+        $startDate = $this->request->getGet('startDate') ?: date('Y-m-d', strtotime('-29 days'));
+        $endDate   = $this->request->getGet('endDate') ?: date('Y-m-d');
+
+        $bookingModel  = new BookingModel();
+        $feedbackModel = new FeedbackModel();
+        $db = \Config\Database::connect();
+
+        // Data blocks
+        $topPerforming   = $bookingModel->getTopSpotsPerformanceMetrics($startDate, $endDate) ?: [];
+        $lowestRated     = $feedbackModel->getLowestRatedSpots($startDate, $endDate) ?: [];
+        $revenueByCat    = $bookingModel->getRevenueByCategory($startDate, $endDate) ?: [];
+
+        // Monthly bookings (Confirmed + Checked-in/out) zero-filled
+        $statusList = ['Confirmed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out'];
+        $placeholders = implode(',', array_fill(0, count($statusList), '?'));
+        $monthlyRows = $db->query(
+            "SELECT DATE_FORMAT(booking_date, '%Y-%m') as ym, COUNT(*) as total
+             FROM bookings
+             WHERE booking_status IN ($placeholders)
+               AND DATE(booking_date) BETWEEN ? AND ?
+             GROUP BY ym
+             ORDER BY ym ASC",
+            array_merge($statusList, [$startDate, $endDate])
+        )->getResultArray();
+
+        $monthlySeries = [];
+        $map = [];
+        foreach (($monthlyRows ?: []) as $r) { $map[$r['ym']] = (int)($r['total'] ?? 0); }
+        $startMonth = new \DateTime(date('Y-m-01', strtotime($startDate)));
+        $endMonth = new \DateTime(date('Y-m-01', strtotime($endDate)));
+        $endMonth->modify('first day of next month');
+        for ($dt = clone $startMonth; $dt < $endMonth; $dt->modify('+1 month')) {
+            $ym = $dt->format('Y-m');
+            $monthlySeries[] = [
+                'month' => $dt->format('F'),
+                'total_bookings' => (int)($map[$ym] ?? 0)
+            ];
+        }
+
+        // CSV builder
+        $esc = function($v){
+            $s = (string)$v;
+            $s = str_replace('"', '""', $s); // escape quotes by doubling
+            return '"' . $s . '"';
+        };
+        $lines = [];
+        $lines[] = "Admin Report from $startDate to $endDate";
+        $lines[] = '';
+        // Top Performing Attractions
+        $lines[] = 'Top Performing Attractions';
+        $lines[] = 'Rank,Attraction,Bookings,Revenue,Avg Rating';
+        $rank = 1;
+        foreach ($topPerforming as $row) {
+            $lines[] = implode(',', [
+                $rank++,
+                $esc($row['spot_name'] ?? $row['business_name'] ?? 'N/A'),
+                (int)($row['bookings'] ?? $row['total_bookings'] ?? 0),
+                number_format((float)($row['revenue'] ?? $row['total_revenue'] ?? 0), 2, '.', ''),
+                isset($row['avg_rating']) ? number_format((float)$row['avg_rating'], 2, '.', '') : ''
+            ]);
+        }
+        $lines[] = '';
+        // Lowest Rated
+        $lines[] = 'Lowest Rated';
+        $lines[] = 'Attraction,Rating,Reviews';
+        foreach ($lowestRated as $row) {
+            $lines[] = implode(',', [
+                $esc($row['spot_name'] ?? $row['business_name'] ?? 'N/A'),
+                number_format((float)($row['rating'] ?? 0), 2, '.', ''),
+                (int)($row['reviews'] ?? $row['count'] ?? 0)
+            ]);
+        }
+        $lines[] = '';
+        // Revenue by Category
+        $lines[] = 'Revenue by Category';
+        $lines[] = 'Category,Revenue';
+        foreach ($revenueByCat as $row) {
+            $lines[] = implode(',', [
+                $esc($row['category'] ?? 'N/A'),
+                number_format((float)($row['revenue'] ?? $row['total_revenue'] ?? 0), 2, '.', '')
+            ]);
+        }
+        $lines[] = '';
+        // Monthly Bookings
+        $lines[] = 'Monthly Bookings';
+        $lines[] = 'Month,Total Bookings';
+        foreach ($monthlySeries as $row) {
+            $lines[] = implode(',', [
+                $esc($row['month'] ?? ''),
+                (int)($row['total_bookings'] ?? 0)
+            ]);
+        }
+
+        $csv = implode("\r\n", $lines) . "\r\n";
+        $filename = 'admin_report_' . $startDate . '_to_' . $endDate . '.csv';
+        return $this->response
+            ->setHeader('Content-Type', 'text/csv; charset=utf-8')
+            ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
+            ->setBody($csv);
+    }
+
+    // ==========================================================
+    //  EXPORT: FULL REPORT (PDF)
+    // ==========================================================
+    public function exportReportsPDF()
+    {
+        if ($redirect = $this->ensureAdmin()) return $redirect;
+        $startDate = $this->request->getGet('startDate') ?: date('Y-m-d', strtotime('-29 days'));
+        $endDate   = $this->request->getGet('endDate') ?: date('Y-m-d');
+
+        $bookingModel  = new BookingModel();
+        $feedbackModel = new FeedbackModel();
+        $db = \Config\Database::connect();
+
+        $topPerforming   = $bookingModel->getTopSpotsPerformanceMetrics($startDate, $endDate) ?: [];
+        $lowestRated     = $feedbackModel->getLowestRatedSpots($startDate, $endDate) ?: [];
+        $revenueByCat    = $bookingModel->getRevenueByCategory($startDate, $endDate) ?: [];
+
+        // Monthly bookings (Confirmed + Checked-in/out) zero-filled
+        $statusList = ['Confirmed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out'];
+        $placeholders = implode(',', array_fill(0, count($statusList), '?'));
+        $monthlyRows = $db->query(
+            "SELECT DATE_FORMAT(booking_date, '%Y-%m') as ym, COUNT(*) as total
+             FROM bookings
+             WHERE booking_status IN ($placeholders)
+               AND DATE(booking_date) BETWEEN ? AND ?
+             GROUP BY ym
+             ORDER BY ym ASC",
+            array_merge($statusList, [$startDate, $endDate])
+        )->getResultArray();
+        $monthlySeries = [];
+        $map = [];
+        foreach (($monthlyRows ?: []) as $r) { $map[$r['ym']] = (int)($r['total'] ?? 0); }
+        $startMonth = new \DateTime(date('Y-m-01', strtotime($startDate)));
+        $endMonth = new \DateTime(date('Y-m-01', strtotime($endDate)));
+        $endMonth->modify('first day of next month');
+        for ($dt = clone $startMonth; $dt < $endMonth; $dt->modify('+1 month')) {
+            $ym = $dt->format('Y-m');
+            $monthlySeries[] = [
+                'month' => $dt->format('F'),
+                'total_bookings' => (int)($map[$ym] ?? 0)
+            ];
+        }
+
+        // Build HTML
+        $style = '<style>body{font-family: DejaVu Sans, Arial, Helvetica, sans-serif;color:#111;font-size:12px}h1{font-size:18px;margin:0 0 8px}h2{font-size:14px;margin:18px 0 8px}table{width:100%;border-collapse:collapse;margin-bottom:8px}th,td{border:1px solid #ddd;padding:6px}th{background:#f5f5f5;text-align:left}.muted{color:#666;font-size:11px;margin-bottom:12px}</style>';
+        $html = '<h1>Admin Report</h1>';
+        $html .= '<div class="muted">Period: ' . htmlentities($startDate) . ' to ' . htmlentities($endDate) . '</div>';
+
+        // Top Performing
+        $html .= '<h2>Top Performing Attractions</h2><table><thead><tr><th>#</th><th>Attraction</th><th>Bookings</th><th>Revenue</th><th>Avg Rating</th></tr></thead><tbody>';
+        $rank = 1;
+        foreach ($topPerforming as $row) {
+            $html .= '<tr>'
+                . '<td>' . $rank++ . '</td>'
+                . '<td>' . htmlentities($row['spot_name'] ?? $row['business_name'] ?? 'N/A') . '</td>'
+                . '<td>' . (int)($row['bookings'] ?? $row['total_bookings'] ?? 0) . '</td>'
+                . '<td>' . number_format((float)($row['revenue'] ?? $row['total_revenue'] ?? 0), 2) . '</td>'
+                . '<td>' . (isset($row['avg_rating']) ? number_format((float)$row['avg_rating'], 2) : '') . '</td>'
+                . '</tr>';
+        }
+        if ($rank === 1) $html .= '<tr><td colspan="5">No data</td></tr>';
+        $html .= '</tbody></table>';
+
+        // Lowest Rated
+        $html .= '<h2>Lowest Rated</h2><table><thead><tr><th>Attraction</th><th>Rating</th><th>Reviews</th></tr></thead><tbody>';
+        $count = 0;
+        foreach ($lowestRated as $row) {
+            $count++;
+            $html .= '<tr>'
+                . '<td>' . htmlentities($row['spot_name'] ?? $row['business_name'] ?? 'N/A') . '</td>'
+                . '<td>' . number_format((float)($row['rating'] ?? 0), 2) . '</td>'
+                . '<td>' . (int)($row['reviews'] ?? $row['count'] ?? 0) . '</td>'
+                . '</tr>';
+        }
+        if ($count === 0) $html .= '<tr><td colspan="3">No data</td></tr>';
+        $html .= '</tbody></table>';
+
+        // Revenue by Category
+        $html .= '<h2>Revenue by Category</h2><table><thead><tr><th>Category</th><th>Revenue</th></tr></thead><tbody>';
+        $count = 0;
+        foreach ($revenueByCat as $row) {
+            $count++;
+            $html .= '<tr>'
+                . '<td>' . htmlentities($row['category'] ?? 'N/A') . '</td>'
+                . '<td>' . number_format((float)($row['revenue'] ?? $row['total_revenue'] ?? 0), 2) . '</td>'
+                . '</tr>';
+        }
+        if ($count === 0) $html .= '<tr><td colspan="2">No data</td></tr>';
+        $html .= '</tbody></table>';
+
+        // Monthly Bookings
+        $html .= '<h2>Monthly Bookings</h2><table><thead><tr><th>Month</th><th>Total Bookings</th></tr></thead><tbody>';
+        $count = 0;
+        foreach ($monthlySeries as $row) {
+            $count++;
+            $html .= '<tr>'
+                . '<td>' . htmlentities($row['month'] ?? '') . '</td>'
+                . '<td>' . (int)($row['total_bookings'] ?? 0) . '</td>'
+                . '</tr>';
+        }
+        if ($count === 0) $html .= '<tr><td colspan="2">No data</td></tr>';
+        $html .= '</tbody></table>';
+
+        $html = '<html><head>' . $style . '</head><body>' . $html . '</body></html>';
+
+        // Stream via Dompdf if available; fallback to HTML
+        try {
+            if (!class_exists(Dompdf::class)) {
+                return $this->response->setHeader('Content-Type', 'text/html; charset=utf-8')->setBody($html);
+            }
+            $dompdf = new Dompdf();
+            $dompdf->set_option('isRemoteEnabled', true);
+            $dompdf->loadHtml($html);
+            $dompdf->setPaper('A4', 'portrait');
+            $dompdf->render();
+            $pdf = $dompdf->output();
+            $filename = 'admin_report_' . $startDate . '_to_' . $endDate . '.pdf';
+            return $this->response
+                ->setHeader('Content-Type', 'application/pdf')
+                ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
+                ->setBody($pdf);
+        } catch (\Throwable $e) {
+            // Fallback to HTML with error note
+            $html .= '<div class="muted">PDF generation error: ' . htmlentities($e->getMessage()) . '</div>';
+            return $this->response->setHeader('Content-Type', 'text/html; charset=utf-8')->setBody($html);
         }
     }
 
