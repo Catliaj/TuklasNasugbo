@@ -65,6 +65,9 @@ $routes->group('admin', ['namespace' => 'App\Controllers', 'filter' => 'auth'], 
     //  ADD THIS LINE TO FIX THE 404 NOT FOUND ERROR
     // ==========================================================
     $routes->post('reports/analytics', 'AdminController::getAnalytics');
+    // Reports export (server-side CSV/PDF)
+    $routes->get('reports/export/csv', 'AdminController::exportReportsCSV');
+    $routes->get('reports/export/pdf', 'AdminController::exportReportsPDF');
     // Notifications API for admin
     $routes->get('notifications/list', 'AdminController::getNotificationsList');
     $routes->get('notifications/unread-count', 'AdminController::getUnreadNotificationsCount');
@@ -79,6 +82,8 @@ $routes->get('/spotowner/dashboard', 'SpotOwnerController::dashboard');
 $routes->get('/spotowner/mySpots', 'SpotOwnerController::mySpots');
 $routes->get('/spotowner/bookings', 'SpotOwnerController::bookings');
 $routes->get('/spotowner/earnings', 'SpotOwnerController::earnings');
+$routes->get('spotowner/earnings/export/csv', 'SpotOwnerController::exportEarningsCSV');
+$routes->get('spotowner/earnings/export/pdf', 'SpotOwnerController::exportEarningsPDF');
 $routes->get('/spotowner/settings', 'SpotOwnerController::settings');
 $routes->get('spotowner/my-spots/data', 'SpotOwnerController::getMySpots');
 $routes->get('spotowner/my-spots/get-spot/(:num)', 'SpotOwnerController::getSpot/$1');

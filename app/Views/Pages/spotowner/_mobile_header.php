@@ -43,10 +43,8 @@
                     <div class="fw-bold"><?= esc($FullName ?? '') ?></div>
                     <div class="small text-muted"><?= esc($email ?? '') ?></div>
                 </li>
+                <li><a class="dropdown-item text-danger" href="/users/logout"><i class="bi bi-box-arrow-left me-2"></i>Logout</a></li>         
                 <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="/spotowner/settings"><i class="bi bi-person me-2"></i>Profile</a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item text-danger" href="/users/logout"><i class="bi bi-box-arrow-left me-2"></i>Logout</a></li>
             </ul>
         </div>
     </div>

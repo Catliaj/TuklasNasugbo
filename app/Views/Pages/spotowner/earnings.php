@@ -282,15 +282,12 @@
                         </div>
                         <div class="custom-card-body">
                             <div class="d-flex gap-2 flex-wrap">
-                                <button class="btn btn-outline-primary">
+                                <a class="btn btn-outline-primary" href="<?= base_url('spotowner/earnings/export/pdf') ?>" target="_blank" rel="noopener">
                                     <i class="bi bi-file-earmark-pdf me-2"></i>Export as PDF
-                                </button>
-                                <button class="btn btn-outline-primary">
-                                    <i class="bi bi-file-earmark-spreadsheet me-2"></i>Export as Excel
-                                </button>
-                                <button class="btn btn-outline-primary">
+                                </a>
+                                <a class="btn btn-outline-primary" href="<?= base_url('spotowner/earnings/export/csv') ?>" target="_blank" rel="noopener">
                                     <i class="bi bi-file-earmark-text me-2"></i>Export as CSV
-                                </button>
+                                </a>
                             </div>
                         </div>
                     </div>
