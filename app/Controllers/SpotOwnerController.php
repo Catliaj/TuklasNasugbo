@@ -1046,12 +1046,34 @@ public function getDashboardAnalytics()
         
         $averageRating = $ratingQuery && $ratingQuery->avg_rating ? 
             round((float)$ratingQuery->avg_rating, 1) : 0;
+
+        // Count how many owner spots have at least one approved review (rated spots)
+        $ratedSpotsRow = $db->table('review_feedback rf')
+            ->select('COUNT(DISTINCT rf.spot_id) AS rated_spots')
+            ->join('tourist_spots ts', 'rf.spot_id = ts.spot_id')
+            ->where('ts.business_id', $businessId)
+            ->where('rf.status', 'Approved')
+            ->get()
+            ->getRow();
+        $ratedSpots = $ratedSpotsRow ? (int)$ratedSpotsRow->rated_spots : 0;
+
+        // Total reviews across all spots for this business (approved only)
+        $totalReviewsRow = $db->table('review_feedback rf')
+            ->select('COUNT(rf.review_id) as total_reviews')
+            ->join('tourist_spots ts', 'rf.spot_id = ts.spot_id')
+            ->where('ts.business_id', $businessId)
+            ->where('rf.status', 'Approved')
+            ->get()
+            ->getRow();
+        $totalReviews = $totalReviewsRow ? (int)$totalReviewsRow->total_reviews : 0;
         
         return $this->response->setJSON([
             'totalSpots' => $totalSpots,
             'totalBookings' => $totalBookings,
             'totalRevenue' => $totalRevenue,
-            'averageRating' => $averageRating
+            'averageRating' => $averageRating,
+            'ratedSpots' => $ratedSpots,
+            'totalReviews' => $totalReviews
         ]);
         
     } catch (\Exception $e) {
