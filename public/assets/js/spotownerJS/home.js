@@ -81,6 +81,8 @@ function renderHomePage() {
                 </div>
             </div>
 
+            
+
             <!-- Statistics Section -->
             <div class="mb-4">
                 <h3 class="mb-3">Performance Statistics</h3>
@@ -166,6 +168,11 @@ async function fetchDashboardAnalytics() {
         document.getElementById('stat-total-revenue').textContent =
             `₱${(data.totalRevenue || 0).toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         document.getElementById('stat-avg-rating').textContent = data.averageRating || '0.0';
+        // Update description below average rating with rated spots count if available
+        const avgDesc = document.querySelector('#stat-avg-rating')?.closest('.stat-card')?.querySelector('.stat-description');
+        if (avgDesc && typeof data.ratedSpots !== 'undefined') {
+            avgDesc.textContent = `Across ${data.ratedSpots} rated spots`;
+        }
 
         console.log('✅ Analytics updated successfully');
 
@@ -304,6 +311,8 @@ function updateOverviewStats() {
             if (totalBookingsEl) totalBookingsEl.textContent = totalBookings;
             if (totalRevenueEl) totalRevenueEl.textContent = `₱${(totalRevenue || 0).toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
             if (avgRatingEl) avgRatingEl.textContent = averageRating;
+            const avgDesc = document.querySelector('#stat-avg-rating')?.closest('.stat-card')?.querySelector('.stat-description');
+            if (avgDesc) avgDesc.textContent = `Across ${spots.filter(s => (s.reviews||0) > 0).length} rated spots`;
 
             console.log('✅ Overview stats updated from server:', { totalSpots, totalBookings, totalRevenue, averageRating });
         } catch (err) {
@@ -327,6 +336,8 @@ function updateOverviewStats() {
             if (totalBookingsEl) totalBookingsEl.textContent = totalBookings;
             if (totalRevenueEl) totalRevenueEl.textContent = `₱${(totalRevenue || 0).toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
             if (avgRatingEl) avgRatingEl.textContent = averageRating;
+            const avgDesc2 = document.querySelector('#stat-avg-rating')?.closest('.stat-card')?.querySelector('.stat-description');
+            if (avgDesc2) avgDesc2.textContent = `Across ${spots.filter(s => (s.reviews||0) > 0).length} rated spots`;
 
             console.log('✅ Overview stats updated from client aggregation:', { totalSpots, totalBookings, totalRevenue, averageRating });
         }

@@ -460,14 +460,57 @@ class AdminController extends BaseController
         // Fetch gallery
         $galleryModel = new SpotGalleryModel();
         $images = $galleryModel->where('spot_id', $id)->findAll();
+        // If primary table empty, try alternate table name `gallery_spots`
+        if (empty($images)) {
+            try {
+                $db = \Config\Database::connect();
+                $alt = $db->table('gallery_spots')->where('spot_id', $id)->get()->getResultArray();
+                // Normalize shape to match expected: each row has 'image'
+                if (!empty($alt)) {
+                    $images = array_map(function($row){
+                        if (isset($row['image'])) return ['image' => $row['image']];
+                        if (isset($row['filename'])) return ['image' => $row['filename']];
+                        return $row;
+                    }, $alt);
+                }
+            } catch (\Throwable $e) {
+                // ignore if table not present
+            }
+        }
 
-        $attraction['images'] = !empty($images)
-            ? array_map(fn($g) => base_url('uploads/spots/gallery/' . $g['image']), $images)
-            : [];
+        // Build canonical paths and verify existence; filter out empties
+        $built = [];
+        foreach (($images ?: []) as $g) {
+            $raw = $g['image'] ?? '';
+            // Convert binary blob to printable filename and sanitize
+            $fname = is_string($raw) ? trim($raw) : '';
+            $fname = preg_replace('/[^A-Za-z0-9._-]/', '', $fname);
+            if ($fname === '') continue;
+            $rel = 'uploads/spots/gallery/' . $fname;
+            $abs = FCPATH . $rel; // FCPATH points to /public/
+            if (is_file($abs)) {
+                $built[] = base_url($rel);
+            }
+        }
+        $attraction['images'] = $built;
 
-        // Fallback to primary image
+        // Fallback to primary image if gallery empty and file exists
         if (empty($attraction['images']) && !empty($attraction['primary_image'])) {
-            $attraction['images'][] = base_url('uploads/spots/' . $attraction['primary_image']);
+            $pf = trim($attraction['primary_image']);
+            $prel = 'uploads/spots/' . $pf;
+            $pabs = FCPATH . $prel;
+            if (is_file($pabs)) {
+                $attraction['images'][] = base_url($prel);
+            }
+        }
+
+        // Final fallback: default placeholder
+        if (empty($attraction['images'])) {
+            $placeholderRel = 'uploads/spots/Spot-No-Image.png';
+            $placeholderAbs = FCPATH . $placeholderRel;
+            $attraction['images'][] = is_file($placeholderAbs)
+                ? base_url($placeholderRel)
+                : base_url('assets/images/Spot-No-Image.png');
         }
 
         // Final fallback

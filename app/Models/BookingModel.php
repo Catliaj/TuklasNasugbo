@@ -303,7 +303,8 @@ public function getTopPerformingDays($businessID, $limit = 5)
     $builder->select('SUM(b.total_price) AS total_revenue');
     $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
     $builder->where('ts.business_id', $businessID);
-    $builder->whereIn('b.booking_status', ['Confirmed', 'Checked-in', 'Checked-out']);
+    $builder->whereIn('b.booking_status', ['Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out']);
+    $builder->where('b.payment_status', 'Paid');
 
     $result = $builder->get()->getRowArray();
     return (float) ($result['total_revenue'] ?? 0);
@@ -401,7 +402,7 @@ public function getMonthlyRevenueByBusiness($businessID, $months = 6)
     ');
     $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
     $builder->where('ts.business_id', $businessID);
-    $builder->where('b.booking_status', 'Confirmed');
+    $builder->whereIn('b.booking_status', ['Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out']);
     $builder->where('b.booking_date >=', date('Y-m-d', strtotime("-{$months} months")));
     $builder->groupBy('DATE_FORMAT(b.booking_date, "%Y-%m")');
     $builder->orderBy('month', 'ASC');
@@ -424,7 +425,7 @@ public function getWeeklyRevenueByBusiness($businessID, $weeks = 8)
     ');
     $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
     $builder->where('ts.business_id', $businessID);
-    $builder->where('b.booking_status', 'Confirmed');
+    $builder->whereIn('b.booking_status', ['Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out']);
     $builder->where('b.booking_date >=', date('Y-m-d', strtotime("-{$weeks} weeks")));
     $builder->groupBy('YEARWEEK(b.booking_date, 1)');
     $builder->orderBy('week_num', 'ASC');
@@ -491,7 +492,7 @@ public function getTopPerformingDayss($businessID, $limit = 5)
     ');
     $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
     $builder->where('ts.business_id', $businessID);
-    $builder->where('b.booking_status', 'Confirmed');
+    $builder->whereIn('b.booking_status', ['Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out']);
     $builder->where('MONTH(b.booking_date)', date('m'));
     $builder->where('YEAR(b.booking_date)', date('Y'));
 
@@ -524,7 +525,7 @@ public function getTopPerformingDayss($businessID, $limit = 5)
         $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
         $builder->where('b.booking_date >=', $startDate);
         $builder->where('b.booking_date <=', $endDate);
-        $builder->where('b.booking_status', 'Confirmed');
+        $builder->whereIn('b.booking_status', ['Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out']);
         $builder->groupBy('ts.spot_id, ts.spot_name, ts.category');
         $builder->orderBy('total_revenue', 'DESC');
         $builder->limit($limit);

@@ -121,11 +121,79 @@
             <!-- Page Content - This will be populated by JavaScript -->
             <main class="flex-fill p-3 p-lg-4" id="mainContent">
                 <!-- Content will be loaded here dynamically by home.js -->
-                <div class="text-center py-5">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
+                <div class="container-fluid px-0">
+                    <!-- Overview Stat Cards Placeholder -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-3 col-sm-6">
+                            <div class="stat-card">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <div class="stat-label">Total Spots</div>
+                                        <div class="stat-value" id="stat-total-spots">
+                                            <div class="spinner-border spinner-border-sm" role="status"></div>
+                                        </div>
+                                        <div class="stat-description">Active properties</div>
+                                    </div>
+                                    <div class="stat-icon">
+                                        <i class="bi bi-geo-alt-fill"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-3 col-sm-6">
+                            <div class="stat-card">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <div class="stat-label">Total Bookings</div>
+                                        <div class="stat-value" id="stat-total-bookings">
+                                            <div class="spinner-border spinner-border-sm" role="status"></div>
+                                        </div>
+                                        <div class="stat-description">This month</div>
+                                    </div>
+                                    <div class="stat-icon">
+                                        <i class="bi bi-calendar-check"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-3 col-sm-6">
+                            <div class="stat-card">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <div class="stat-label">Total Revenue</div>
+                                        <div class="stat-value" id="stat-total-revenue">
+                                            <div class="spinner-border spinner-border-sm" role="status"></div>
+                                        </div>
+                                        <div class="stat-description">This month</div>
+                                    </div>
+                                    <div class="stat-icon">
+                                        <i class="bi bi-cash-stack"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-3 col-sm-6">
+                            <div class="stat-card">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <div class="stat-label">Average Rating</div>
+                                        <div class="stat-value" id="stat-avg-rating">
+                                            <div class="spinner-border spinner-border-sm" role="status"></div>
+                                        </div>
+                                        <div class="stat-description">Across all spots</div>
+                                    </div>
+                                    <div class="stat-icon">
+                                        <i class="bi bi-star-fill"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <p class="mt-3 text-muted">Loading dashboard...</p>
+
+                    
                 </div>
             </main>
         </div>
