@@ -366,7 +366,7 @@
         // Update summary cards: monthly revenue, avg per booking, pending revenue
         async function updateEarningsSummary(){
             try{
-                const monthly = await fetchJson(base + '/spotowner/api/monthly-revenue');
+                const monthly = await fetchJson(base + '/spotowner/api/monthly-revenue?onlyPaid=0');
                 const bookings = await fetchJson(base + '/spotowner/getBookings');
 
                 // Determine current month key YYYY-MM
@@ -387,12 +387,16 @@
                     thisMonthRevenue = filtered.reduce((s,b) => s + (parseFloat(b.total_price)||0), 0);
                 }
 
-                // Pending revenue: sum unpaid/pending bookings in current month
+                // Pending revenue: sum bookings whose booking_status === 'Pending' in current month.
+                // Use the same computed-fallback formula as the backend when total_price is missing.
                 const pending = bookings.reduce((s,b) => {
                     const d = new Date(b.booking_date);
                     if(d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth()){
-                        const pay = (b.payment_status || '').toLowerCase();
-                        if(pay !== 'paid') return s + (parseFloat(b.total_price)||0);
+                        const status = (b.booking_status || '').toLowerCase();
+                        if(status === 'pending'){
+                            const price = parseFloat(b.total_price) || parseFloat(b.subtotal) || ((parseFloat(b.price_per_person)||0) * (parseInt(b.total_guests)||0)) || 0;
+                            return s + price;
+                        }
                     }
                     return s;
                 }, 0);
@@ -423,7 +427,7 @@
 
                 // Also warm-up weekly endpoint so charts can use cached responses
                 try{
-                    fetchJson(base + '/spotowner/api/weekly-revenue').catch(()=>{});
+                    fetchJson(base + '/spotowner/api/weekly-revenue?onlyPaid=0').catch(()=>{});
                 }catch(e){}
 
             }catch(err){

@@ -56,7 +56,8 @@ function switchChart(chartType, chartStyle) {
 function loadMonthlyRevenueChart() {
     showChartLoading();
 
-    fetch(window.location.origin + '/spotowner/api/monthly-revenue')
+    // Request unpaid-inclusive results so the chart reflects all bookings across all spots
+    fetch(window.location.origin + '/spotowner/api/monthly-revenue?onlyPaid=0&months=6')
         .then(response => {
             console.log('Monthly Revenue Response Status:', response.status);
             if (!response.ok) {
@@ -91,8 +92,10 @@ function loadMonthlyRevenueChart() {
             const totalRevenue = revenues.reduce((a, b) => a + b, 0);
             const avgRevenue = totalRevenue / revenues.length || 0;
 
-            // Update chart info
-            updateChartInfo('Last 6 Months', `₱${totalRevenue.toFixed(2)}`, `₱${avgRevenue.toFixed(2)}/month`);
+            // Update chart info (format numbers with thousand separators)
+            const totalLabel = '₱' + totalRevenue.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+            const avgLabel = '₱' + avgRevenue.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + '/month';
+            updateChartInfo('Last 6 Months (All spots)', totalLabel, avgLabel);
 
             // Create chart
             createBarChart(labels, revenues, 'Monthly Revenue', chartColors.ocean);
@@ -107,7 +110,8 @@ function loadMonthlyRevenueChart() {
 function loadWeeklyRevenueChart() {
     showChartLoading();
 
-    fetch(window.location.origin + '/spotowner/api/weekly-revenue')
+    // Request unpaid-inclusive weekly revenue for all spots
+    fetch(window.location.origin + '/spotowner/api/weekly-revenue?onlyPaid=0&weeks=8')
         .then(response => {
             console.log('Weekly Revenue Response Status:', response.status);
             if (!response.ok) {
@@ -131,8 +135,9 @@ function loadWeeklyRevenueChart() {
             const totalRevenue = revenues.reduce((a, b) => a + b, 0);
             const avgRevenue = totalRevenue / revenues.length || 0;
 
-            // Update chart info
-            updateChartInfo('Last 8 Weeks', `₱${totalRevenue.toFixed(2)}`, `₱${avgRevenue.toFixed(2)}/week`);
+            const totalLabel = '₱' + totalRevenue.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+            const avgLabel = '₱' + avgRevenue.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + '/week';
+            updateChartInfo('Last 8 Weeks (All spots)', totalLabel, avgLabel);
 
             // Create chart
             createLineChart(labels, revenues, 'Weekly Revenue', chartColors.primary);
