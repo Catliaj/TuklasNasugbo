@@ -194,7 +194,9 @@ public function recordCheckin()
         $spots = $touristSpotModel->getSpotsByBusinessID($businessID);
         $totalspots = $touristSpotModel->getTotalSpotsByBusinessID($businessID);
         $toatlbookings = $bookingModel->getTotalBookingsThisMonthByBusiness($businessID);
-        $totalrevenue = $bookingModel->getTotalRevenueByBusiness($businessID);
+        // Use computed total (fallback) so dashboards show revenue even if total_price is missing
+        // For dashboard we want to include confirmed/checked bookings regardless of payment_status
+        $totalrevenue = $bookingModel->getTotalRevenueByBusiness($businessID, false);
 
         $data['spots'] = $spots;
         
@@ -240,7 +242,7 @@ public function recordCheckin()
         $bookingModel = new BookingModel();
         $toatlbookings = $bookingModel->getTotalBookingsThisMonthByBusiness($businessID);
         $totalVisitor = $bookingModel->getTotalVisitor($businessID);
-         $totalrevenue = $bookingModel->getTotalRevenueByBusiness($businessID);
+         $totalrevenue = $bookingModel->getTotalRevenueByBusiness($businessID, false);
         return view('Pages/spotowner/bookings', [
             'totalbookings' => $toatlbookings,
             'totalvisitors'=> $totalVisitor,
@@ -267,8 +269,9 @@ public function recordCheckin()
 
     $businessID = $businessData['business_id'];
 
-    // Get all earnings data
-    $totalRevenue = $bookingModel->getTotalRevenueAllTime($businessID);
+    // Get all earnings data (use computed fallback totals)
+    // For earnings page keep paid-only totals so reported revenue reflects actual paid amounts
+    $totalRevenue = $bookingModel->getTotalRevenueByBusiness($businessID);
     $monthlyRevenue = $bookingModel->getMonthlyRevenue($businessID);
     $averageData = $bookingModel->getAverageRevenuePerBooking($businessID);
     $pendingRevenue = $bookingModel->getPendingRevenue($businessID);
@@ -293,16 +296,240 @@ public function recordCheckin()
         return view('Pages/spotowner/profile');
     }
 
-    private function getBusinessIdForCurrentOwner(): ?int
+    /**
+     * API: Dashboard analytics for current spot owner (JSON)
+     * Endpoint: /spotowner/api/dashboard-analytics
+     */
+    public function apiDashboardAnalytics()
     {
-        $userID = session()->get('UserID');
-        if (!$userID) return null;
-        $businessModel = new BusinessModel();
-        $business = $businessModel->where('user_id', $userID)->first();
-        return $business['business_id'] ?? null;
+        $businessID = $this->getBusinessIdForCurrentOwner();
+        if (!$businessID) {
+            return $this->response->setJSON(['error' => 'Business not found'])->setStatusCode(400);
+        }
+
+        $bookingModel = new BookingModel();
+        $spotModel = new TouristSpotModel();
+        $db = \Config\Database::connect();
+
+        $currentMonth = date('Y-m');
+        $statuses = ['Confirmed','Checked-in','Checked-out','Completed'];
+
+        // Totals
+        $totalSpots = (int) $spotModel->getTotalSpotsByBusinessID($businessID);
+        $totalBookings = (int) $bookingModel->getTotalBookingsThisMonthByBusiness($businessID);
+        // For dashboard cards show revenue for confirmed/checked bookings regardless of payment status
+        $totalRevenue = (float) $bookingModel->getTotalRevenueByBusiness($businessID, false);
+
+        // Average rating across spots
+        $spotIds = array_column($spotModel->getSpotsByBusinessID($businessID), 'spot_id');
+        $averageRating = 0;
+        $ratedSpots = 0;
+        if (!empty($spotIds)) {
+            $ids = implode(',', array_map('intval', $spotIds));
+            $row = $db->query("SELECT ROUND(AVG(rating),1) as avg_rating, COUNT(DISTINCT spot_id) as rated_spots FROM review_feedback WHERE spot_id IN ($ids)")->getRowArray();
+            $averageRating = isset($row['avg_rating']) ? (float)$row['avg_rating'] : 0.0;
+            $ratedSpots = isset($row['rated_spots']) ? (int)$row['rated_spots'] : 0;
+        }
+
+        // Per-spot breakdown for current month
+        $spots = $spotModel->getSpotsByBusinessID($businessID);
+        $perSpot = [];
+        foreach ($spots as $s) {
+            $sid = $s['spot_id'];
+
+            // bookings count this month for spot
+            $sql = "SELECT COUNT(b.booking_id) AS cnt FROM bookings b WHERE b.spot_id = ? AND DATE_FORMAT(b.booking_date, '%Y-%m') = ? AND b.booking_status IN ('".implode("','", $statuses)."')";
+            $r = $db->query($sql, [$sid, $currentMonth])->getRowArray();
+            $bookingsCount = isset($r['cnt']) ? (int)$r['cnt'] : 0;
+
+            // revenue for spot (computed fallback)
+            $revRow = $db->query(
+                "SELECT COALESCE(SUM(COALESCE(NULLIF(total_price,0), NULLIF(subtotal,0), (price_per_person * total_guests), 0)),0) AS revenue FROM bookings WHERE spot_id = ? AND DATE_FORMAT(booking_date, '%Y-%m') = ? AND booking_status IN ('".implode("','", $statuses)."')",
+                [$sid, $currentMonth]
+            )->getRowArray();
+            $revenue = isset($revRow['revenue']) ? (float)$revRow['revenue'] : 0.0;
+
+            // average rating for spot
+            $ratingRow = $db->table('review_feedback')->selectAvg('rating','avg_rating')->where('spot_id',$sid)->get()->getRowArray();
+            $rating = isset($ratingRow['avg_rating']) ? round((float)$ratingRow['avg_rating'],1) : 0.0;
+
+            $perSpot[] = [
+                'spot_id' => $sid,
+                'spot_name' => $s['spot_name'] ?? ($s['name'] ?? ''),
+                'bookings' => $bookingsCount,
+                'revenue' => $revenue,
+                'rating' => $rating
+            ];
+        }
+
+        return $this->response->setJSON([
+            'totalSpots' => $totalSpots,
+            'totalBookings' => $totalBookings,
+            'totalRevenue' => $totalRevenue,
+            'averageRating' => $averageRating,
+            'ratedSpots' => $ratedSpots,
+            'spots' => $perSpot
+        ]);
     }
 
-    private function fetchEarningsRows(int $businessID, string $startDate, string $endDate): array
+    /**
+     * API: Spot analytics for a single spot
+     * Endpoint: /spotowner/api/spot-analytics/{spot_id}
+     */
+    public function apiSpotAnalytics($spotId = null)
+    {
+        $businessID = $this->getBusinessIdForCurrentOwner();
+        if (!$businessID || !$spotId) {
+            return $this->response->setJSON(['error' => 'Missing parameters'])->setStatusCode(400);
+        }
+
+        $db = \Config\Database::connect();
+        $currentMonth = date('Y-m');
+        $statuses = ['Confirmed','Checked-in','Checked-out','Completed'];
+
+        // bookings count this month
+        $row = $db->query("SELECT COUNT(*) AS cnt FROM bookings WHERE spot_id = ? AND DATE_FORMAT(booking_date, '%Y-%m') = ? AND booking_status IN ('".implode("','", $statuses)."')", [$spotId, $currentMonth])->getRowArray();
+        $bookings = isset($row['cnt']) ? (int)$row['cnt'] : 0;
+
+        // revenue computed
+        $revRow = $db->query("SELECT COALESCE(SUM(COALESCE(NULLIF(total_price,0), NULLIF(subtotal,0), (price_per_person * total_guests), 0)),0) AS revenue FROM bookings WHERE spot_id = ? AND DATE_FORMAT(booking_date, '%Y-%m') = ? AND booking_status IN ('".implode("','", $statuses)."')", [$spotId, $currentMonth])->getRowArray();
+        $revenue = isset($revRow['revenue']) ? (float)$revRow['revenue'] : 0.0;
+
+        // visitors (sum total_guests)
+        $visRow = $db->query("SELECT COALESCE(SUM(total_guests),0) AS visitors FROM bookings WHERE spot_id = ? AND DATE_FORMAT(booking_date, '%Y-%m') = ? AND booking_status IN ('".implode("','", $statuses)."')", [$spotId, $currentMonth])->getRowArray();
+        $visitors = isset($visRow['visitors']) ? (int)$visRow['visitors'] : 0;
+
+        // average rating
+        $ratingRow = $db->table('review_feedback')->selectAvg('rating','avg_rating')->where('spot_id',$spotId)->get()->getRowArray();
+        $rating = isset($ratingRow['avg_rating']) ? round((float)$ratingRow['avg_rating'],1) : 0.0;
+
+        return $this->response->setJSON([
+            'spot_id' => (int)$spotId,
+            'bookings' => $bookings,
+            'revenue' => $revenue,
+            'visitors' => $visitors,
+            'rating' => $rating
+        ]);
+    }
+
+    /**
+     * API: Monthly revenue series for earnings page (paid-only by default)
+     * Endpoint: /spotowner/api/monthly-revenue
+     */
+    public function apiMonthlyRevenue()
+    {
+        $businessID = $this->getBusinessIdForCurrentOwner();
+        if (!$businessID) {
+            return $this->response->setJSON(['error' => 'Business not found'])->setStatusCode(400);
+        }
+
+        $months = (int) ($this->request->getGet('months') ?? 6);
+        $months = max(1, min(36, $months));
+
+        $db = \Config\Database::connect();
+        $statuses = ['Confirmed','Completed','Checked-in','Checked-out','Checked-In','Checked-Out'];
+        $placeholders = implode(',', array_fill(0, count($statuses), '?'));
+
+        $sql = "
+            SELECT DATE_FORMAT(b.booking_date, '%Y-%m') AS month,
+                   DATE_FORMAT(b.booking_date, '%b %Y') AS month_name,
+                   COALESCE(SUM(COALESCE(NULLIF(b.total_price,0), NULLIF(b.subtotal,0), (b.price_per_person * b.total_guests), 0)),0) AS revenue,
+                   COUNT(*) AS bookings
+            FROM bookings b
+            INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
+            WHERE ts.business_id = ?
+              AND b.booking_status IN ($placeholders)
+              AND b.payment_status = 'Paid'
+            GROUP BY month
+            ORDER BY month DESC
+            LIMIT ?
+        ";
+
+        $params = array_merge([$businessID], $statuses, [$months]);
+        $rows = $db->query($sql, $params)->getResultArray() ?: [];
+
+        // Return oldest-first
+        $rows = array_reverse($rows);
+        return $this->response->setJSON($rows);
+    }
+
+    /**
+     * API: Weekly revenue series for earnings page (paid-only by default)
+     * Endpoint: /spotowner/api/weekly-revenue
+     */
+    public function apiWeeklyRevenue()
+    {
+        $businessID = $this->getBusinessIdForCurrentOwner();
+        if (!$businessID) {
+            return $this->response->setJSON(['error' => 'Business not found'])->setStatusCode(400);
+        }
+
+        $weeks = (int) ($this->request->getGet('weeks') ?? 8);
+        $weeks = max(1, min(52, $weeks));
+
+        $db = \Config\Database::connect();
+        $statuses = ['Confirmed','Completed','Checked-in','Checked-out','Checked-In','Checked-Out'];
+        $placeholders = implode(',', array_fill(0, count($statuses), '?'));
+
+        // Group by ISO week (YEARWEEK with mode 1). Return week_start and week_end for labeling.
+        $sql = "
+            SELECT YEARWEEK(b.booking_date, 1) AS yw,
+                   COALESCE(SUM(COALESCE(NULLIF(b.total_price,0), NULLIF(b.subtotal,0), (b.price_per_person * b.total_guests), 0)),0) AS revenue,
+                   MAX(DATE(b.booking_date)) AS week_end,
+                   COALESCE(SUM(COALESCE(NULLIF(b.total_price,0), NULLIF(b.subtotal,0), (b.price_per_person * b.total_guests), 0)),0) AS revenue
+            FROM bookings b
+            INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
+            WHERE ts.business_id = ?
+              AND b.booking_status IN ($placeholders)
+              AND b.payment_status = 'Paid'
+            GROUP BY yw
+            ORDER BY yw DESC
+            LIMIT ?
+        ";
+
+        $params = array_merge([$businessID], $statuses, [$weeks]);
+        $rows = $db->query($sql, $params)->getResultArray() ?: [];
+
+        // Format rows: return week_start, week_end as YYYY-MM-DD along with revenue
+        $out = array_reverse(array_map(function($r){
+            return [
+                'week_start' => $r['week_start'],
+                'week_end' => $r['week_end'],
+                'revenue' => (float)$r['revenue']
+            ];
+        }, $rows));
+
+        return $this->response->setJSON($out);
+    }
+
+    /**
+     * Resolve the business_id for the currently logged-in spot owner user.
+     * Returns business_id or null when not found / not authorized.
+     */
+    private function getBusinessIdForCurrentOwner(): ?int
+    {
+        $session = session();
+        $userID = $session->get('UserID');
+        if (!$userID || !$session->get('isLoggedIn') || $session->get('Role') !== 'Spot Owner') {
+            return null;
+        }
+        $businessModel = new BusinessModel();
+        $business = $businessModel->where('user_id', $userID)->first();
+        return $business ? ($business['business_id'] ?? $business['id'] ?? null) : null;
+    }
+
+    // Backwards-compatible route handlers: older routes expect these method names.
+    public function getDashboardAnalytics()
+    {
+        return $this->apiDashboardAnalytics();
+    }
+
+    public function getSpotAnalytics($spotId = null)
+    {
+        return $this->apiSpotAnalytics($spotId);
+    }
+
+    private function fetchEarningsRows(int $businessID, string $startDate, string $endDate, bool $onlyPaid = true): array
     {
         $db = \Config\Database::connect();
         $statuses = ['Confirmed','Completed','Checked-in','Checked-out','Checked-In','Checked-Out'];
@@ -313,17 +540,19 @@ public function recordCheckin()
                 DATE(b.booking_date) AS booking_date,
                 COALESCE(ts.spot_name, 'N/A') AS spot_name,
                 COALESCE(b.total_guests, 0) AS total_guests,
-                COALESCE(b.total_price, 0) AS total_price,
+                COALESCE(NULLIF(b.total_price,0), NULLIF(b.subtotal,0), (b.price_per_person * b.total_guests), 0) AS total_price,
                 COALESCE(b.booking_status, '') AS booking_status,
                 COALESCE(b.payment_status, '') AS payment_status
             FROM bookings b
             INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
             WHERE ts.business_id = ?
               AND b.booking_status IN ($placeholders)
+              AND (? = 0 OR b.payment_status = 'Paid')
               AND DATE(b.booking_date) BETWEEN ? AND ?
             ORDER BY b.booking_date ASC, b.booking_id ASC
         ";
-        $params = array_merge([$businessID], $statuses, [$startDate, $endDate]);
+        $onlyPaidInt = $onlyPaid ? 1 : 0;
+        $params = array_merge([$businessID], $statuses, [$onlyPaidInt, $startDate, $endDate]);
         return $db->query($sql, $params)->getResultArray() ?: [];
     }
 
@@ -339,7 +568,7 @@ public function recordCheckin()
         $start = $this->request->getGet('start') ?: date('Y-m-d', strtotime('-29 days'));
         $end   = $this->request->getGet('end') ?: date('Y-m-d');
 
-        $rows = $this->fetchEarningsRows((int)$businessID, $start, $end);
+        $rows = $this->fetchEarningsRows((int)$businessID, $start, $end, true);
 
         $filename = 'earnings_' . $businessID . '_' . $start . '_to_' . $end . '.csv';
         $response = $this->response;
@@ -378,7 +607,7 @@ public function recordCheckin()
         $start = $this->request->getGet('start') ?: date('Y-m-d', strtotime('-29 days'));
         $end   = $this->request->getGet('end') ?: date('Y-m-d');
 
-        $rows = $this->fetchEarningsRows((int)$businessID, $start, $end);
+        $rows = $this->fetchEarningsRows((int)$businessID, $start, $end, true);
 
         // Minimal HTML template for PDF
         $total = array_reduce($rows, function($acc, $r){ return $acc + (float)$r['total_price']; }, 0.0);
@@ -394,7 +623,7 @@ public function recordCheckin()
         $html .= '<h2>Earnings Report</h2>';
         $html .= '<div class="muted">Business ID: ' . htmlspecialchars((string)$businessID) . ' — Period: ' . htmlspecialchars($start) . ' to ' . htmlspecialchars($end) . '</div>';
         $html .= '<table><thead><tr>
-                    <th>#</th><th>Date</th><th>Spot</th><th>Guests</th><th>Total Price (PHP)</th><th>Status</th><th>Payment</th>
+                    <th>#</th><th>Date</th><th>Spot</th><th>Guests</th><th>Total Price (PHP)</th><th>Status</th>
                   </tr></thead><tbody>';
         $i = 1;
         foreach ($rows as $r) {
@@ -405,7 +634,6 @@ public function recordCheckin()
                   .  '<td>' . (int)$r['total_guests'] . '</td>'
                   .  '<td style="text-align:right">' . number_format((float)$r['total_price'], 2) . '</td>'
                   .  '<td>' . htmlspecialchars($r['booking_status']) . '</td>'
-                  .  '<td>' . htmlspecialchars($r['payment_status']) . '</td>'
                   .  '</tr>';
         }
         $html .= '</tbody><tfoot><tr><td colspan="4">Total</td><td style="text-align:right">' . number_format($total, 2) . '</td><td colspan="2"></td></tr></tfoot></table>';
@@ -793,7 +1021,7 @@ public function getMonthlyRevenueData()
         
         // Get last 6 months revenue with proper month names (use Query Builder to avoid raw string escaping issues)
         $builder = $db->table('bookings b')
-            ->select("DATE_FORMAT(b.booking_date, '%Y-%m') as month, MIN(DATE_FORMAT(b.booking_date, '%b %Y')) as month_name, SUM(b.total_price) as revenue, COUNT(b.booking_id) as bookings", false)
+            ->select("DATE_FORMAT(b.booking_date, '%Y-%m') as month, MIN(DATE_FORMAT(b.booking_date, '%b %Y')) as month_name, SUM(COALESCE(NULLIF(b.total_price,0), NULLIF(b.subtotal,0), (b.price_per_person * b.total_guests), 0)) as revenue, COUNT(b.booking_id) as bookings", false)
             ->join('tourist_spots ts', 'b.spot_id = ts.spot_id')
             ->where('ts.business_id', $businessID)
             ->where("b.booking_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)")
@@ -877,7 +1105,7 @@ public function getWeeklyRevenueData()
                     DATE_FORMAT(b.booking_date, '%Y-%u') as week,
                     MIN(DATE_FORMAT(DATE_SUB(b.booking_date, INTERVAL WEEKDAY(b.booking_date) DAY), '%b %d')) as week_start,
                     MAX(DATE_FORMAT(DATE_ADD(DATE_SUB(b.booking_date, INTERVAL WEEKDAY(b.booking_date) DAY), INTERVAL 6 DAY), '%b %d')) as week_end,
-                    SUM(b.total_price) as revenue,
+                    SUM(COALESCE(NULLIF(b.total_price,0), NULLIF(b.subtotal,0), (b.price_per_person * b.total_guests), 0)) as revenue,
                     COUNT(b.booking_id) as bookings
             FROM bookings b
             INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
@@ -976,193 +1204,7 @@ public function getBookingTrendsData()
     }
 }
 
-/**
- * Get dashboard analytics overview
- */
-public function getDashboardAnalytics()
-{
-    $userId = session()->get('UserID');
-    
-    if (!$userId) {
-        return $this->response->setJSON(['error' => 'Unauthorized'])->setStatusCode(401);
-    }
-
-    try {
-        $db = \Config\Database::connect();
-        
-        // Get business_id for the logged-in user
-        $business = $db->table('businesses')
-            ->where('user_id', $userId)
-            ->get()
-            ->getRow();
-        
-        if (!$business) {
-            return $this->response->setJSON([
-                'totalSpots' => 0,
-                'totalBookings' => 0,
-                'totalRevenue' => 0,
-                'averageRating' => 0
-            ]);
-        }
-        
-        $businessId = $business->business_id;
-        
-        // Get total spots
-        $totalSpots = $db->table('tourist_spots')
-            ->where('business_id', $businessId)
-            ->where('status', 'approved')
-            ->countAllResults();
-        
-        // Get total bookings (this month)
-        $currentMonth = date('Y-m');
-        $totalBookings = $db->table('bookings b')
-            ->join('tourist_spots ts', 'b.spot_id = ts.spot_id')
-            ->where('ts.business_id', $businessId)
-            ->where('DATE_FORMAT(b.booking_date, "%Y-%m")', $currentMonth)
-            ->whereIn('b.booking_status', ['Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out'])
-            ->countAllResults();
-        
-        // Get total revenue (this month)
-        $revenueQuery = $db->table('bookings b')
-            ->select('SUM(b.total_price) as total_revenue')
-            ->join('tourist_spots ts', 'b.spot_id = ts.spot_id')
-            ->where('ts.business_id', $businessId)
-            ->where('DATE_FORMAT(b.booking_date, "%Y-%m")', $currentMonth)
-            ->whereIn('b.booking_status', ['Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out'])
-            ->where('b.payment_status', 'Paid')
-            ->get()
-            ->getRow();
-        
-        $totalRevenue = $revenueQuery ? (float)$revenueQuery->total_revenue : 0;
-        
-        // Get average rating across all spots
-        $ratingQuery = $db->table('review_feedback rf')
-            ->select('AVG(rf.rating) as avg_rating')
-            ->join('tourist_spots ts', 'rf.spot_id = ts.spot_id')
-            ->where('ts.business_id', $businessId)
-            ->where('rf.status', 'Approved')
-            ->get()
-            ->getRow();
-        
-        $averageRating = $ratingQuery && $ratingQuery->avg_rating ? 
-            round((float)$ratingQuery->avg_rating, 1) : 0;
-
-        // Count how many owner spots have at least one approved review (rated spots)
-        $ratedSpotsRow = $db->table('review_feedback rf')
-            ->select('COUNT(DISTINCT rf.spot_id) AS rated_spots')
-            ->join('tourist_spots ts', 'rf.spot_id = ts.spot_id')
-            ->where('ts.business_id', $businessId)
-            ->where('rf.status', 'Approved')
-            ->get()
-            ->getRow();
-        $ratedSpots = $ratedSpotsRow ? (int)$ratedSpotsRow->rated_spots : 0;
-
-        // Total reviews across all spots for this business (approved only)
-        $totalReviewsRow = $db->table('review_feedback rf')
-            ->select('COUNT(rf.review_id) as total_reviews')
-            ->join('tourist_spots ts', 'rf.spot_id = ts.spot_id')
-            ->where('ts.business_id', $businessId)
-            ->where('rf.status', 'Approved')
-            ->get()
-            ->getRow();
-        $totalReviews = $totalReviewsRow ? (int)$totalReviewsRow->total_reviews : 0;
-        
-        return $this->response->setJSON([
-            'totalSpots' => $totalSpots,
-            'totalBookings' => $totalBookings,
-            'totalRevenue' => $totalRevenue,
-            'averageRating' => $averageRating,
-            'ratedSpots' => $ratedSpots,
-            'totalReviews' => $totalReviews
-        ]);
-        
-    } catch (\Exception $e) {
-        log_message('error', 'Dashboard analytics error: ' . $e->getMessage());
-        return $this->response->setJSON(['error' => 'Failed to fetch analytics'])
-            ->setStatusCode(500);
-    }
-}
-
-/**
- * Get spot-specific analytics for each tourist spot
- */
-public function getSpotAnalytics($spotId)
-{
-    $userId = session()->get('UserID');
-    
-    if (!$userId) {
-        return $this->response->setJSON(['error' => 'Unauthorized'])->setStatusCode(401);
-    }
-
-    try {
-        $db = \Config\Database::connect();
-        
-        // Verify ownership
-        $spot = $db->table('tourist_spots ts')
-            ->join('businesses b', 'ts.business_id = b.business_id')
-            ->where('ts.spot_id', $spotId)
-            ->where('b.user_id', $userId)
-            ->get()
-            ->getRow();
-        
-        if (!$spot) {
-            return $this->response->setJSON(['error' => 'Unauthorized access'])
-                ->setStatusCode(403);
-        }
-        
-        // Get bookings count
-        $bookings = $db->table('bookings')
-            ->where('spot_id', $spotId)
-            ->whereIn('booking_status', ['Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out'])
-            ->countAllResults();
-        
-        // Get revenue
-        $revenueQuery = $db->table('bookings')
-            ->select('SUM(total_price) as revenue')
-            ->where('spot_id', $spotId)
-            ->whereIn('booking_status', ['Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out'])
-            ->where('payment_status', 'Paid')
-            ->get()
-            ->getRow();
-        
-        $revenue = $revenueQuery ? (float)$revenueQuery->revenue : 0;
-        
-        // Get visitors count
-        $visitorsQuery = $db->table('bookings')
-            ->select('SUM(total_guests) as visitors')
-            ->where('spot_id', $spotId)
-            ->whereIn('booking_status', ['Completed', 'Checked-out', 'Checked-Out'])
-            ->get()
-            ->getRow();
-        
-        $visitors = $visitorsQuery ? (int)$visitorsQuery->visitors : 0;
-        
-        // Get rating
-        $ratingQuery = $db->table('review_feedback')
-            ->select('AVG(rating) as avg_rating, COUNT(review_id) as review_count')
-            ->where('spot_id', $spotId)
-            ->where('status', 'Approved')
-            ->get()
-            ->getRow();
-        
-        $rating = $ratingQuery && $ratingQuery->avg_rating ? 
-            round((float)$ratingQuery->avg_rating, 1) : 0;
-        $reviews = $ratingQuery ? (int)$ratingQuery->review_count : 0;
-        
-        return $this->response->setJSON([
-            'bookings' => $bookings,
-            'revenue' => $revenue,
-            'visitors' => $visitors,
-            'rating' => $rating,
-            'reviews' => $reviews
-        ]);
-        
-    } catch (\Exception $e) {
-        log_message('error', 'Spot analytics error: ' . $e->getMessage());
-        return $this->response->setJSON(['error' => 'Failed to fetch spot analytics'])
-            ->setStatusCode(500);
-    }
-}
+// Legacy analytics implementations removed — use the new API methods (apiDashboardAnalytics / apiSpotAnalytics)
 
 
 // ============================================

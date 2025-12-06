@@ -1535,7 +1535,22 @@ public function listUserTrips()
 
             // Legacy single booking path
             $totalGuests = $numAdults + $numChildren + $numSeniors;
-                        $data = [
+
+            // Compute total price server-side if not provided or zero to avoid
+            // persisting client-supplied 0 values. Prefer spot.price_per_person
+            // fallback to subtotal calculation.
+            if (empty($totalPrice) || (is_numeric($totalPrice) && floatval($totalPrice) <= 0)) {
+                try {
+                    $s = $spotModel->find($spotId);
+                    $pp = isset($s['price_per_person']) ? (float)$s['price_per_person'] : 0;
+                    $totalPrice = $pp * max(1, $totalGuests);
+                } catch (\Throwable $e) {
+                    // If spot lookup fails, keep totalPrice as 0 to avoid breaking flow
+                    $totalPrice = 0;
+                }
+            }
+
+            $data = [
                 'spot_id' => $spotId,
                 'booking_date' => date('Y-m-d'),
                 'visit_date' => $visitDate,

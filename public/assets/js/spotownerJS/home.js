@@ -153,21 +153,54 @@ let currentImageIndex = 0;
 async function fetchDashboardAnalytics() {
     try {
         console.log('📊 Fetching dashboard analytics...');
-        const res = await fetch('/spotowner/api/dashboard-analytics');
 
-        if (!res.ok) {
-            throw new Error(`HTTP error! status: ${res.status}`);
+        // If server provided immediate values, use them first for instant display
+        if (window.__SERVER_DASHBOARD) {
+            const s = window.__SERVER_DASHBOARD;
+            try {
+                document.getElementById('stat-total-spots').textContent = s.totalSpots || 0;
+                document.getElementById('stat-total-bookings').textContent = s.totalBookings || 0;
+                document.getElementById('stat-total-revenue').textContent = `₱${(s.totalRevenue || 0).toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+                document.getElementById('stat-avg-rating').textContent = s.averageRating || '0.0';
+            } catch (e) {
+                // ignore DOM errors
+            }
         }
 
+        // If server provided values, skip the API refresh to avoid overwriting correct server values
+        if (window.__SERVER_DASHBOARD) {
+            console.log('Using server dashboard values; skipping API refresh to avoid overwrite.');
+            return;
+        }
+
+        // Still attempt to fetch live analytics to refresh values asynchronously when server values are not present
+        const res = await fetch('/spotowner/api/dashboard-analytics');
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         const data = await res.json();
         console.log('📦 Received analytics:', data);
 
-        // Update stat cards
-        document.getElementById('stat-total-spots').textContent = data.totalSpots || 0;
-        document.getElementById('stat-total-bookings').textContent = data.totalBookings || 0;
-        document.getElementById('stat-total-revenue').textContent =
-            `₱${(data.totalRevenue || 0).toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-        document.getElementById('stat-avg-rating').textContent = data.averageRating || '0.0';
+        // Update stat cards with API data if available, but do not overwrite a non-zero server value with a zero API result
+        const serverVals = window.__SERVER_DASHBOARD || {};
+        const totalSpotsVal = (typeof data.totalSpots !== 'undefined' && data.totalSpots !== null) ? data.totalSpots : (serverVals.totalSpots ?? 0);
+        const totalBookingsVal = (typeof data.totalBookings !== 'undefined' && data.totalBookings !== null) ? data.totalBookings : (serverVals.totalBookings ?? 0);
+
+        // For revenue: prefer API when it's non-null; however if API returns 0 while server had a positive value, keep server value to avoid flashing 0
+        const apiRevenue = (typeof data.totalRevenue !== 'undefined' && data.totalRevenue !== null) ? Number(data.totalRevenue) : null;
+        let revenueVal;
+        if (apiRevenue === null) {
+            revenueVal = Number(serverVals.totalRevenue ?? 0);
+        } else if (apiRevenue === 0 && Number(serverVals.totalRevenue || 0) > 0) {
+            revenueVal = Number(serverVals.totalRevenue);
+        } else {
+            revenueVal = apiRevenue;
+        }
+
+        const avgRatingVal = (typeof data.averageRating !== 'undefined' && data.averageRating !== null) ? data.averageRating : (serverVals.averageRating ?? '0.0');
+
+        document.getElementById('stat-total-spots').textContent = totalSpotsVal;
+        document.getElementById('stat-total-bookings').textContent = totalBookingsVal;
+        document.getElementById('stat-total-revenue').textContent = `₱${(Number(revenueVal) || 0).toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+        document.getElementById('stat-avg-rating').textContent = avgRatingVal;
         // Update description below average rating with rated spots count if available
         const avgDesc = document.querySelector('#stat-avg-rating')?.closest('.stat-card')?.querySelector('.stat-description');
         if (avgDesc && typeof data.ratedSpots !== 'undefined') {

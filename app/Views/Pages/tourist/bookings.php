@@ -215,7 +215,19 @@
                                 <div class="booking-detail-item"><div class="booking-icon"><i class="bi bi-calendar-event"></i></div><div class="booking-detail-content"><h4>Visit Date</h4><p><?= esc(date('M d, Y', strtotime($booking['visit_date']))) ?></p></div></div>
                                 <div class="booking-detail-item"><div class="booking-icon"><i class="bi bi-clock"></i></div><div class="booking-detail-content"><h4>Time</h4><p><?= esc($booking['visit_time'] ?? 'N/A') ?></p></div></div>
                                 <div class="booking-detail-item"><div class="booking-icon"><i class="bi bi-people"></i></div><div class="booking-detail-content"><h4>Guests</h4><p><?= esc($booking['num_adults']) ?> Adults, <?= esc($booking['num_children']) ?> Children, <?= esc($booking['num_seniors']) ?> Seniors</p></div></div>
-                                <div class="booking-detail-item"><div class="booking-icon"><i class="bi bi-cash-stack"></i></div><div class="booking-detail-content"><h4>Total Cost</h4><p>₱<?= number_format($booking['total_price'], 2) ?></p></div></div>
+                                <div class="booking-detail-item"><div class="booking-icon"><i class="bi bi-cash-stack"></i></div><div class="booking-detail-content"><h4>Total Cost</h4><?php
+                                    // Defensive fallback: if total_price is empty or zero, try subtotal or compute from price_per_person * total_guests
+                                    $rawTotal = 0.0;
+                                    if (isset($booking['total_price']) && is_numeric($booking['total_price'])) {
+                                        $rawTotal = (float)$booking['total_price'];
+                                    }
+                                    if ($rawTotal <= 0 && isset($booking['subtotal']) && is_numeric($booking['subtotal'])) {
+                                        $rawTotal = (float)$booking['subtotal'];
+                                    }
+                                    if ($rawTotal <= 0 && isset($booking['price_per_person']) && isset($booking['total_guests']) && is_numeric($booking['price_per_person']) && is_numeric($booking['total_guests'])) {
+                                        $rawTotal = (float)$booking['price_per_person'] * (int)$booking['total_guests'];
+                                    }
+                                ?><p>₱<?= number_format($rawTotal, 2) ?></p></div></div>
                             </div>
                             <div class="booking-actions">
                                 <button class="btn-booking ocean" onclick="viewBookingDetails(this)"><i class="bi bi-eye"></i> View Details</button>
