@@ -73,9 +73,9 @@ public function getMonthlyRevenue($businessID)
 {
     $db = \Config\Database::connect();
     $currentMonth = date('Y-m');
-    
+    // Default: only include paid bookings. Caller may use other model methods for different filters.
     $query = $db->query("
-        SELECT COALESCE(SUM(b.total_price), 0) as monthly_revenue
+        SELECT COALESCE(SUM(COALESCE(NULLIF(b.total_price,0), NULLIF(b.subtotal,0), (b.price_per_person * b.total_guests), 0)), 0) as monthly_revenue
         FROM bookings b
         INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
         WHERE ts.business_id = ?
@@ -148,8 +148,9 @@ public function getMonthOverMonthComparison($businessID)
     $lastMonth = date('Y-m', strtotime('-1 month'));
     
     // Current month revenue
+    // Month-over-month comparison (paid-only by default)
     $currentQuery = $db->query("
-        SELECT COALESCE(SUM(b.total_price), 0) as revenue
+        SELECT COALESCE(SUM(COALESCE(NULLIF(b.total_price,0), NULLIF(b.subtotal,0), (b.price_per_person * b.total_guests), 0)), 0) as revenue
         FROM bookings b
         INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
         WHERE ts.business_id = ?
@@ -162,15 +163,15 @@ public function getMonthOverMonthComparison($businessID)
     $currentRevenue = $currentResult ? (float)$currentResult->revenue : 0;
     
     // Last month revenue
-    $lastQuery = $db->query("
-        SELECT COALESCE(SUM(b.total_price), 0) as revenue
-        FROM bookings b
-        INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
-        WHERE ts.business_id = ?
-            AND DATE_FORMAT(b.booking_date, '%Y-%m') = ?
-            AND b.booking_status IN ('Confirmed', 'Completed', 'Checked-in', 'Checked-out')
-            AND b.payment_status = 'Paid'
-    ", [$businessID, $lastMonth]);
+        $lastQuery = $db->query("
+            SELECT COALESCE(SUM(COALESCE(NULLIF(b.total_price,0), NULLIF(b.subtotal,0), (b.price_per_person * b.total_guests), 0)), 0) as revenue
+            FROM bookings b
+            INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
+            WHERE ts.business_id = ?
+                AND DATE_FORMAT(b.booking_date, '%Y-%m') = ?
+                AND b.booking_status IN ('Confirmed', 'Completed', 'Checked-in', 'Checked-out')
+                AND b.payment_status = 'Paid'
+        ", [$businessID, $lastMonth]);
     
     $lastResult = $lastQuery->getRow();
     $lastRevenue = $lastResult ? (float)$lastResult->revenue : 0;
@@ -195,6 +196,77 @@ public function getMonthOverMonthComparison($businessID)
     ];
 }
 
+    /**
+     * Get totals grouped by spot for a given business. Useful for cards and per-spot summaries.
+     * Returns array of ['spot_id', 'spot_name', 'total_revenue']
+     */
+    public function getTotalsBySpot($businessID, $onlyPaid = true)
+    {
+        $db = \Config\Database::connect();
+        $sql = "
+            SELECT ts.spot_id, ts.name AS spot_name,
+                COALESCE(SUM(COALESCE(NULLIF(b.total_price,0), NULLIF(b.subtotal,0), (b.price_per_person * b.total_guests), 0)), 0) as total_revenue
+            FROM bookings b
+            INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
+            WHERE ts.business_id = ?
+                AND b.booking_status IN ('Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out')
+                AND (? = 0 OR b.payment_status = 'Paid')
+            GROUP BY ts.spot_id, ts.name
+            ORDER BY total_revenue DESC
+        ";
+
+        $onlyPaidInt = $onlyPaid ? 1 : 0;
+        $query = $db->query($sql, [$businessID, $onlyPaidInt]);
+        return $query->getResultArray();
+    }
+
+    /**
+     * Get monthly revenue totals for the business (grouped by YYYY-MM). Useful for graphs.
+     * Returns array of ['month' => 'YYYY-MM', 'revenue' => float]
+     */
+    public function getMonthlyRevenueByBusiness($businessID, $limitMonths = 12, $onlyPaid = true)
+    {
+        $db = \Config\Database::connect();
+        // Build SQL with conditional payment filter. Use booking_date for grouping as requested.
+        $sql = "
+            SELECT DATE_FORMAT(b.booking_date, '%Y-%m') as month,
+                COALESCE(SUM(COALESCE(NULLIF(b.total_price,0), NULLIF(b.subtotal,0), (b.price_per_person * b.total_guests), 0)), 0) as revenue
+            FROM bookings b
+            INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
+            WHERE ts.business_id = ?
+                AND b.booking_status IN ('Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out')
+                AND (? = 0 OR b.payment_status = 'Paid')
+            GROUP BY month
+            ORDER BY month DESC
+            LIMIT ?
+        ";
+
+        $onlyPaidInt = $onlyPaid ? 1 : 0;
+        $query = $db->query($sql, [$businessID, $onlyPaidInt, (int)$limitMonths]);
+        $rows = $query->getResultArray();
+
+        // Return in chronological order (oldest first)
+        return array_reverse($rows);
+    }
+
+    /**
+     * Backfill bookings where total_price is 0 or NULL using the computed fallback.
+     * Returns number of affected rows. This modifies DB and should be run with caution.
+     */
+    public function backfillMissingTotals()
+    {
+        $db = \Config\Database::connect();
+
+        $sql = "
+            UPDATE bookings
+            SET total_price = COALESCE(NULLIF(total_price,0), NULLIF(subtotal,0), (price_per_person * total_guests), 0)
+            WHERE total_price = 0 OR total_price IS NULL
+        ";
+
+        $db->query($sql);
+        return $db->affectedRows();
+    }
+
 /**
  * Get recent transactions
  */
@@ -205,7 +277,7 @@ public function getRecentTransactionsByBusiness($businessID, $limit = 5)
     $builder->select([
         'b.booking_id',
         'b.booking_date',
-        'b.total_price',
+        "COALESCE(NULLIF(b.total_price,0), NULLIF(b.subtotal,0), (b.price_per_person * b.total_guests), 0) AS total_price",
         'b.booking_status',
         "CONCAT(COALESCE(u.FirstName, ''), ' ', COALESCE(u.LastName, '')) AS customer_name",
         'u.email as email',
@@ -237,7 +309,7 @@ public function getTopPerformingDays($businessID, $limit = 5)
             DAYNAME(MIN(b.booking_date)) AS day_name,
             DATE_FORMAT(MIN(DATE(b.booking_date)), '%b %d') AS formatted_date,
             COUNT(b.booking_id) AS bookings,
-            SUM(b.total_price) AS revenue
+            SUM(COALESCE(NULLIF(b.total_price,0), NULLIF(b.subtotal,0), (b.price_per_person * b.total_guests), 0)) AS revenue
         FROM bookings b
         INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
         WHERE ts.business_id = ?
@@ -297,18 +369,38 @@ public function getTopPerformingDays($businessID, $limit = 5)
     }
 
     //select sum(b.total_price) from bookings inner join tourist spots on bookings.spot_id = tourist_spots.spot_id where business_id = ? where booking is confirmed
-   public function getTotalRevenueByBusiness($businessID)
+   public function getTotalRevenueByBusiness($businessID, $onlyPaid = true)
 {
     $builder = $this->db->table('bookings b');
-    $builder->select('SUM(b.total_price) AS total_revenue');
+    // Sum using computed fallback: prefer total_price, else subtotal, else price_per_person * total_guests
+    $builder->select("COALESCE(SUM(COALESCE(NULLIF(b.total_price,0), NULLIF(b.subtotal,0), (b.price_per_person * b.total_guests), 0)), 0) AS total_revenue", false);
     $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
     $builder->where('ts.business_id', $businessID);
     $builder->whereIn('b.booking_status', ['Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out']);
-    $builder->where('b.payment_status', 'Paid');
+    if ($onlyPaid) {
+        $builder->where('b.payment_status', 'Paid');
+    }
 
     $result = $builder->get()->getRowArray();
     return (float) ($result['total_revenue'] ?? 0);
 }
+
+    /**
+     * Return raw SUM of the `total_price` column for a business (no fallback).
+     * Use this when you explicitly want the DB `total_price` values summed.
+     */
+    public function getRawTotalRevenueByBusiness($businessID)
+    {
+        $builder = $this->db->table('bookings b');
+        $builder->select('COALESCE(SUM(b.total_price), 0) AS total_revenue', false);
+        $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
+        $builder->where('ts.business_id', $businessID);
+        $builder->whereIn('b.booking_status', ['Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out']);
+        $builder->where('b.payment_status', 'Paid');
+
+        $result = $builder->get()->getRowArray();
+        return (float) ($result['total_revenue'] ?? 0);
+    }
      public function getPeakVisitTimes()
     {
         $defaults = ['Monday'=>0,'Tuesday'=>0,'Wednesday'=>0,'Thursday'=>0,'Friday'=>0,'Saturday'=>0,'Sunday'=>0];
@@ -386,30 +478,7 @@ public function getTopPerformingDays($businessID, $limit = 5)
         return isset($result['total']) ? (int)$result['total'] : 0;
     }
 
-    /////////////yeoj/////////////////////////
-
-    /**
- * Get monthly revenue for the last 6 months by business
- */
-public function getMonthlyRevenueByBusiness($businessID, $months = 6)
-{
-    $builder = $this->db->table('bookings b');
-    $builder->select('
-        DATE_FORMAT(b.booking_date, "%Y-%m") as month,
-        MONTHNAME(MIN(b.booking_date)) as month_name,
-        SUM(b.total_price) as revenue,
-        COUNT(b.booking_id) as bookings
-    ');
-    $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
-    $builder->where('ts.business_id', $businessID);
-    $builder->whereIn('b.booking_status', ['Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out']);
-    $builder->where('b.booking_date >=', date('Y-m-d', strtotime("-{$months} months")));
-    $builder->groupBy('DATE_FORMAT(b.booking_date, "%Y-%m")');
-    $builder->orderBy('month', 'ASC');
-
-    return $builder->get()->getResultArray();
-}
-
+    
 /**
  * Get weekly revenue for the last 8 weeks by business
  */
@@ -420,7 +489,7 @@ public function getWeeklyRevenueByBusiness($businessID, $weeks = 8)
         YEARWEEK(b.booking_date, 1) as week_num,
         DATE_FORMAT(MIN(b.booking_date), "%b %d") as week_start,
         DATE_FORMAT(MAX(b.booking_date), "%b %d") as week_end,
-        SUM(b.total_price) as revenue,
+            SUM(COALESCE(NULLIF(b.total_price,0), NULLIF(b.subtotal,0), (b.price_per_person * b.total_guests), 0)) as revenue,
         COUNT(b.booking_id) as bookings
     ');
     $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
@@ -487,7 +556,7 @@ public function getTopPerformingDayss($businessID, $limit = 5)
         DATE(b.booking_date) as booking_day,
         DAYNAME(b.booking_date) as day_name,
         DATE_FORMAT(b.booking_date, "%M %d") as formatted_date,
-        SUM(b.total_price) as revenue,
+        SUM(COALESCE(NULLIF(b.total_price,0), NULLIF(b.subtotal,0), (b.price_per_person * b.total_guests), 0)) as revenue,
         COUNT(b.booking_id) as bookings
     ');
     $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
@@ -520,7 +589,7 @@ public function getTopPerformingDayss($businessID, $limit = 5)
     public function getTopPerformingSpots($startDate, $endDate, $limit = 5)
     {
         $builder = $this->builder();
-        $builder->select('ts.spot_name, ts.category, COUNT(b.booking_id) as total_bookings, SUM(b.total_price) as total_revenue');
+        $builder->select('ts.spot_name, ts.category, COUNT(b.booking_id) as total_bookings, SUM(COALESCE(NULLIF(b.total_price,0), NULLIF(b.subtotal,0), (b.price_per_person * b.total_guests), 0)) as total_revenue');
         $builder->from('bookings b');
         $builder->join('tourist_spots ts', 'b.spot_id = ts.spot_id');
         $builder->where('b.booking_date >=', $startDate);
@@ -584,7 +653,7 @@ public function getTopPerformingDayss($businessID, $limit = 5)
     
     public function getAverageRevenuePerBookings($startDate, $endDate)
     {
-        $result = $this->select('SUM(total_price) as total_revenue, COUNT(booking_id) as total_bookings')
+        $result = $this->select('SUM(COALESCE(NULLIF(total_price,0), NULLIF(subtotal,0), (price_per_person * total_guests), 0)) as total_revenue, COUNT(booking_id) as total_bookings')
                        ->where('booking_status', 'Confirmed')
                        ->where('booking_date >=', $startDate)
                        ->where('booking_date <=', $endDate)
@@ -599,7 +668,7 @@ public function getTopPerformingDayss($businessID, $limit = 5)
     public function getRevenueByCategory($startDate, $endDate)
     {
         return $this->db->table('bookings b')
-            ->select('ts.category, SUM(b.total_price) as total_revenue')
+            ->select('ts.category, SUM(COALESCE(NULLIF(b.total_price,0), NULLIF(b.subtotal,0), (b.price_per_person * b.total_guests), 0)) as total_revenue')
             ->join('tourist_spots ts', 'b.spot_id = ts.spot_id')
             ->where('b.booking_status', 'Confirmed')
             ->where('DATE(b.booking_date) >=', $startDate)

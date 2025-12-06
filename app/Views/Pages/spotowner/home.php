@@ -199,6 +199,16 @@
         </div>
     </div>
 
+    <!-- Expose server-side dashboard values so the client can render immediately -->
+    <script>
+        window.__SERVER_DASHBOARD = {
+            totalSpots: <?= json_encode($totalspots ?? 0) ?>,
+            totalBookings: <?= json_encode($totalbookings ?? ($toatlbookings ?? 0)) ?>,
+            totalRevenue: <?= json_encode((float)($totalrevenue ?? 0)) ?>,
+            averageRating: <?= json_encode($averageRating ?? 0) ?>
+        };
+    </script>
+
   
 
  
