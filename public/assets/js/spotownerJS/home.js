@@ -418,8 +418,8 @@ function initializeCharts() {
     // 1. Revenue Trend Line Chart - Using API data
     const revenueTrendCtx = getEl('revenueTrendChart');
     if (revenueTrendCtx) {
-        // Fetch monthly revenue data from API
-        fetch('/spotowner/api/monthly-revenue')
+        // Fetch monthly revenue data from API (per-spot series across all spots)
+        fetch('/spotowner/api/monthly-revenue?onlyPaid=0&bySpot=1&months=6')
             .then(res => res.json())
             .then(data => {
                 try {

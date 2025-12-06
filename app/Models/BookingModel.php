@@ -125,12 +125,11 @@ public function getPendingRevenue($businessID)
     $db = \Config\Database::connect();
     
     $query = $db->query("
-        SELECT COALESCE(SUM(b.total_price), 0) as pending_revenue
+        SELECT COALESCE(SUM(COALESCE(NULLIF(b.total_price,0), NULLIF(b.subtotal,0), (b.price_per_person * b.total_guests), 0)), 0) as pending_revenue
         FROM bookings b
         INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
         WHERE ts.business_id = ?
-            AND b.booking_status IN ('Pending', 'Confirmed')
-            AND b.payment_status = 'Unpaid'
+            AND b.booking_status = 'Pending'
     ", [$businessID]);
     
     $result = $query->getRow();
@@ -140,24 +139,23 @@ public function getPendingRevenue($businessID)
 /**
  * Get month-over-month comparison
  */
-public function getMonthOverMonthComparison($businessID)
-{
-    $db = \Config\Database::connect();
-    
-    $currentMonth = date('Y-m');
-    $lastMonth = date('Y-m', strtotime('-1 month'));
-    
-    // Current month revenue
-    // Month-over-month comparison (paid-only by default)
-    $currentQuery = $db->query("
-        SELECT COALESCE(SUM(COALESCE(NULLIF(b.total_price,0), NULLIF(b.subtotal,0), (b.price_per_person * b.total_guests), 0)), 0) as revenue
-        FROM bookings b
-        INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
-        WHERE ts.business_id = ?
-            AND DATE_FORMAT(b.booking_date, '%Y-%m') = ?
-            AND b.booking_status IN ('Confirmed', 'Completed', 'Checked-in', 'Checked-out')
-            AND b.payment_status = 'Paid'
-    ", [$businessID, $currentMonth]);
+public function getMonthOverMonthComparison($businessID, $onlyPaid = true)
+    {
+        $db = \Config\Database::connect();
+        
+        $currentMonth = date('Y-m');
+        $lastMonth = date('Y-m', strtotime('-1 month'));
+
+        // Current month revenue
+        $currentQuery = $db->query("
+            SELECT COALESCE(SUM(COALESCE(NULLIF(b.total_price,0), NULLIF(b.subtotal,0), (b.price_per_person * b.total_guests), 0)), 0) as revenue
+            FROM bookings b
+            INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
+            WHERE ts.business_id = ?
+                AND DATE_FORMAT(b.booking_date, '%Y-%m') = ?
+                AND b.booking_status IN ('Confirmed', 'Completed', 'Checked-in', 'Checked-out')
+                AND (? = 0 OR b.payment_status = 'Paid')
+        ", [$businessID, $currentMonth, $onlyPaidInt]);
     
     $currentResult = $currentQuery->getRow();
     $currentRevenue = $currentResult ? (float)$currentResult->revenue : 0;
@@ -170,8 +168,8 @@ public function getMonthOverMonthComparison($businessID)
             WHERE ts.business_id = ?
                 AND DATE_FORMAT(b.booking_date, '%Y-%m') = ?
                 AND b.booking_status IN ('Confirmed', 'Completed', 'Checked-in', 'Checked-out')
-                AND b.payment_status = 'Paid'
-        ", [$businessID, $lastMonth]);
+                AND (? = 0 OR b.payment_status = 'Paid')
+        ", [$businessID, $lastMonth, $onlyPaidInt]);
     
     $lastResult = $lastQuery->getRow();
     $lastRevenue = $lastResult ? (float)$lastResult->revenue : 0;
@@ -623,21 +621,20 @@ public function getTopPerformingDayss($businessID, $limit = 5)
 
     public function getBookingLeadTime($startDate, $endDate)
     {
+        // Compute average lead time (in days) between booking_date and visit_date for bookings
+        // within the provided date range. Returns an array with the average days.
         $sql = "
-            SELECT 
-                CASE
-                    WHEN DATEDIFF(visit_date, booking_date) = 0 THEN 'Same Day'
-                    WHEN DATEDIFF(visit_date, booking_date) BETWEEN 1 AND 7 THEN '1-7 Days'
-                    WHEN DATEDIFF(visit_date, booking_date) BETWEEN 8 AND 30 THEN '8-30 Days'
-                    ELSE '30+ Days'
-                END as lead_time_group,
-                COUNT(booking_id) as total
-            FROM bookings
-            WHERE booking_date BETWEEN ? AND ?
-            GROUP BY lead_time_group
-            ORDER BY FIELD(lead_time_group, 'Same Day', '1-7 Days', '8-30 Days', '30+ Days')
+            SELECT AVG(DATEDIFF(b.visit_date, b.booking_date)) AS avg_lead_time_days
+            FROM bookings b
+            WHERE DATE(b.booking_date) >= ?
+              AND DATE(b.booking_date) <= ?
+              AND b.visit_date IS NOT NULL
         ";
-        return $this->db->query($sql, [$startDate, $endDate])->getResultArray();
+
+        $result = $this->db->query($sql, [$startDate, $endDate])->getRowArray();
+        return [
+            'average_lead_time_days' => isset($result['avg_lead_time_days']) ? (float)$result['avg_lead_time_days'] : 0
+        ];
     }
 
     public function getPeakDays($startDate, $endDate)

@@ -270,20 +270,48 @@ public function recordCheckin()
     $businessID = $businessData['business_id'];
 
     // Get all earnings data (use computed fallback totals)
-    // For earnings page keep paid-only totals so reported revenue reflects actual paid amounts
-    $totalRevenue = $bookingModel->getTotalRevenueByBusiness($businessID);
-    $monthlyRevenue = $bookingModel->getMonthlyRevenue($businessID);
-    $averageData = $bookingModel->getAverageRevenuePerBooking($businessID);
+    // Use booking-status based totals (Confirmed / Checked-in / Checked-out / Completed)
+    // so that revenue reflects the actual bookings regardless of payment_status.
+    $totalRevenue = $bookingModel->getTotalRevenueByBusiness($businessID, false);
+
+    // Get last 2 months (oldest-first) to compute current month and previous month comparison
+    $monthlyRows = $bookingModel->getMonthlyRevenueByBusiness($businessID, 2, false);
+    $monthlyRevenue = 0.0;
+    $comparison = ['current' => 0.0, 'previous' => 0.0, 'change' => 0.0, 'direction' => 'same'];
+    if (!empty($monthlyRows)) {
+        // monthlyRows is returned oldest-first by the model
+        $last = end($monthlyRows);
+        $monthlyRevenue = (float) ($last['revenue'] ?? 0);
+
+        // previous month (if available)
+        $prev = count($monthlyRows) > 1 ? $monthlyRows[count($monthlyRows)-2] : null;
+        $prevRevenue = $prev ? (float) ($prev['revenue'] ?? 0) : 0.0;
+
+        $comparison['current'] = $monthlyRevenue;
+        $comparison['previous'] = $prevRevenue;
+        if ($prevRevenue > 0) {
+            $change = (($monthlyRevenue - $prevRevenue) / $prevRevenue) * 100;
+            $comparison['change'] = round($change, 1);
+            $comparison['direction'] = $change > 0 ? 'up' : ($change < 0 ? 'down' : 'same');
+        } elseif ($monthlyRevenue > 0) {
+            $comparison['change'] = 100.0;
+            $comparison['direction'] = 'up';
+        }
+    }
+
+    // Use booking counts for the current month to compute average per booking
+    $currentMonthBookings = $bookingModel->getTotalBookingsThisMonthByBusiness($businessID);
+    $averageRevenue = $currentMonthBookings > 0 ? ($monthlyRevenue / max(1, $currentMonthBookings)) : 0.0;
+
     $pendingRevenue = $bookingModel->getPendingRevenue($businessID);
-    $comparison = $bookingModel->getMonthOverMonthComparison($businessID);
     $recentTransactions = $bookingModel->getRecentTransactionsByBusiness($businessID, 5);
     $topDays = $bookingModel->getTopPerformingDays($businessID, 4);
 
     return view('Pages/spotowner/earnings', [
         'totalRevenue' => $totalRevenue,
         'monthlyRevenue' => $monthlyRevenue,
-        'averageRevenue' => $averageData['average'],
-        'totalBookings' => $averageData['total_bookings'],
+        'averageRevenue' => $averageRevenue,
+        'totalBookings' => $currentMonthBookings,
         'pendingRevenue' => $pendingRevenue,
         'comparison' => $comparison,
         'recentTransactions' => $recentTransactions,
@@ -430,22 +458,116 @@ public function recordCheckin()
         $statuses = ['Confirmed','Completed','Checked-in','Checked-out','Checked-In','Checked-Out'];
         $placeholders = implode(',', array_fill(0, count($statuses), '?'));
 
-        $sql = "
-            SELECT DATE_FORMAT(b.booking_date, '%Y-%m') AS month,
-                   DATE_FORMAT(b.booking_date, '%b %Y') AS month_name,
-                   COALESCE(SUM(COALESCE(NULLIF(b.total_price,0), NULLIF(b.subtotal,0), (b.price_per_person * b.total_guests), 0)),0) AS revenue,
-                   COUNT(*) AS bookings
-            FROM bookings b
-            INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
-            WHERE ts.business_id = ?
-              AND b.booking_status IN ($placeholders)
-              AND b.payment_status = 'Paid'
-            GROUP BY month
-            ORDER BY month DESC
-            LIMIT ?
-        ";
+                // allow caller to request unpaid-inclusive results via ?onlyPaid=0
+                $onlyPaid = $this->request->getGet('onlyPaid') !== '0';
+                $onlyPaidInt = $onlyPaid ? 1 : 0;
 
-        $params = array_merge([$businessID], $statuses, [$months]);
+                $bySpot = $this->request->getGet('bySpot') === '1';
+
+                // If caller requests per-spot series, build a pivoted response
+                if ($bySpot) {
+                    // 1) Determine the months (most recent N months present in bookings)
+                    $monthsSql = "
+                        SELECT DISTINCT DATE_FORMAT(b.booking_date, '%Y-%m') AS month
+                        FROM bookings b
+                        INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
+                        WHERE ts.business_id = ?
+                          AND b.booking_status IN ($placeholders)
+                          AND (? = 0 OR b.payment_status = 'Paid')
+                        ORDER BY month DESC
+                        LIMIT ?
+                    ";
+
+                    $monthsParams = array_merge([$businessID], $statuses, [$onlyPaidInt, $months]);
+                    $monthsRows = $db->query($monthsSql, $monthsParams)->getResultArray() ?: [];
+                    // oldest-first
+                    $months = array_reverse(array_column($monthsRows, 'month')) ?: [];
+
+                    // 2) Get per-spot aggregated revenue grouped by spot and month
+                    $spotAggSql = "
+                        SELECT ts.spot_id, COALESCE(ts.spot_name, ts.name) AS spot_name,
+                               DATE_FORMAT(b.booking_date, '%Y-%m') AS month,
+                               COALESCE(SUM(COALESCE(NULLIF(b.total_price,0), NULLIF(b.subtotal,0), (b.price_per_person * b.total_guests), 0)),0) AS revenue
+                        FROM bookings b
+                        INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
+                        WHERE ts.business_id = ?
+                          AND b.booking_status IN ($placeholders)
+                          AND (? = 0 OR b.payment_status = 'Paid')
+                        GROUP BY ts.spot_id, month
+                        ORDER BY ts.spot_id, month DESC
+                    ";
+
+                    $spotAggParams = array_merge([$businessID], $statuses, [$onlyPaidInt]);
+                    $aggRows = $db->query($spotAggSql, $spotAggParams)->getResultArray() ?: [];
+
+                    // Map aggregated results: map[spot_id][month] = revenue
+                    $map = [];
+                    foreach ($aggRows as $r) {
+                        $map[$r['spot_id']][$r['month']] = (float)$r['revenue'];
+                    }
+
+                    // Get list of spots owned by business (preserve order)
+                    $spotModel = new TouristSpotModel();
+                    $spots = $spotModel->getSpotsByBusinessID($businessID) ?: [];
+
+                    $by_spot = [];
+                    foreach ($spots as $s) {
+                        $sid = $s['spot_id'];
+                        $series = [];
+                        foreach ($months as $m) {
+                            $series[] = isset($map[$sid][$m]) ? $map[$sid][$m] : 0;
+                        }
+                        $by_spot[] = [
+                            'spot_id' => $sid,
+                            'spot_name' => $s['spot_name'] ?? ($s['name'] ?? ''),
+                            'series' => $series
+                        ];
+                    }
+
+                    // Also compute total revenue per month (across all spots)
+                    $monthlySql = "
+                        SELECT DATE_FORMAT(b.booking_date, '%Y-%m') AS month,
+                               DATE_FORMAT(b.booking_date, '%b %Y') AS month_name,
+                               COALESCE(SUM(COALESCE(NULLIF(b.total_price,0), NULLIF(b.subtotal,0), (b.price_per_person * b.total_guests), 0)),0) AS revenue,
+                               COUNT(*) AS bookings
+                        FROM bookings b
+                        INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
+                        WHERE ts.business_id = ?
+                          AND b.booking_status IN ($placeholders)
+                          AND (? = 0 OR b.payment_status = 'Paid')
+                        GROUP BY month
+                        ORDER BY month DESC
+                        LIMIT ?
+                    ";
+
+                    $monthlyParams = array_merge([$businessID], $statuses, [$onlyPaidInt, $months]);
+                    $monthlyRows = $db->query($monthlySql, $monthlyParams)->getResultArray() ?: [];
+                    $monthlyRows = array_reverse($monthlyRows);
+
+                    return $this->response->setJSON([
+                        'months' => $months,
+                        'monthly' => $monthlyRows,
+                        'by_spot' => $by_spot
+                    ]);
+                }
+
+                // Default (legacy) response: monthly totals across all spots
+                $sql = "
+                        SELECT DATE_FORMAT(b.booking_date, '%Y-%m') AS month,
+                                     DATE_FORMAT(b.booking_date, '%b %Y') AS month_name,
+                                     COALESCE(SUM(COALESCE(NULLIF(b.total_price,0), NULLIF(b.subtotal,0), (b.price_per_person * b.total_guests), 0)),0) AS revenue,
+                                     COUNT(*) AS bookings
+                        FROM bookings b
+                        INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
+                        WHERE ts.business_id = ?
+                            AND b.booking_status IN ($placeholders)
+                            AND (? = 0 OR b.payment_status = 'Paid')
+                        GROUP BY month
+                        ORDER BY month DESC
+                        LIMIT ?
+                ";
+
+                $params = array_merge([$businessID], $statuses, [$onlyPaidInt, $months]);
         $rows = $db->query($sql, $params)->getResultArray() ?: [];
 
         // Return oldest-first
@@ -472,22 +594,25 @@ public function recordCheckin()
         $placeholders = implode(',', array_fill(0, count($statuses), '?'));
 
         // Group by ISO week (YEARWEEK with mode 1). Return week_start and week_end for labeling.
-        $sql = "
-            SELECT YEARWEEK(b.booking_date, 1) AS yw,
-                   COALESCE(SUM(COALESCE(NULLIF(b.total_price,0), NULLIF(b.subtotal,0), (b.price_per_person * b.total_guests), 0)),0) AS revenue,
-                   MAX(DATE(b.booking_date)) AS week_end,
-                   COALESCE(SUM(COALESCE(NULLIF(b.total_price,0), NULLIF(b.subtotal,0), (b.price_per_person * b.total_guests), 0)),0) AS revenue
-            FROM bookings b
-            INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
-            WHERE ts.business_id = ?
-              AND b.booking_status IN ($placeholders)
-              AND b.payment_status = 'Paid'
-            GROUP BY yw
-            ORDER BY yw DESC
-            LIMIT ?
-        ";
+                $onlyPaid = $this->request->getGet('onlyPaid') !== '0';
+                $onlyPaidInt = $onlyPaid ? 1 : 0;
 
-        $params = array_merge([$businessID], $statuses, [$weeks]);
+                $sql = "
+                        SELECT YEARWEEK(b.booking_date, 1) AS yw,
+                                     COALESCE(SUM(COALESCE(NULLIF(b.total_price,0), NULLIF(b.subtotal,0), (b.price_per_person * b.total_guests), 0)),0) AS revenue,
+                                     MIN(DATE(b.booking_date)) AS week_start,
+                                     MAX(DATE(b.booking_date)) AS week_end
+                        FROM bookings b
+                        INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
+                        WHERE ts.business_id = ?
+                            AND b.booking_status IN ($placeholders)
+                            AND (? = 0 OR b.payment_status = 'Paid')
+                        GROUP BY yw
+                        ORDER BY yw DESC
+                        LIMIT ?
+                ";
+
+                $params = array_merge([$businessID], $statuses, [$onlyPaidInt, $weeks]);
         $rows = $db->query($sql, $params)->getResultArray() ?: [];
 
         // Format rows: return week_start, week_end as YYYY-MM-DD along with revenue
