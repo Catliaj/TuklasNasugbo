@@ -161,7 +161,9 @@ async function fetchDashboardAnalytics() {
                 document.getElementById('stat-total-spots').textContent = s.totalSpots || 0;
                 document.getElementById('stat-total-bookings').textContent = s.totalBookings || 0;
                 document.getElementById('stat-total-revenue').textContent = `₱${(s.totalRevenue || 0).toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
-                document.getElementById('stat-avg-rating').textContent = s.averageRating || '0.0';
+                // Annual visitors provided by server dashboard
+                const avEl = document.getElementById('stat-annual-visitors');
+                if (avEl) avEl.textContent = (s.annualVisitors || 0).toLocaleString();
             } catch (e) {
                 // ignore DOM errors
             }
@@ -196,6 +198,7 @@ async function fetchDashboardAnalytics() {
         }
 
         const avgRatingVal = (typeof data.averageRating !== 'undefined' && data.averageRating !== null) ? data.averageRating : (serverVals.averageRating ?? '0.0');
+        const annualVisitorsVal = (typeof data.annualVisitors !== 'undefined' && data.annualVisitors !== null) ? data.annualVisitors : (serverVals.annualVisitors ?? 0);
 
         document.getElementById('stat-total-spots').textContent = totalSpotsVal;
         document.getElementById('stat-total-bookings').textContent = totalBookingsVal;
@@ -206,6 +209,10 @@ async function fetchDashboardAnalytics() {
         if (avgDesc && typeof data.ratedSpots !== 'undefined') {
             avgDesc.textContent = `Across ${data.ratedSpots} rated spots`;
         }
+
+        // Set annual visitors element
+        const avEl2 = document.getElementById('stat-annual-visitors');
+        if (avEl2) avEl2.textContent = (annualVisitorsVal || 0).toLocaleString('en-PH');
 
         console.log('✅ Analytics updated successfully');
 

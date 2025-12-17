@@ -33,13 +33,50 @@ class AttractionsController extends BaseController
                 ]);
             }
 
-            $data = array_map(function ($s) {
+            // attach gallery images for each spot (if available) and normalize primary image URLs
+            $galleryModel = new \App\Models\SpotGalleryModel();
+            $data = array_map(function ($s) use ($galleryModel) {
+                $spotId = $s['spot_id'] ?? null;
+                $gallery = [];
+                if ($spotId) {
+                    try {
+                        $imgs = $galleryModel->where('spot_id', $spotId)->findAll();
+                        if (is_array($imgs) && !empty($imgs)) {
+                            foreach ($imgs as $img) {
+                                $filename = $img['image'] ?? null;
+                                if ($filename) {
+                                    $gallery[] = base_url('uploads/spots/gallery/' . $filename);
+                                }
+                            }
+                        }
+                    } catch (\Throwable $e) {
+                        // don't fail the whole response if gallery lookup fails
+                        log_message('warning', 'topSpotsAjax gallery lookup failed for spot ' . $spotId . ': ' . $e->getMessage());
+                    }
+                }
+
+                // normalize primary image
+                $primary = $s['primary_image'] ?? null;
+                if (!empty($primary)) {
+                    // if it's already an absolute URL, keep it; otherwise convert to uploads path
+                    if (preg_match('#^https?://#i', $primary)) {
+                        $primaryUrl = $primary;
+                    } elseif (strpos($primary, '/') !== false) {
+                        $primaryUrl = base_url(ltrim($primary, '/'));
+                    } else {
+                        $primaryUrl = base_url('uploads/spots/' . $primary);
+                    }
+                } else {
+                    $primaryUrl = base_url('uploads/spots/Spot-No-Image.png');
+                }
+
                 return [
-                    'spot_id'       => $s['spot_id'] ?? null,
+                    'spot_id'       => $spotId,
                     'spot_name'     => $s['spot_name'] ?? '',
                     'category'      => $s['category'] ?? '',
                     'location'      => $s['location'] ?? '',
-                    'primary_image' => $s['primary_image'] ?? null,
+                    'primary_image' => $primaryUrl,
+                    'gallery'       => $gallery,
                     'short_description' => $s['short_description'] ?? ($s['description'] ?? ''),
                     'views'         => isset($s['views']) ? (int)$s['views'] : 0,
                     'price_per_person' => isset($s['price_per_person']) ? (float)$s['price_per_person'] : 0
