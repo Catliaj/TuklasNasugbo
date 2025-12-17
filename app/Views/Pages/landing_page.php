@@ -18,6 +18,21 @@
     </style>
 </head>
 <body>
+    <?php
+  // Dynamic landing stats
+  $spotModel = new \App\Models\TouristSpotModel();
+  $bookingModel = new \App\Models\BookingModel();
+  try {
+    $totalSpots = $spotModel->where('status', 'approved')->countAllResults();
+  } catch (\Throwable $e) {
+    $totalSpots = 0;
+  }
+  try {
+    $annualVisitors = $bookingModel->getAnnualVisitorsTotal(date('Y'));
+  } catch (\Throwable $e) {
+    $annualVisitors = 0;
+  }
+  ?>
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg fixed-top" id="mainNav">
         <div class="container">
@@ -86,8 +101,8 @@
             </div>
             <div class="row g-4 mb-5">
                 <div class="col-md-6 col-lg-3"><div class="stat-card"><div class="stat-icon"><i class="bi bi-geo-alt-fill"></i></div><div class="stat-value">70km</div><div class="stat-label">From Manila</div></div></div>
-                <div class="col-md-6 col-lg-3"><div class="stat-card"><div class="stat-icon"><i class="bi bi-water"></i></div><div class="stat-value">15+</div><div class="stat-label">Total Spots</div></div></div>
-                <div class="col-md-6 col-lg-3"><div class="stat-card"><div class="stat-icon"><i class="bi bi-people-fill"></i></div><div class="stat-value">150k+</div><div class="stat-label">Annual Visitors</div></div></div>
+                <div class="col-md-6 col-lg-3"><div class="stat-card"><div class="stat-icon"><i class="bi bi-water"></i></div><div class="stat-value"><?= esc($totalSpots) ?></div><div class="stat-label">Total Spots</div></div></div>
+                <div class="col-md-6 col-lg-3"><div class="stat-card"><div class="stat-icon"><i class="bi bi-people-fill"></i></div><div class="stat-value"><?= number_format($annualVisitors) ?></div><div class="stat-label">Annual Visitors</div></div></div>
                 <div class="col-md-6 col-lg-3"><div class="stat-card"><div class="stat-icon"><i class="bi bi-award-fill"></i></div><div class="stat-value">Top 10</div><div class="stat-label">Beach Destinations</div></div></div>
             </div>
             <div class="row g-4">
@@ -802,6 +817,17 @@ function handleSignup(event) {
 
 </script>
 
+<!-- Ensure attraction card images keep a fixed size to avoid layout shift -->
+<style>
+  .card-image-wrap { height: 220px; max-height: 220px; overflow: hidden; }
+  .card-image-wrap .carousel, .card-image-wrap .carousel-inner, .card-image-wrap .carousel-item { height: 100%; }
+  .card-image-wrap img.spot-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  /* Small screens: slightly shorter cards */
+  @media (max-width: 576px) {
+    .card-image-wrap { height: 160px; max-height: 160px; }
+  }
+</style>
+
 <script>
  // assets/js/attractions-ajax.js
 // Live-load top attractions (by view logs) and log views when users click a card.
@@ -813,7 +839,8 @@ function handleSignup(event) {
   const BASE = (typeof BASE_URL !== 'undefined' ? BASE_URL.replace(/\/+$/, '') + '/' : '/');
   const API_TOP = BASE + 'api/attractions/top/6';
   const API_LOG = BASE + 'api/attractions/view';
-  const UPLOADS = BASE + 'uploads/spots/';
+  // Image upload base: per request use the gallery folder path
+  const UPLOADS = BASE + 'uploads/spots/gallery/';
   const FALLBACK = UPLOADS + 'Spot-No-Image.png';
 
   function esc(s) {
@@ -851,20 +878,84 @@ function handleSignup(event) {
       container.innerHTML = '<div class="col-12 text-center p-4 text-muted">No attractions found.</div>';
       return;
     }
+    // Helper to derive an array of image filenames/URLs for a spot
+    function getImageList(s) {
+      // Prefer explicit arrays returned by the API (common keys)
+      const arrayKeys = ['gallery', 'gallery_images', 'images', 'images_list', 'images_gallery', 'spot_images', 'photos'];
+      for (const key of arrayKeys) {
+        if (Array.isArray(s[key]) && s[key].length) return s[key];
+      }
 
-    const html = spots.map(s => {
-      const imgSrc = s.primary_image ? (UPLOADS + encodeURIComponent(s.primary_image)) : FALLBACK;
+      // Try JSON strings or comma-separated lists
+      const stringKeys = ['gallery', 'gallery_images', 'images_json', 'images', 'photos'];
+      for (const key of stringKeys) {
+        const v = s[key];
+        if (typeof v === 'string' && v.trim() !== '') {
+          try { const parsed = JSON.parse(v); if (Array.isArray(parsed) && parsed.length) return parsed; } catch {}
+          const parts = v.split(/[;,]/).map(p => p.trim()).filter(Boolean); if (parts.length) return parts;
+        }
+      }
+
+      // Some APIs return image1..imageN fields
+      const numbered = [];
+      for (let i = 1; i <= 10; i++) { const k = 'image' + i; if (s[k]) numbered.push(s[k]); }
+      if (numbered.length) return numbered;
+
+      // Fallbacks
+      if (s.primary_image) return [s.primary_image];
+      return [];
+    }
+
+    const cards = spots.map(s => {
+      const images = getImageList(s);
       const shortDesc = s.short_description ? esc(s.short_description) : '';
+      const carouselId = 'spotCarousel-' + esc(s.spot_id);
+
+      const indicators = images.map((img, idx) => `
+        <button type="button" data-bs-target="#${carouselId}" data-bs-slide-to="${idx}" class="${idx===0? 'active' : ''}" ${idx===0? 'aria-current="true"' : ''} aria-label="Slide ${idx+1}"></button>
+      `).join('');
+
+      const items = images.map((img, idx) => {
+        let src = FALLBACK;
+        if (typeof img === 'string' && img.trim() !== '') {
+          if (/^https?:\/\//i.test(img)) {
+            src = img;
+          } else if (img.indexOf('/') !== -1) {
+            // Path relative to web root
+            src = BASE + img.replace(/^\/+/, '');
+          } else {
+            // Plain filename under uploads
+            src = UPLOADS + encodeURIComponent(img);
+          }
+        }
+        return `
+          <div class="carousel-item ${idx===0? 'active' : ''}">
+            <img src="${src}" class="d-block w-100 spot-img" alt="${esc(s.spot_name)}" loading="lazy">
+          </div>
+        `;
+      }).join('');
+
       return `
-        <div class="col-md-6 col-lg-4">
+        <div class="col-md-6 col-lg-4 mb-4">
           <div class="attraction-card" data-spot-id="${esc(s.spot_id)}" role="button" tabindex="0">
-            <div style="overflow: hidden;">
-              <img src="${imgSrc}" onerror="this.onerror=null;this.src='${FALLBACK}';" alt="${esc(s.spot_name)}" class="attraction-image">
+            <div class="card-image-wrap mb-2">
+              <div id="${carouselId}" class="carousel slide" data-bs-ride="carousel" data-bs-interval="3500">
+                <div class="carousel-indicators">${indicators}</div>
+                <div class="carousel-inner">${items}</div>
+                <button class="carousel-control-prev" type="button" data-bs-target="#${carouselId}" data-bs-slide="prev">
+                  <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                  <span class="visually-hidden">Previous</span>
+                </button>
+                <button class="carousel-control-next" type="button" data-bs-target="#${carouselId}" data-bs-slide="next">
+                  <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                  <span class="visually-hidden">Next</span>
+                </button>
+              </div>
             </div>
-            <div class="attraction-body">
+            <div class="attraction-body px-2">
               <h3 class="attraction-title">${esc(s.spot_name)}</h3>
               <div class="attraction-location"><i class="bi bi-geo-alt-fill"></i><span>${esc(s.location)}</span></div>
-              <p class="attraction-description">${shortDesc}</p>
+              <p class="attraction-description small text-truncate">${shortDesc}</p>
               <div class="d-flex justify-content-between align-items-center mt-2">
                 <small class="text-muted">${esc(s.category)}</small>
                 <small class="text-muted"><i class="bi bi-eye"></i> ${Number(s.views ?? 0)}</small>
@@ -873,24 +964,28 @@ function handleSignup(event) {
           </div>
         </div>
       `;
-    }).join('');
+    });
 
-    container.innerHTML = html;
+    container.innerHTML = cards.join('');
+
+    // Initialize all carousels inside the container
+    container.querySelectorAll('.carousel').forEach(el => {
+      try { new bootstrap.Carousel(el, { interval: 3500, ride: 'carousel' }); } catch (e) { /* ignore init errors */ }
+    });
+
+    // Removed multi-path retries to reduce network noise; src computed directly.
 
     // Attach handlers: log view on click or keyboard (Enter / Space)
-    container.querySelectorAll('.attraction-card').forEach(card => {
+    container.querySelectorAll('.attraction-card').forEach((card, idx) => {
       const sendLog = () => {
         const spotId = card.getAttribute('data-spot-id');
         if (!spotId) return;
-        // Fire-and-forget POST to log endpoint
         fetch(API_LOG, {
           method: 'POST',
           credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ spot_id: Number(spotId) })
         }).catch(err => console.warn('Failed to log view', err));
-        // Optional: navigate to detail page
-        // window.location.href = BASE + 'attractions/view/' + spotId;
       };
 
       card.addEventListener('click', sendLog);

@@ -197,6 +197,8 @@ public function recordCheckin()
         // Use computed total (fallback) so dashboards show revenue even if total_price is missing
         // For dashboard we want to include confirmed/checked bookings regardless of payment_status
         $totalrevenue = $bookingModel->getTotalRevenueByBusiness($businessID, false);
+        // Annual visitors (sum of total_guests for current year)
+        $annualVisitors = $bookingModel->getAnnualVisitorsByBusiness($businessID, date('Y'));
 
         $data['spots'] = $spots;
         
@@ -208,6 +210,7 @@ public function recordCheckin()
             'totalbookings' => $toatlbookings,
             'totalrevenue' => $totalrevenue,
             'spots' => $data['spots'],
+            'annualVisitors' => $annualVisitors,
         ]);
     }
 

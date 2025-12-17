@@ -141,7 +141,8 @@ class TouristSpotModel extends Model
         $builder->where('ts.business_id', $businessID);
         $builder->where('MONTH(b.booking_date)', date('m'));
         $builder->where('YEAR(b.booking_date)', date('Y'));
-        $builder->where('b.booking_status', 'Confirmed');
+        // Count bookings with finalized statuses (not just 'Confirmed')
+        $builder->whereIn('b.booking_status', ['Confirmed', 'Checked-in', 'Checked-out', 'Completed', 'Checked-In', 'Checked-Out']);
         $result = $builder->get()->getRowArray();
         return $result['total_bookings'] ?? 0;
     }

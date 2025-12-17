@@ -219,6 +219,27 @@ public function getMonthOverMonthComparison($businessID, $onlyPaid = true)
     }
 
     /**
+     * Get total visitors for the year for a business (sum of total_guests)
+     * Defaults to current year when $year is null. Counts only finalized/visited bookings.
+     */
+    public function getAnnualVisitorsByBusiness($businessID, $year = null)
+    {
+        $db = \Config\Database::connect();
+        $year = $year ?? date('Y');
+        $sql = "
+            SELECT COALESCE(SUM(b.total_guests), 0) AS total_visitors
+            FROM bookings b
+            INNER JOIN tourist_spots ts ON b.spot_id = ts.spot_id
+            WHERE ts.business_id = ?
+              AND YEAR(b.booking_date) = ?
+              AND b.booking_status IN ('Confirmed', 'Completed', 'Checked-in', 'Checked-out', 'Checked-In', 'Checked-Out')
+        ";
+
+        $row = $db->query($sql, [$businessID, $year])->getRow();
+        return $row ? (int)$row->total_visitors : 0;
+    }
+
+    /**
      * Get monthly revenue totals for the business (grouped by YYYY-MM). Useful for graphs.
      * Returns array of ['month' => 'YYYY-MM', 'revenue' => float]
      */
@@ -758,6 +779,20 @@ public function getTopSpotsPerformanceMetrics($startDate, $endDate, $limit = 3)
         }
         
         return $result;
+    }
+
+    /**
+     * Get total visitors (sum of total_guests) across all bookings for a given year
+     * Useful for public landing page metrics.
+     */
+    public function getAnnualVisitorsTotal($year = null)
+    {
+        $db = \Config\Database::connect();
+        $year = $year ?? date('Y');
+
+        $sql = "SELECT COALESCE(SUM(total_guests), 0) AS visitors FROM bookings WHERE YEAR(booking_date) = ?";
+        $row = $db->query($sql, [$year])->getRow();
+        return $row ? (int)$row->visitors : 0;
     }
 }
 
