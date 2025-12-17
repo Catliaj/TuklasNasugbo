@@ -384,7 +384,8 @@
         .activity-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; color: var(--deep-ocean); }
         .activity-list { list-style: none; padding: 0; }
         .activity-list li { color: var(--ocean-blue); padding: 0.5rem 0; display: flex; align-items: start; gap: 0.5rem; }
-        .activity-list li::before { content: "•"; color: var(--deep-ocean); font-weight: bold; font-size: 1.2rem; line-height: 1.5; }
+        /* Use unicode escape for bullet to avoid encoding/serving issues (prevents mojibake like â€¢) */
+        .activity-list li::before { content: "\2022"; color: var(--deep-ocean); font-weight: bold; font-size: 1.2rem; line-height: 1.5; }
 
         /* Gallery Section */
         #gallery {

@@ -24,6 +24,27 @@
         }
     ?>
     <style>:root { --primary-blue: <?= esc($currentSettings['primary_color'] ?? '#004a7c') ?>; }</style>
+    <style>
+        /* Logo sizing and visibility in sidebar */
+        .sidebar-header img {
+            display: block;
+            width: 200px;
+            max-width: 100%;
+            height: auto;
+            object-fit: contain;
+            /* subtle padded background and rounded corners to ensure contrast */
+            /* background-color: #D4C5A9; */
+            background-color: white;
+            padding: 6px 8px;
+            border-radius: 6px;
+            /* small outline and shadow to separate from same-color sidebar */
+            box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+
+        /* If the sidebar uses a very light background, invert the logo slightly to keep contrast */
+        .sidebar.light-theme .sidebar-header img { filter: drop-shadow(0 1px 1px rgba(0,0,0,0.25)); }
+    </style>
     
     <!-- ========================================================== -->
     <!-- REQUIRED META TAGS AND SCRIPT FOR API CALLS -->
@@ -38,8 +59,8 @@
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar" role="navigation" aria-label="Admin sidebar">
         <div class="sidebar-header">
-            <i class="bi bi-compass"></i>
-            <span><?= esc($currentSettings['site_title'] ?? 'Tourism Admin') ?></span>
+            <img src="<?= base_url('assets/img/Tuklas_logo.png')?>" alt="Tuklas Nasugbu Logo">
+            
         </div>
         
         <nav class="sidebar-nav">

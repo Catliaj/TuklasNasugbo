@@ -33,14 +33,34 @@
     <script>
         const BASE_URL = '<?= base_url() ?>';
     </script>
+        <style>
+        /* Logo sizing and visibility in sidebar */
+        .sidebar-header img {
+            display: block;
+            width: 200px;
+            max-width: 100%;
+            height: auto;
+            object-fit: contain;
+            /* subtle padded background and rounded corners to ensure contrast */
+            /* background-color: #D4C5A9; */
+            background-color: white;
+            padding: 6px 8px;
+            border-radius: 6px;
+            /* small outline and shadow to separate from same-color sidebar */
+            box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+
+        /* If the sidebar uses a very light background, invert the logo slightly to keep contrast */
+        .sidebar.light-theme .sidebar-header img { filter: drop-shadow(0 1px 1px rgba(0,0,0,0.25)); }
+    </style>
 
 </head>
 <body>
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar" role="navigation" aria-label="Admin sidebar">
         <div class="sidebar-header">
-            <i class="bi bi-compass"></i>
-            <span><?= esc($currentSettings['site_title'] ?? 'Tourism Admin') ?></span>
+            <img src="<?= base_url('assets/img/Tuklas_logo.png')?>" alt="Tuklas Nasugbu Logo">
         </div>
         
                 <nav class="sidebar-nav">
@@ -53,7 +73,7 @@
                 <span>Registrations</span>
                 <span class="badge-pending-registrations badge bg-danger text-white ms-2" style="display:none;font-size:0.7rem;padding:2px 6px;border-radius:12px"></span>
             </a>
-            <a href="/admin/attractions" class="nav-item" aria-label="Attractions">
+            <a href="/admin/attractions" class="nav-item " aria-label="Attractions">
                 <i class="bi bi-geo-alt"></i>
                 <span>Attractions</span>
             </a>
