@@ -51,16 +51,56 @@
         .analytics-card.warning { border-color: #ffec99; background-color: #fff9f0; } .analytics-card.warning .analytics-icon { background-color: #ffc107; } .analytics-card.warning .analytics-value { color: #b98b04; }
         .analytics-card.secondary { border-color: #e9ecef; background-color: #f6f7f8; } .analytics-card.secondary .analytics-icon { background-color: #6c757d; } .analytics-card.secondary .analytics-value { color: #495057; }
     </style>
+        <style>
+        /* Logo sizing and visibility in sidebar */
+        .sidebar-header img {
+            display: block;
+            width: 200px;
+            max-width: 100%;
+            height: auto;
+            object-fit: contain;
+            /* subtle padded background and rounded corners to ensure contrast */
+            /* background-color: #D4C5A9; */
+            background-color: white;
+            padding: 6px 8px;
+            border-radius: 6px;
+            /* small outline and shadow to separate from same-color sidebar */
+            box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+
+        /* If the sidebar uses a very light background, invert the logo slightly to keep contrast */
+        .sidebar.light-theme .sidebar-header img { filter: drop-shadow(0 1px 1px rgba(0,0,0,0.25)); }
+    </style>
 </head>
 <body>
-    <div class="sidebar" id="sidebar" role="navigation" aria-label="Admin sidebar">
-        <div class="sidebar-header"><i class="bi bi-compass"></i><span><?= esc($currentSettings['site_title'] ?? 'Tourism Admin') ?></span></div>
+     <div class="sidebar" id="sidebar" role="navigation" aria-label="Admin sidebar">
+        <div class="sidebar-header">
+            <img src="<?= base_url('assets/img/Tuklas_logo.png')?>" alt="Tuklas Nasugbu Logo">
+            
+        </div>
+        
         <nav class="sidebar-nav">
-            <a href="/admin/dashboard" class="nav-item" aria-label="Dashboard"><i class="bi bi-grid"></i><span>Dashboard</span></a>
-            <a href="/admin/registrations" class="nav-item" aria-label="Registrations"><i class="bi bi-person-plus"></i><span>Registrations</span><span class="badge-pending-registrations badge bg-danger text-white ms-2" style="display:none;font-size:0.7rem;padding:2px 6px;border-radius:12px"></span></a>
-            <a href="/admin/attractions" class="nav-item" aria-label="Attractions"><i class="bi bi-geo-alt"></i><span>Attractions</span><span class="badge-pending-attractions badge bg-danger text-white ms-2" style="display:none;font-size:0.7rem;padding:2px 6px;border-radius:12px"></span></a>
-            <a href="/admin/reports" class="nav-item active" aria-current="page"><i class="bi bi-file-bar-graph"></i><span>Reports & Analytics</span></a>
+            <a href="/admin/dashboard" class="nav-item " aria-label="Dashboard">
+                <i class="bi bi-grid"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="/admin/registrations" class="nav-item" aria-label="Registrations">
+                <i class="bi bi-person-plus"></i>
+                <span>Registrations</span>
+                <span class="badge-pending-registrations badge bg-danger text-white ms-2" style="display:none;font-size:0.7rem;padding:2px 6px;border-radius:12px"></span>
+            </a>
+            <a href="/admin/attractions" class="nav-item " aria-current="page">
+                <i class="bi bi-geo-alt"></i>
+                <span>Attractions</span>
+                <span class="badge-pending-attractions badge bg-danger text-white ms-2" style="display:none;font-size:0.7rem;padding:2px 6px;border-radius:12px"></span>
+            </a>
+            <a href="/admin/reports" class="nav-item active" aria-label="Reports &amp; Analytics">
+                <i class="bi bi-file-bar-graph"></i>
+                <span>Reports & Analytics</span>
+            </a>
         </nav>
+        
         <div class="sidebar-footer"><!-- Logout moved to profile menu; removed duplicate link here --></div>
     </div>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
