@@ -552,6 +552,140 @@ function initManageSpotPage() {
     }
 }
 
+// Bind handlers for image delete/upload inside the edit modal
+function bindEditModalImageHandlers(spot) {
+    try {
+        const spotId = spot.spot_id || spot.id;
+
+        const btnDeletePrimary = document.getElementById('btnDeletePrimary');
+        const btnAddPrimaryLabel = document.getElementById('btnAddPrimaryLabel');
+        const primaryUploadInput = document.getElementById('primaryUploadInput');
+
+        if (btnDeletePrimary) {
+            btnDeletePrimary.addEventListener('click', async function() {
+                if (!confirm('Delete primary image?')) return;
+                await deletePrimaryImage(spotId);
+                await refreshSpotInModal(spotId);
+            });
+        }
+
+        if (primaryUploadInput) {
+            primaryUploadInput.addEventListener('change', async function(e) {
+                const f = e.target.files[0];
+                if (!f) return;
+                const fd = new FormData();
+                fd.append('primary_image', f);
+                await uploadPrimary(spotId, fd);
+                await refreshSpotInModal(spotId);
+            });
+        }
+
+        // Gallery delete buttons
+        document.querySelectorAll('.gallery-delete-btn').forEach(btn => {
+            btn.addEventListener('click', async function(e) {
+                e.preventDefault();
+                const idx = parseInt(btn.getAttribute('data-index'));
+                const gallery = spot.images || [];
+                const item = gallery[idx];
+                if (!item) return;
+                if (!confirm('Delete this gallery image?')) return;
+                // item is {id, url}
+                await deleteGalleryImage(item.id);
+                await refreshSpotInModal(spot.spot_id || spot.id);
+            });
+        });
+
+        const galleryUploadInput = document.getElementById('galleryUploadInput');
+        if (galleryUploadInput) {
+            galleryUploadInput.addEventListener('change', async function(e) {
+                const files = Array.from(e.target.files || []);
+                if (files.length === 0) return;
+                const fd = new FormData();
+                files.forEach(f => fd.append('gallery_images[]', f));
+                await uploadGallery(spot.spot_id || spot.id, fd);
+                await refreshSpotInModal(spot.spot_id || spot.id);
+            });
+        }
+
+        // If there is no primary image, show add label and hide delete button
+        const primaryImageEl = document.getElementById('editSpotImage');
+        const addLabel = document.getElementById('btnAddPrimaryLabel');
+        if (primaryImageEl && (primaryImageEl.src.indexOf('Spot-No-Image.png') !== -1 || !spot.primary_image)) {
+            if (addLabel) addLabel.classList.remove('d-none');
+            if (btnDeletePrimary) btnDeletePrimary.classList.add('d-none');
+        } else {
+            if (addLabel) addLabel.classList.add('d-none');
+            if (btnDeletePrimary) btnDeletePrimary.classList.remove('d-none');
+        }
+    } catch (err) {
+        console.error('bindEditModalImageHandlers error', err);
+    }
+}
+
+async function deletePrimaryImage(spotId) {
+    try {
+        const res = await fetch(`<?= base_url('spotowner/my-spots/delete-primary') ?>/${spotId}`, { method: 'POST' });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Delete failed');
+        return true;
+    } catch (err) {
+        console.error('deletePrimaryImage', err);
+        alert('Failed to delete primary image');
+        return false;
+    }
+}
+
+async function deleteGalleryImage(imageId) {
+    try {
+        const res = await fetch(`<?= base_url('spotowner/my-spots/delete-gallery') ?>/${imageId}`, { method: 'POST' });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Delete failed');
+        return true;
+    } catch (err) {
+        console.error('deleteGalleryImage', err);
+        alert('Failed to delete gallery image');
+        return false;
+    }
+}
+
+async function uploadPrimary(spotId, formData) {
+    try {
+        const res = await fetch(`<?= base_url('spotowner/my-spots/upload-primary') ?>/${spotId}`, { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Upload failed');
+        return data;
+    } catch (err) {
+        console.error('uploadPrimary', err);
+        alert('Failed to upload primary image');
+        return null;
+    }
+}
+
+async function uploadGallery(spotId, formData) {
+    try {
+        const res = await fetch(`<?= base_url('spotowner/my-spots/upload-gallery') ?>/${spotId}`, { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Upload failed');
+        return data;
+    } catch (err) {
+        console.error('uploadGallery', err);
+        alert('Failed to upload gallery images');
+        return null;
+    }
+}
+
+async function refreshSpotInModal(spotId) {
+    try {
+        const res = await fetch(`<?= base_url('spotowner/my-spots/get-spot') ?>/${spotId}`);
+        const spot = await res.json();
+        const modalBody = document.getElementById('editSpotModalBody');
+        modalBody.innerHTML = generateEditSpotModalContent(spot);
+        setTimeout(() => bindEditModalImageHandlers(spot), 120);
+    } catch (err) {
+        console.error('refreshSpotInModal', err);
+    }
+}
+
 
 function initNewSpotImageUpload() {
     const uploadArea = document.getElementById('newSpotUploadArea');
@@ -1313,6 +1447,8 @@ async function fetchManageSpots() {
         // Show modal
         const modal = new bootstrap.Modal(document.getElementById('editSpotModal'));
         modal.show();
+        // bind image handlers (delete/upload) after modal is visible
+        setTimeout(() => bindEditModalImageHandlers(spot), 120);
 
     } catch (err) {
         console.error('❌ Error fetching spot details:', err);
@@ -1737,6 +1873,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const spotId = this.getAttribute('data-id');
 
             try {
+
                 const response = await fetch(`<?= base_url('spotowner/my-spots/get-spot') ?>/${spotId}`);
                 const spot = await response.json();
 
@@ -1749,9 +1886,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 const modalBody = document.getElementById('editSpotModalBody');
                 modalBody.innerHTML = generateEditSpotModalContent(spot);
 
-                // Show the modal
+                // Show the modal and bind handlers
                 const modal = new bootstrap.Modal(document.getElementById('editSpotModal'));
                 modal.show();
+                setTimeout(() => bindEditModalImageHandlers(spot), 120);
 
             } catch (err) {
                 console.error('Error fetching spot details:', err);
@@ -1762,15 +1900,9 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 function generateEditSpotModalContent(spot) {
-    // Fix image paths - ensure they're actual URLs, not template literals
-    let images = [];
-    if (spot.images && Array.isArray(spot.images) && spot.images.length > 0) {
-        images = spot.images;
-    } else if (spot.image) {
-        images = [spot.image];
-    } else {
-        images = ['<?= esc(base_url("uploads/spots/Spot-No-Image.png")) ?>'];
-    }
+    // Gallery items may be objects {id, url}. Normalize to arrays.
+    const gallery = (spot.images && Array.isArray(spot.images)) ? spot.images : [];
+    const images = gallery.length > 0 ? gallery.map(g => (typeof g === 'string' ? g : g.url)) : (spot.image ? [spot.image] : ['<?= esc(base_url("uploads/spots/Spot-No-Image.png")) ?>']);
     
     const totalVisits = spot.totalVisits || 0;
     const rating = spot.rating || 0;
@@ -1879,11 +2011,45 @@ function generateEditSpotModalContent(spot) {
                         <h3 class="custom-card-title">Spot Images</h3>
                     </div>
                     <div class="custom-card-body">
-                        <div class="position-relative mb-3">
-                            <img src="${images[0]}" alt="${spot.spot_name || spot.name || 'Spot'}" onerror="this.src='<?= esc(base_url('uploads/spots/Spot-No-Image.png')) ?>'" 
-                                class="rounded img-fluid" id="editSpotImage" 
-                                style="width: 100%; height: 200px; object-fit: cover;"
-                                onerror="this.src='<?= esc(base_url("uploads/spots/Spot-No-Image.png")) ?>'">
+                        <div class="mb-3">
+                            <label class="form-label">Primary Image</label>
+                            <div class="position-relative mb-2">
+                                <img src="${images[0]}" alt="${spot.spot_name || spot.name || 'Spot'}" onerror="this.src='<?= esc(base_url('uploads/spots/Spot-No-Image.png')) ?>'" 
+                                    class="rounded img-fluid" id="editSpotImage" 
+                                    style="width: 100%; height: 200px; object-fit: cover;">
+
+                                <button class="btn btn-sm btn-danger position-absolute top-0 end-0 m-2" id="btnDeletePrimary" title="Delete primary image">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+
+                                <label class="position-absolute bottom-0 start-0 m-2 d-none" id="btnAddPrimaryLabel" style="cursor:pointer;">
+                                    <input type="file" id="primaryUploadInput" name="primary_image" accept="image/*" class="d-none">
+                                    <span class="badge bg-light text-dark">+ Add Primary Image</span>
+                                </label>
+                            </div>
+                            <div>
+                                <label class="form-label">Gallery</label>
+                                <div class="d-flex flex-wrap gap-2" id="editGalleryContainer">
+                                    ${images.map((img, idx) => `
+                                        <div class="position-relative" style="width:96px; height:96px;">
+                                            <img src="${img}" class="img-thumbnail" style="width:100%; height:100%; object-fit:cover;"/>
+                                            <button class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 gallery-delete-btn" data-image-url="${img}" data-index="${idx}" title="Delete">
+                                                <i class="bi bi-x"></i>
+                                            </button>
+                                        </div>
+                                    `).join('')}
+
+                                    <div style="width:96px; height:96px;" class="d-flex align-items-center justify-content-center border rounded" id="addGalleryTile">
+                                        <label style="cursor:pointer; width:100%; height:100%; display:flex; align-items:center; justify-content:center;">
+                                            <input type="file" id="galleryUploadInput" name="gallery_images[]" accept="image/*" multiple class="d-none">
+                                            <div class="text-center text-muted">
+                                                <i class="bi bi-plus-lg" style="font-size: 1.25rem"></i>
+                                                <div style="font-size: 12px">Add</div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

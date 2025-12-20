@@ -87,6 +87,11 @@ $routes->get('spotowner/earnings/export/pdf', 'SpotOwnerController::exportEarnin
 $routes->get('/spotowner/settings', 'SpotOwnerController::settings');
 $routes->get('spotowner/my-spots/data', 'SpotOwnerController::getMySpots');
 $routes->get('spotowner/my-spots/get-spot/(:num)', 'SpotOwnerController::getSpot/$1');
+// Spot image management (AJAX)
+$routes->post('spotowner/my-spots/delete-primary/(:num)', 'SpotOwnerController::deletePrimaryImage/$1');
+$routes->post('spotowner/my-spots/delete-gallery/(:num)', 'SpotOwnerController::deleteGalleryImage/$1');
+$routes->post('spotowner/my-spots/upload-primary/(:num)', 'SpotOwnerController::uploadPrimaryImage/$1');
+$routes->post('spotowner/my-spots/upload-gallery/(:num)', 'SpotOwnerController::uploadGalleryImages/$1');
 
 // Spot Owner Notification Routes
 $routes->get('spotowner/notifications/unread-count', 'SpotOwnerController::getUnreadNotificationCount');
