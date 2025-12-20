@@ -175,6 +175,232 @@ public function recordCheckin()
     }
 }
 
+/**
+ * Delete primary image for a spot (AJAX)
+ */
+public function deletePrimaryImage($id)
+{
+    $session = session();
+    $userID = $session->get('UserID');
+    if (!$userID || !$session->get('isLoggedIn') || $session->get('Role') !== 'Spot Owner') {
+        return $this->response->setJSON(['error' => 'Unauthorized'])->setStatusCode(401);
+    }
+
+    try {
+        $spotModel = new \App\Models\TouristSpotModel();
+        $spot = $spotModel->find($id);
+        if (!$spot) return $this->response->setJSON(['error' => 'Spot not found'])->setStatusCode(404);
+
+        // Verify ownership
+        $businessModel = new \App\Models\BusinessModel();
+        $business = $businessModel->where('user_id', $userID)->first();
+        if (!$business || $spot['business_id'] != $business['business_id']) {
+            return $this->response->setJSON(['error' => 'Forbidden'])->setStatusCode(403);
+        }
+
+        $filename = $spot['primary_image'] ?? null;
+
+        // Attempt to promote a gallery image to primary if available
+        $galleryModel = new \App\Models\SpotGalleryModel();
+        $first = $galleryModel->where('spot_id', $id)->orderBy('image_id', 'ASC')->first();
+
+        if ($first && !empty($first['image'])) {
+            $galleryPath = FCPATH . 'uploads/spots/gallery/' . $first['image'];
+            $destPathRoot = FCPATH . 'uploads/spots/';
+            if (!is_dir($destPathRoot)) @mkdir($destPathRoot, 0777, true);
+
+            // ensure unique filename in root to avoid collisions
+            $baseName = $first['image'];
+            $newName = $baseName;
+            $i = 0;
+            while (is_file($destPathRoot . $newName)) {
+                $i++;
+                $newName = pathinfo($baseName, PATHINFO_FILENAME) . '_' . $i . '.' . pathinfo($baseName, PATHINFO_EXTENSION);
+            }
+
+            $moved = false;
+            if (is_file($galleryPath)) {
+                // move file from gallery to root
+                $moved = @rename($galleryPath, $destPathRoot . $newName);
+                if (!$moved) {
+                    // fallback to copy+unlink
+                    if (@copy($galleryPath, $destPathRoot . $newName)) {
+                        @unlink($galleryPath);
+                        $moved = true;
+                    }
+                }
+            }
+
+            if ($moved) {
+                // remove the gallery DB row and set primary_image to promoted filename
+                try {
+                    $galleryModel->delete($first['image_id']);
+                } catch (\Throwable $e) {
+                    log_message('warning', '[deletePrimaryImage] failed to delete gallery row after promote: ' . $e->getMessage());
+                }
+
+                $spotModel->update($id, ['primary_image' => $newName, 'updated_at' => date('Y-m-d H:i:s')]);
+
+                // delete old primary file if it existed
+                if ($filename) {
+                    $oldPath = FCPATH . 'uploads/spots/' . $filename;
+                    if (is_file($oldPath)) @unlink($oldPath);
+                }
+
+                return $this->response->setJSON(['success' => true, 'promoted' => $newName]);
+            }
+        }
+
+        // No gallery image to promote: delete primary file and clear DB column
+        if ($filename) {
+            $path = FCPATH . 'uploads/spots/' . $filename;
+            if (is_file($path)) {
+                @unlink($path);
+            }
+        }
+
+        $spotModel->update($id, ['primary_image' => null, 'updated_at' => date('Y-m-d H:i:s')]);
+        return $this->response->setJSON(['success' => true]);
+    } catch (\Throwable $e) {
+        log_message('error', '[deletePrimaryImage] ' . $e->getMessage());
+        return $this->response->setJSON(['error' => 'Server error'])->setStatusCode(500);
+    }
+}
+
+/**
+ * Delete a gallery image by image_id (AJAX)
+ */
+public function deleteGalleryImage($imageId)
+{
+    $session = session();
+    $userID = $session->get('UserID');
+    if (!$userID || !$session->get('isLoggedIn') || $session->get('Role') !== 'Spot Owner') {
+        return $this->response->setJSON(['error' => 'Unauthorized'])->setStatusCode(401);
+    }
+
+    try {
+        $galleryModel = new \App\Models\SpotGalleryModel();
+        $row = $galleryModel->find($imageId);
+        if (!$row) return $this->response->setJSON(['error' => 'Image not found'])->setStatusCode(404);
+
+        $spotModel = new \App\Models\TouristSpotModel();
+        $spot = $spotModel->find($row['spot_id']);
+        if (!$spot) return $this->response->setJSON(['error' => 'Spot not found'])->setStatusCode(404);
+
+        // Verify ownership
+        $businessModel = new \App\Models\BusinessModel();
+        $business = $businessModel->where('user_id', $userID)->first();
+        if (!$business || $spot['business_id'] != $business['business_id']) {
+            return $this->response->setJSON(['error' => 'Forbidden'])->setStatusCode(403);
+        }
+
+        $filename = $row['image'] ?? null;
+        if ($filename) {
+            $path = FCPATH . 'uploads/spots/gallery/' . $filename;
+            if (is_file($path)) {
+                @unlink($path);
+            }
+        }
+
+        $galleryModel->delete($imageId);
+        return $this->response->setJSON(['success' => true]);
+    } catch (\Throwable $e) {
+        log_message('error', '[deleteGalleryImage] ' . $e->getMessage());
+        return $this->response->setJSON(['error' => 'Server error'])->setStatusCode(500);
+    }
+}
+
+/**
+ * Upload primary image for a spot (multipart/form-data)
+ */
+public function uploadPrimaryImage($id)
+{
+    $session = session();
+    $userID = $session->get('UserID');
+    if (!$userID || !$session->get('isLoggedIn') || $session->get('Role') !== 'Spot Owner') {
+        return $this->response->setJSON(['error' => 'Unauthorized'])->setStatusCode(401);
+    }
+
+    try {
+        $spotModel = new \App\Models\TouristSpotModel();
+        $spot = $spotModel->find($id);
+        if (!$spot) return $this->response->setJSON(['error' => 'Spot not found'])->setStatusCode(404);
+
+        $businessModel = new \App\Models\BusinessModel();
+        $business = $businessModel->where('user_id', $userID)->first();
+        if (!$business || $spot['business_id'] != $business['business_id']) {
+            return $this->response->setJSON(['error' => 'Forbidden'])->setStatusCode(403);
+        }
+
+        $file = $this->request->getFile('primary_image');
+        if (!$file || !$file->isValid()) return $this->response->setJSON(['error' => 'No file uploaded'])->setStatusCode(400);
+
+        $newName = $file->getRandomName();
+        $uploadPath = FCPATH . 'uploads/spots/';
+        if (!is_dir($uploadPath)) mkdir($uploadPath, 0777, true);
+        $file->move($uploadPath, $newName);
+
+        // delete old primary if exists
+        if (!empty($spot['primary_image'])) {
+            $old = $uploadPath . $spot['primary_image'];
+            if (is_file($old)) @unlink($old);
+        }
+
+        $spotModel->update($id, ['primary_image' => $newName, 'updated_at' => date('Y-m-d H:i:s')]);
+        return $this->response->setJSON(['success' => true, 'file' => base_url('uploads/spots/' . $newName)]);
+    } catch (\Throwable $e) {
+        log_message('error', '[uploadPrimaryImage] ' . $e->getMessage());
+        return $this->response->setJSON(['error' => 'Server error'])->setStatusCode(500);
+    }
+}
+
+/**
+ * Upload gallery images for a spot (multipart/form-data, multiple files named gallery_images[])
+ */
+public function uploadGalleryImages($id)
+{
+    $session = session();
+    $userID = $session->get('UserID');
+    if (!$userID || !$session->get('isLoggedIn') || $session->get('Role') !== 'Spot Owner') {
+        return $this->response->setJSON(['error' => 'Unauthorized'])->setStatusCode(401);
+    }
+
+    try {
+        $spotModel = new \App\Models\TouristSpotModel();
+        $spot = $spotModel->find($id);
+        if (!$spot) return $this->response->setJSON(['error' => 'Spot not found'])->setStatusCode(404);
+
+        $businessModel = new \App\Models\BusinessModel();
+        $business = $businessModel->where('user_id', $userID)->first();
+        if (!$business || $spot['business_id'] != $business['business_id']) {
+            return $this->response->setJSON(['error' => 'Forbidden'])->setStatusCode(403);
+        }
+
+        $files = $this->request->getFiles();
+        if (!isset($files['gallery_images'])) return $this->response->setJSON(['error' => 'No files uploaded'])->setStatusCode(400);
+
+        $galleryModel = new \App\Models\SpotGalleryModel();
+        $uploaded = [];
+        $galleryPath = FCPATH . 'uploads/spots/gallery/';
+        if (!is_dir($galleryPath)) mkdir($galleryPath, 0777, true);
+
+        foreach ($files['gallery_images'] as $file) {
+            if (!$file || !$file->isValid()) continue;
+            $newName = $file->getRandomName();
+            $file->move($galleryPath, $newName);
+            if (is_file($galleryPath . $newName)) {
+                $insertId = $galleryModel->insert(['spot_id' => $spot['spot_id'] ?? $spot['spot_id'], 'image' => $newName]);
+                $uploaded[] = ['id' => $insertId, 'url' => base_url('uploads/spots/gallery/' . $newName)];
+            }
+        }
+
+        return $this->response->setJSON(['success' => true, 'uploaded' => $uploaded]);
+    } catch (\Throwable $e) {
+        log_message('error', '[uploadGalleryImages] ' . $e->getMessage());
+        return $this->response->setJSON(['error' => 'Server error'])->setStatusCode(500);
+    }
+}
+
 
     public function dashboard()
     {
@@ -1000,10 +1226,10 @@ return redirect()->to('/spotowner/mySpots')
         $galleryModel = new \App\Models\SpotGalleryModel();
         $galleryImages = $galleryModel->where('spot_id', $id)->findAll();
         
-        $spot['images'] = array_map(
-            fn($g) => base_url('uploads/spots/gallery/' . $g['image']),
-            $galleryImages
-        );
+        // Return gallery as array of {id, url} for the frontend to identify images
+        $spot['images'] = array_map(function($g) {
+            return ['id' => $g['image_id'] ?? ($g['id'] ?? null), 'url' => base_url('uploads/spots/gallery/' . $g['image'])];
+        }, $galleryImages);
 
         // Add primary image to response if it exists
         if (!empty($spot['primary_image'])) {
