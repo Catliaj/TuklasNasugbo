@@ -128,20 +128,25 @@
                     <div class="row g-4" id="manageSpotsGrid">
                         <?php if (!empty($touristSpots)): ?>
                             <?php foreach ($touristSpots as $spot): ?>
-                                <div class="col-lg-4 col-md-6" data-spot-id="<?= $spot['id'] ?>" data-status="<?= $spot['status'] ?>">
+                                <div class="col-lg-4 col-md-6" data-spot-id="<?= $spot['spot_id'] ?>" data-status="<?= $spot['status'] ?>">
                                     <div class="custom-card h-100">
                                         <div class="position-relative">
-                                            <img src="<?= !empty($spot['images']) ? base_url('uploads/spots/gallery/' . $spot['images'][0]) : base_url('uploads/spots/' . $spot['primary_image']) ?>" onerror="this.src='<?= esc(base_url('uploads/spots/Spot-No-Image.png')) ?>'" 
-                                                alt="<?= esc($spot['spot_name']) ?>" class="img-fluid rounded-top" style="height: 200px; width: 100%; object-fit: cover;">
+                                            <?php
+                                                $firstGalleryUrl = (!empty($spot['gallery']) && count($spot['gallery']) > 0) ? $spot['gallery'][0]['image_url'] : null;
+                                                $primaryUrl = $spot['primary_image_url'] ?? base_url('uploads/spots/Spot-No-Image.png');
+                                                $imgSrc = $firstGalleryUrl ?? $primaryUrl;
+                                            ?>
+                                            <img src="<?= esc($imgSrc) ?>" onerror="this.src='<?= esc(base_url('uploads/spots/Spot-No-Image.png')) ?>'" 
+                                                alt="<?= esc($spot['spot_name'] ?? $spot['name'] ?? '') ?>" class="img-fluid rounded-top" style="height: 200px; width: 100%; object-fit: cover;">
                                             <div class="position-absolute top-0 end-0 m-3">
                                                 <span class="badge <?= $spot['status'] === 'active' ? 'bg-success' : 'bg-secondary' ?>">
                                                     <?= esc($spot['status']) ?>
                                                 </span>
                                             </div>
-                                            <?php if (!empty($spot['images']) && count($spot['images']) > 1): ?>
+                                            <?php if (!empty($spot['gallery']) && count($spot['gallery']) > 0): ?>
                                                 <div class="position-absolute bottom-0 end-0 m-3">
                                                     <span class="badge bg-dark bg-opacity-75">
-                                                        <i class="bi bi-images me-1"></i><?= count($spot['images']) ?> photos
+                                                        <i class="bi bi-images me-1"></i><?= count($spot['gallery']) ?> photos
                                                     </span>
                                                 </div>
                                             <?php endif; ?>
@@ -183,7 +188,7 @@
                                                 </button>
 
 
-                                                <a href="<?= base_url('/spotowner/my-spots/delete/' . $spot['id']) ?>" 
+                                                <a href="<?= base_url('/spotowner/my-spots/delete/' . $spot['spot_id']) ?>" 
                                                 class="btn btn-outline-danger flex-fill" 
                                                 onclick="return confirm('Are you sure you want to delete <?= esc($spot['spot_name']) ?>?');">
                                                     <i class="bi bi-trash"></i>
@@ -585,12 +590,61 @@ function bindEditModalImageHandlers(spot) {
             btn.addEventListener('click', async function(e) {
                 e.preventDefault();
                 const idx = parseInt(btn.getAttribute('data-index'));
-                const gallery = spot.images || [];
-                const item = gallery[idx];
-                if (!item) return;
+                const dataImageId = btn.getAttribute('data-image-id');
+
+                // Prefer explicit image id from DOM attribute
+                if (dataImageId && dataImageId !== '') {
+                    if (!confirm('Delete this gallery image?')) return;
+                    await deleteGalleryImage(dataImageId);
+                    await refreshSpotInModal(spot.spot_id || spot.id);
+                    return;
+                }
+
+                // Fallback: try to resolve via spot.gallery or spot.images
+                const gallery = (spot.gallery && Array.isArray(spot.gallery)) ? spot.gallery : (spot.images || []);
+                let item = gallery[idx];
+
+                // If item lacks an id (e.g. frontend list uses URLs only), resolve id by fetching fresh spot data
+                if (!item || typeof (item.id || item.image_id) === 'undefined') {
+                    // try to get image URL from button attribute
+                    const imageUrl = btn.getAttribute('data-image-url');
+                    if (!imageUrl) return;
+                    try {
+                        const resp = await fetch(`<?= base_url('spotowner/my-spots/get-spot') ?>/${spot.spot_id || spot.id}`);
+                        if (!resp.ok) throw new Error('Failed to fetch spot details');
+                        const fresh = await resp.json();
+                        const freshGallery = fresh.gallery || fresh.images || [];
+                        // freshGallery items may be objects {image_id, image_url} or {id, url} or strings
+                        let found = freshGallery.find(g => (typeof g === 'string' && imageUrl === g) || (g.image_url && g.image_url === imageUrl) || (g.url && g.url === imageUrl) || (g.image && imageUrl.endsWith('/' + g.image)) );
+                        if (!found) {
+                            alert('Could not resolve gallery image id; try refreshing the page.');
+                            return;
+                        }
+                        // normalize id property
+                        const foundId = found.id || found.image_id || found.imageId || null;
+                        if (!foundId) {
+                            alert('Could not resolve gallery image id; try refreshing the page.');
+                            return;
+                        }
+                        if (!confirm('Delete this gallery image?')) return;
+                        await deleteGalleryImage(foundId);
+                        await refreshSpotInModal(spot.spot_id || spot.id);
+                        return;
+                    } catch (err) {
+                        console.error('Failed to resolve gallery image id', err);
+                        alert('Failed to resolve gallery image id');
+                        return;
+                    }
+                }
+
+                // If we have an item with id property
+                const imageIdToDelete = (typeof item === 'object') ? (item.id || item.image_id) : item;
+                if (!imageIdToDelete) {
+                    alert('Could not determine image id to delete.');
+                    return;
+                }
                 if (!confirm('Delete this gallery image?')) return;
-                // item is {id, url}
-                await deleteGalleryImage(item.id);
+                await deleteGalleryImage(imageIdToDelete);
                 await refreshSpotInModal(spot.spot_id || spot.id);
             });
         });
@@ -625,8 +679,21 @@ function bindEditModalImageHandlers(spot) {
 async function deletePrimaryImage(spotId) {
     try {
         const res = await fetch(`<?= base_url('spotowner/my-spots/delete-primary') ?>/${spotId}`, { method: 'POST' });
-        const data = await res.json();
-        if (!data.success) throw new Error(data.error || 'Delete failed');
+        let data = null;
+        try { data = await res.json(); } catch(e){ /* non-json response */ }
+        if (!res.ok) {
+            const msg = data && data.error ? data.error : (data && data.message ? data.message : res.statusText || 'Server error');
+            console.error('deletePrimaryImage server error', res.status, msg, data);
+            alert('Failed to delete primary image: ' + msg);
+            return false;
+        }
+        if (data && data.success === false) {
+            const msg = data.error || data.message || 'Delete failed';
+            console.error('deletePrimaryImage failed:', data);
+            alert('Failed to delete primary image: ' + msg);
+            return false;
+        }
+
         return true;
     } catch (err) {
         console.error('deletePrimaryImage', err);
@@ -638,8 +705,21 @@ async function deletePrimaryImage(spotId) {
 async function deleteGalleryImage(imageId) {
     try {
         const res = await fetch(`<?= base_url('spotowner/my-spots/delete-gallery') ?>/${imageId}`, { method: 'POST' });
-        const data = await res.json();
-        if (!data.success) throw new Error(data.error || 'Delete failed');
+        let data = null;
+        try { data = await res.json(); } catch(e){ }
+        if (!res.ok) {
+            const msg = data && data.error ? data.error : (data && data.message ? data.message : res.statusText || 'Server error');
+            console.error('deleteGalleryImage server error', res.status, msg, data);
+            alert('Failed to delete gallery image: ' + msg);
+            return false;
+        }
+        if (data && data.success === false) {
+            const msg = data.error || data.message || 'Delete failed';
+            console.error('deleteGalleryImage failed:', data);
+            alert('Failed to delete gallery image: ' + msg);
+            return false;
+        }
+
         return true;
     } catch (err) {
         console.error('deleteGalleryImage', err);
@@ -1352,7 +1432,7 @@ async function fetchManageSpots() {
         <div class="col-lg-4 col-md-6" data-spot-id="${spot.id}" data-status="${spot.status}">
             <div class="custom-card h-100">
                 <div class="position-relative">
-                    <img src="${spot.images && spot.images.length > 0 ? spot.images[0] : spot.image}" onerror="this.src='<?= esc(base_url('uploads/spots/Spot-No-Image.png')) ?>'" 
+                    <img src="${spot.image}" onerror="this.src='<?= esc(base_url('uploads/spots/Spot-No-Image.png')) ?>'" 
                          alt="${spot.name}" 
                          class="img-fluid rounded-top" 
                          style="height: 200px; width: 100%; object-fit: cover;"
@@ -1360,7 +1440,7 @@ async function fetchManageSpots() {
                     <div class="position-absolute top-0 end-0 m-3">
                         <span class="badge ${spot.status === 'active' ? 'bg-success' : 'bg-secondary'}">${spot.status}</span>
                     </div>
-                    ${spot.images && spot.images.length > 1 ? `
+                    ${spot.images && spot.images.length > 0 ? `
                         <div class="position-absolute bottom-0 end-0 m-3">
                             <span class="badge bg-dark bg-opacity-75">
                                 <i class="bi bi-images me-1"></i>${spot.images.length} photos
@@ -1900,9 +1980,10 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 function generateEditSpotModalContent(spot) {
-    // Gallery items may be objects {id, url}. Normalize to arrays.
-    const gallery = (spot.images && Array.isArray(spot.images)) ? spot.images : [];
-    const images = gallery.length > 0 ? gallery.map(g => (typeof g === 'string' ? g : g.url)) : (spot.image ? [spot.image] : ['<?= esc(base_url("uploads/spots/Spot-No-Image.png")) ?>']);
+    // Prefer `spot.gallery` (objects with image_id/image_url). Fallback to `spot.images` (legacy array of urls).
+    const gallery = (spot.gallery && Array.isArray(spot.gallery)) ? spot.gallery : ((spot.images && Array.isArray(spot.images)) ? spot.images : []);
+    const images = gallery.length > 0 ? gallery.map(g => (typeof g === 'string' ? g : (g.image_url || g.url || ''))) : (spot.image ? [spot.image] : ['<?= esc(base_url("uploads/spots/Spot-No-Image.png")) ?>']);
+    const primaryUrl = spot.primary_image_url || spot.primaryUrl || spot.image || images[0] || '<?= esc(base_url("uploads/spots/Spot-No-Image.png")) ?>';
     
     const totalVisits = spot.totalVisits || 0;
     const rating = spot.rating || 0;
@@ -2014,7 +2095,7 @@ function generateEditSpotModalContent(spot) {
                         <div class="mb-3">
                             <label class="form-label">Primary Image</label>
                             <div class="position-relative mb-2">
-                                <img src="${images[0]}" alt="${spot.spot_name || spot.name || 'Spot'}" onerror="this.src='<?= esc(base_url('uploads/spots/Spot-No-Image.png')) ?>'" 
+                                <img src="${primaryUrl}" alt="${spot.spot_name || spot.name || 'Spot'}" onerror="this.src='<?= esc(base_url('uploads/spots/Spot-No-Image.png')) ?>'" 
                                     class="rounded img-fluid" id="editSpotImage" 
                                     style="width: 100%; height: 200px; object-fit: cover;">
 
@@ -2029,15 +2110,19 @@ function generateEditSpotModalContent(spot) {
                             </div>
                             <div>
                                 <label class="form-label">Gallery</label>
-                                <div class="d-flex flex-wrap gap-2" id="editGalleryContainer">
-                                    ${images.map((img, idx) => `
+                                    <div class="d-flex flex-wrap gap-2" id="editGalleryContainer">
+                                    ${gallery.map((g, idx) => {
+                                        const imgUrl = (typeof g === 'string') ? g : (g.image_url || g.url || '');
+                                        const imgId = (typeof g === 'object') ? (g.image_id || g.id || g.imageId || '') : '';
+                                        return `
                                         <div class="position-relative" style="width:96px; height:96px;">
-                                            <img src="${img}" class="img-thumbnail" style="width:100%; height:100%; object-fit:cover;"/>
-                                            <button class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 gallery-delete-btn" data-image-url="${img}" data-index="${idx}" title="Delete">
+                                            <img src="${imgUrl}" class="img-thumbnail" style="width:100%; height:100%; object-fit:cover;"/>
+                                            <button class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 gallery-delete-btn" data-image-url="${imgUrl}" data-index="${idx}" data-image-id="${imgId}" title="Delete">
                                                 <i class="bi bi-x"></i>
                                             </button>
                                         </div>
-                                    `).join('')}
+                                        `;
+                                    }).join('')}
 
                                     <div style="width:96px; height:96px;" class="d-flex align-items-center justify-content-center border rounded" id="addGalleryTile">
                                         <label style="cursor:pointer; width:100%; height:100%; display:flex; align-items:center; justify-content:center;">

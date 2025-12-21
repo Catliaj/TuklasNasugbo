@@ -257,7 +257,7 @@ async function fetchTouristSpots() {
                             location: spot.location,
                             description: spot.description,
                             images: spot.images && spot.images.length > 0 ? spot.images : [spot.image],
-                            price: spot.price_per_person,
+                            price: spot.price ?? spot.price_per_person ?? 0,
                             maxVisitors: spot.capacity,
                             openTime: spot.opening_time,
                             closeTime: spot.closing_time,
@@ -280,7 +280,7 @@ async function fetchTouristSpots() {
                             location: spot.location,
                             description: spot.description,
                             images: spot.images && spot.images.length > 0 ? spot.images : [spot.image],
-                            price: spot.price_per_person,
+                            price: spot.price ?? spot.price_per_person ?? 0,
                             maxVisitors: spot.capacity,
                             openTime: spot.opening_time,
                             closeTime: spot.closing_time,
@@ -753,11 +753,11 @@ function loadTouristSpotsGrid() {
                         <i class="bi bi-geo-alt me-1"></i>${spot.location}
                     </p>
                     
-                    <div class="d-flex align-items-center gap-3 mb-3" style="min-height: 30px;">
+                        <div class="d-flex align-items-center gap-3 mb-3" style="min-height: 30px;">
                         <div class="d-flex align-items-center">
                             <i class="bi bi-star-fill text-warning me-1"></i>
                             <span class="fw-medium">${spot.rating || 0}</span>
-                            <span class="text-muted-custom small ms-1">(${spot.reviews || 0})</span>
+                            ${ (spot.reviews && Number(spot.reviews) > 0) ? `<span class="text-muted-custom small ms-1">(${spot.reviews})</span>` : '' }
                         </div>
                         <div class="text-muted-custom">|</div>
                         <div class="text-ocean-medium fw-medium">₱${spot.price}/person</div>

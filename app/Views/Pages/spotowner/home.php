@@ -179,11 +179,11 @@
                             <div class="stat-card">
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div>
-                                        <div class="stat-label">Annual Visitors</div>
-                                        <div class="stat-value" id="stat-annual-visitors">
-                                            <div class="spinner-border spinner-border-sm" role="status"></div>
+                                        <div class="stat-label">Overall Rating</div>
+                                        <div class="stat-value" id="stat-average-rating">
+                                            <?= esc(number_format((float)($averageRating ?? 0), 1)) ?>
                                         </div>
-                                        <div class="stat-description">Year-to-date</div>
+                                        <div class="stat-description">Based on <?= (int)($approvedSpotsCount ?? 0) ?> approved spots</div>
                                     </div>
                                     <div class="stat-icon">
                                         <i class="bi bi-star-fill"></i>
@@ -206,7 +206,8 @@
             totalBookings: <?= json_encode($totalbookings ?? ($toatlbookings ?? 0)) ?>,
             totalRevenue: <?= json_encode((float)($totalrevenue ?? 0)) ?>,
             averageRating: <?= json_encode($averageRating ?? 0) ?>,
-            annualVisitors: <?= json_encode($annualVisitors ?? 0) ?>
+            annualVisitors: <?= json_encode($annualVisitors ?? 0) ?>,
+            approvedSpotsCount: <?= json_encode($approvedSpotsCount ?? 0) ?>
         };
     </script>
 

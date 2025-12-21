@@ -71,17 +71,37 @@ class TouristSpotModel extends Model
         try {
             $spots = $this->where('business_id', $businessID)
                          ->orderBy('spot_name', 'ASC')
-                         ->findAll();
-            if (empty($spots)) {
-                return ['status' => 'error', 'message' => 'No spots found for this business ID'];
-            }
+                         ->findAll() ?: [];
+
             $galleryModel = new \App\Models\SpotGalleryModel();
             foreach ($spots as &$spot) {
-                $spot['gallery'] = $galleryModel->where('spot_id', $spot['spot_id'])->findAll();
+                $rawGallery = $galleryModel->where('spot_id', $spot['spot_id'])->orderBy('image_id','ASC')->findAll() ?: [];
+                $normalized = [];
+                $primaryFilename = $spot['primary_image'] ?? null;
+                foreach ($rawGallery as $g) {
+                    $fname = $g['image'] ?? null;
+                    if (!$fname) continue;
+                    // exclude any gallery image that matches the primary filename
+                    if ($primaryFilename && $fname === $primaryFilename) continue;
+                    $normalized[] = [
+                        'image_id' => $g['image_id'] ?? null,
+                        'image' => $fname,
+                        'image_url' => base_url('uploads/spots/gallery/' . $fname)
+                    ];
+                }
+
+                // keep primary_image as filename for canonical DB reference but expose a URL helper
+                $spot['primary_image'] = $primaryFilename;
+                $spot['primary_image_url'] = $primaryFilename ? base_url('uploads/spots/' . $primaryFilename) : base_url('uploads/spots/Spot-No-Image.png');
+
+                $spot['gallery'] = $normalized;
             }
-            return ['status' => 'success', 'data' => $spots];
+
+            return $spots;
         } catch (\Exception $e) {
-            return ['status' => 'error', 'message' => 'Error retrieving tourist spots: ' . $e->getMessage()];
+            // On error return empty array to avoid breaking callers that expect an array
+            log_message('error', '[TouristSpotModel::getSpotsByBusinessID] ' . $e->getMessage());
+            return [];
         }
     }
 
@@ -191,13 +211,10 @@ class TouristSpotModel extends Model
             // If no gallery images, provide an empty array (frontend may use primary image instead)
             $spot['gallery'] = $normalizedGallery;
 
-            // Normalize primary image URL: use uploads/spots/<filename> or fallback
+            // Keep primary_image as the canonical filename, but expose a primary_image_url for views
             $primary = $spot['primary_image'] ?? null;
-            if (!empty($primary)) {
-                $spot['primary_image'] = base_url('uploads/spots/' . $primary);
-            } else {
-                $spot['primary_image'] = base_url('uploads/spots/Spot-No-Image.png');
-            }
+            $spot['primary_image'] = $primary;
+            $spot['primary_image_url'] = $primary ? base_url('uploads/spots/' . $primary) : base_url('uploads/spots/Spot-No-Image.png');
 
             return ['status' => 'success', 'data' => $spot];
 

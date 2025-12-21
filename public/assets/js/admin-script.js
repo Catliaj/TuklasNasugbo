@@ -768,7 +768,21 @@
       const resp = await fetch(`${BASE_URL}admin/attractions/view/${id}`);
       const data = await resp.json();
       // Build a richer detail view including gallery and owner info
-      const galleryHtml = (data.images && data.images.length) ? data.images.map(img => `<img src="${(BASE_URL||'')+'uploads/spots/gallery/'+img.image}" style="height:100px;object-fit:cover;margin-right:8px;border-radius:6px">`).join('') : '';
+      const galleryHtml = (data.images && data.images.length) ? data.images.map(function(img){
+        // Support multiple shapes: full URL string, or object with `image`/`filename` properties
+        let src = '';
+        if (typeof img === 'string') {
+          src = img;
+        } else if (img && (img.image || img.filename)) {
+          const fname = img.image || img.filename;
+          // If it's already an absolute URL, use it; otherwise build uploads path
+          if (/^https?:\/\//i.test(fname)) src = fname;
+          else src = (BASE_URL || '') + 'uploads/spots/gallery/' + fname;
+        } else {
+          src = (BASE_URL || '') + 'uploads/spots/Spot-No-Image.png';
+        }
+        return `<img src="${src}" style="height:100px;object-fit:cover;margin-right:8px;border-radius:6px" onerror="this.onerror=null;this.src='${(BASE_URL||'')+'uploads/spots/Spot-No-Image.png'}'">`;
+      }).join('') : '';
       content.innerHTML = `
         <div class="row">
           <div class="col-md-6">
