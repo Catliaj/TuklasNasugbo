@@ -198,60 +198,9 @@ public function deletePrimaryImage($id)
             return $this->response->setJSON(['error' => 'Forbidden'])->setStatusCode(403);
         }
 
+        // Keep behavior simple: only delete the primary image file and clear the DB column.
+        // Do NOT promote any gallery image automatically.
         $filename = $spot['primary_image'] ?? null;
-
-        // Attempt to promote a gallery image to primary if available
-        $galleryModel = new \App\Models\SpotGalleryModel();
-        $first = $galleryModel->where('spot_id', $id)->orderBy('image_id', 'ASC')->first();
-
-        if ($first && !empty($first['image'])) {
-            $galleryPath = FCPATH . 'uploads/spots/gallery/' . $first['image'];
-            $destPathRoot = FCPATH . 'uploads/spots/';
-            if (!is_dir($destPathRoot)) @mkdir($destPathRoot, 0777, true);
-
-            // ensure unique filename in root to avoid collisions
-            $baseName = $first['image'];
-            $newName = $baseName;
-            $i = 0;
-            while (is_file($destPathRoot . $newName)) {
-                $i++;
-                $newName = pathinfo($baseName, PATHINFO_FILENAME) . '_' . $i . '.' . pathinfo($baseName, PATHINFO_EXTENSION);
-            }
-
-            $moved = false;
-            if (is_file($galleryPath)) {
-                // move file from gallery to root
-                $moved = @rename($galleryPath, $destPathRoot . $newName);
-                if (!$moved) {
-                    // fallback to copy+unlink
-                    if (@copy($galleryPath, $destPathRoot . $newName)) {
-                        @unlink($galleryPath);
-                        $moved = true;
-                    }
-                }
-            }
-
-            if ($moved) {
-                // remove the gallery DB row and set primary_image to promoted filename
-                try {
-                    $galleryModel->delete($first['image_id']);
-                } catch (\Throwable $e) {
-                    log_message('warning', '[deletePrimaryImage] failed to delete gallery row after promote: ' . $e->getMessage());
-                }
-
-                $spotModel->update($id, ['primary_image' => $newName, 'updated_at' => date('Y-m-d H:i:s')]);
-
-                // delete old primary file if it existed
-                if ($filename) {
-                    $oldPath = FCPATH . 'uploads/spots/' . $filename;
-                    if (is_file($oldPath)) @unlink($oldPath);
-                }
-
-                return $this->response->setJSON(['success' => true, 'promoted' => $newName]);
-            }
-        }
-
-        // No gallery image to promote: delete primary file and clear DB column
         if ($filename) {
             $path = FCPATH . 'uploads/spots/' . $filename;
             if (is_file($path)) {
@@ -427,6 +376,26 @@ public function uploadGalleryImages($id)
         $annualVisitors = $bookingModel->getAnnualVisitorsByBusiness($businessID, date('Y'));
 
         $data['spots'] = $spots;
+        // Compute overall average rating across admin-approved spots for this business using a single optimized query
+        $averageRating = 0.0;
+        $approvedSpotsCount = 0;
+        try {
+            $db = \Config\Database::connect();
+            // Count approved spots for this business
+            $countRow = $db->query("SELECT COUNT(*) AS cnt FROM tourist_spots WHERE business_id = ? AND status = 'approved'", [$businessID])->getRowArray();
+            $approvedSpotsCount = isset($countRow['cnt']) ? (int)$countRow['cnt'] : 0;
+
+            // Compute average rating joining only approved spots (this avoids building large IN lists and is faster)
+            $row = $db->query(
+                "SELECT ROUND(AVG(rf.rating),1) AS avg_rating FROM review_feedback rf JOIN tourist_spots ts ON rf.spot_id = ts.spot_id WHERE ts.business_id = ? AND ts.status = 'approved'",
+                [$businessID]
+            )->getRowArray();
+            $averageRating = isset($row['avg_rating']) ? (float)$row['avg_rating'] : 0.0;
+        } catch (\Throwable $e) {
+            log_message('error', '[dashboard] Failed to compute averageRating: ' . $e->getMessage());
+            $averageRating = 0.0;
+            $approvedSpotsCount = $approvedSpotsCount ?? 0;
+        }
         
         return view('Pages/spotowner/home', [
             'userID' => $userID,
@@ -437,6 +406,8 @@ public function uploadGalleryImages($id)
             'totalrevenue' => $totalrevenue,
             'spots' => $data['spots'],
             'annualVisitors' => $annualVisitors,
+            'averageRating' => $averageRating,
+            'approvedSpotsCount' => $approvedSpotsCount,
         ]);
     }
 
@@ -457,6 +428,8 @@ public function uploadGalleryImages($id)
             'FullName' => session()->get('FirstName') . ' ' . session()->get('LastName'),
             'email' => session()->get('Email'),
             'spots' => $data['spots'],
+            // Provide alias expected by the view/template
+            'touristSpots' => $data['spots'],
 
         ]);
     }
@@ -1182,34 +1155,34 @@ return redirect()->to('/spotowner/mySpots')
             return $this->response->setJSON([]); // no business, no spots
         }
 
-        // 2️⃣ Get tourist spots for that business
-        // ⚠️ use correct column name in your DB, usually business_id
-        $spots = $spotModel->where('business_id', $business['business_id'])->findAll();
+        // 2️⃣ Get tourist spots for that business (model now normalizes gallery and primary URL)
+        $spots = $spotModel->getSpotsByBusinessID($business['business_id']);
 
-        // 3️⃣ For each spot, attach gallery images and normalize field names
-        foreach ($spots as &$spot) {
-            // Get all images in SpotGallery related to this spot
-            $spot['images'] = $galleryModel->where('spot_id', $spot['spot_id'])->findColumn('image');
-
-            // Map field names to match your JS expectations
-            $spot['id'] = $spot['spot_id'];
-            $spot['name'] = $spot['spot_name'];
-            $spot['image'] = !empty($spot['primary_image']) ? base_url('uploads/spots/' . $spot['primary_image']) : base_url('uploads/spots/Spot-No-Image.png');
-            $spot['status'] = $spot['status'] ?? 'inactive';
-            $spot['price'] = $spot['price_per_person'];
-            $spot['maxVisitors'] = $spot['capacity'];
-            $spot['openTime'] = $spot['opening_time'];
-            $spot['closeTime'] = $spot['closing_time'];
-            $spot['rating'] = $spot['rating'] ?? 0;
-            $spot['reviews'] = $spot['reviews'] ?? 0;
-
-            // Convert image paths for frontend (if gallery exists)
-            if (!empty($spot['images'])) {
-                $spot['images'] = array_map(fn($img) => base_url('uploads/spots/gallery/' . $img), $spot['images']);
-            }
+        // Ensure we return the shape expected by the frontend JS
+        $out = [];
+        foreach ($spots as $s) {
+            $out[] = [
+                'id' => $s['spot_id'],
+                'spot_id' => $s['spot_id'],
+                'name' => $s['spot_name'] ?? ($s['name'] ?? ''),
+                'location' => $s['location'] ?? '',
+                'image' => $s['primary_image_url'] ?? ($s['primary_image'] ? base_url('uploads/spots/' . $s['primary_image']) : base_url('uploads/spots/Spot-No-Image.png')),
+                'images' => array_map(fn($g) => $g['image_url'], $s['gallery'] ?? []),
+                'status' => $s['status'] ?? 'inactive',
+                'price' => $s['price_per_person'] ?? ($s['price'] ?? 0),
+                'maxVisitors' => $s['capacity'] ?? 0,
+                'openTime' => $s['opening_time'] ?? '',
+                'closeTime' => $s['closing_time'] ?? '',
+                'rating' => $s['rating'] ?? 0,
+                'reviews' => $s['reviews'] ?? 0,
+                'spot_name' => $s['spot_name'] ?? '',
+                // include raw primary filename for edit operations that need it
+                'primary_image' => $s['primary_image'] ?? null,
+                'gallery' => $s['gallery'] ?? []
+            ];
         }
 
-        return $this->response->setJSON($spots);
+        return $this->response->setJSON($out);
     }
 
     public function getSpot($id)
@@ -1222,19 +1195,31 @@ return redirect()->to('/spotowner/mySpots')
             return $this->response->setJSON(['error' => 'Spot not found'])->setStatusCode(404);
         }
 
-        // Optionally include gallery images
+        // Optionally include gallery images and normalize response shape
         $galleryModel = new \App\Models\SpotGalleryModel();
-        $galleryImages = $galleryModel->where('spot_id', $id)->findAll();
-        
-        // Return gallery as array of {id, url} for the frontend to identify images
-        $spot['images'] = array_map(function($g) {
-            return ['id' => $g['image_id'] ?? ($g['id'] ?? null), 'url' => base_url('uploads/spots/gallery/' . $g['image'])];
-        }, $galleryImages);
+        $rawGallery = $galleryModel->where('spot_id', $id)->orderBy('image_id','ASC')->findAll() ?: [];
 
-        // Add primary image to response if it exists
-        if (!empty($spot['primary_image'])) {
-            $spot['image'] = !empty($spot['primary_image']) ? base_url('uploads/spots/' . $spot['primary_image']) : base_url('uploads/spots/Spot-No-Image.png');
+        $primaryFilename = $spot['primary_image'] ?? null;
+        $normalizedGallery = [];
+        foreach ($rawGallery as $g) {
+            $fname = $g['image'] ?? null;
+            if (!$fname) continue;
+            if ($primaryFilename && $fname === $primaryFilename) continue; // exclude primary from gallery
+            $normalizedGallery[] = [
+                'image_id' => $g['image_id'] ?? null,
+                'image' => $fname,
+                'image_url' => base_url('uploads/spots/gallery/' . $fname)
+            ];
         }
+
+        $spot['primary_image'] = $primaryFilename;
+        $spot['primary_image_url'] = $primaryFilename ? base_url('uploads/spots/' . $primaryFilename) : base_url('uploads/spots/Spot-No-Image.png');
+        $spot['gallery'] = $normalizedGallery;
+
+        // Keep backward-compatible fields used by frontend code
+        $spot['id'] = $spot['spot_id'];
+        $spot['image'] = $spot['primary_image_url'];
+        $spot['images'] = array_map(fn($g) => $g['image_url'], $spot['gallery']);
 
         return $this->response->setJSON($spot);
     } catch (\Exception $e) {
@@ -1279,7 +1264,6 @@ public function updateSpot($id)
             'capacity' => $input['capacity'] ?? $spot['capacity'],
             'opening_time' => $input['opening_time'] ?? $spot['opening_time'],
             'closing_time' => $input['closing_time'] ?? $spot['closing_time'],
-            'status' => $input['status'] ?? $spot['status'],
             'updated_at' => date('Y-m-d H:i:s')
         ];
         

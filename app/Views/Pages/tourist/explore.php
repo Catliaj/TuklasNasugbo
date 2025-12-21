@@ -83,6 +83,20 @@
             .spot-modal-carousel .carousel-control-prev-icon, .spot-modal-carousel .carousel-control-next-icon {filter:drop-shadow(0 2px 4px rgba(0,0,0,.45));}
             .spot-modal-carousel .carousel-control-prev, .spot-modal-carousel .carousel-control-next {width:48px;}
             .spot-modal-carousel .carousel-control-prev:hover .carousel-control-prev-icon, .spot-modal-carousel .carousel-control-next:hover .carousel-control-next-icon {filter:drop-shadow(0 4px 10px rgba(0,0,0,.55));}
+            /* Modern spot card styles */
+            .modern-spot-card {border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(2,6,23,0.12);transition:transform .22s ease, box-shadow .22s ease;background:#fff;border:1px solid rgba(10,20,30,0.04);}
+            .modern-spot-card:hover {transform:translateY(-6px);box-shadow:0 18px 40px rgba(2,6,23,0.16);} 
+            .modern-card-img {position:relative;height:180px;background:#f3f6f8;display:flex;align-items:center;justify-content:center;}
+            .modern-card-img img {width:100%;height:100%;object-fit:cover;display:block;border-bottom-left-radius:0;border-bottom-right-radius:0;}
+            .spot-overlay {position:absolute;inset:10px;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none}
+            .spot-overlay .price-pill {pointer-events:auto;background:linear-gradient(135deg,#ffffff,#f7fbfe);padding:6px 10px;border-radius:999px;font-weight:700;color:#003a6e;border:1px solid rgba(0,75,141,0.12);box-shadow:0 6px 18px rgba(3,37,60,0.06)}
+            .spot-overlay .favorite-btn {pointer-events:auto;background:rgba(255,255,255,0.9);border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(0,0,0,0.06);box-shadow:0 6px 16px rgba(2,6,23,0.06)}
+            .spot-content {padding:14px 16px;}
+            .spot-title {font-weight:700;margin:0 0 6px;font-size:1.02rem;color:#05263a}
+            .spot-description {color:#264653;font-size:.9rem;margin:0 0 10px;height:42px;overflow:hidden}
+            .spot-meta {display:flex;justify-content:space-between;align-items:center;gap:8px}
+            .spot-meta .spot-category {color:#486b8a;font-weight:600;font-size:.82rem}
+            .spot-meta .spot-rating {display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#fff,#f4fbff);padding:6px 10px;border-radius:999px;border:1px solid rgba(0,75,141,0.06);font-weight:700}
             /* Description & meta styling */
             .spot-modal-info {display:flex;flex-direction:column;gap:16px;}
             .spot-desc-box {background:rgba(255,255,255,0.5);backdrop-filter:blur(12px);border:1px solid rgba(0,75,141,0.15);border-radius:18px;padding:16px 18px;position:relative;overflow:hidden;box-shadow:0 6px 20px -8px rgba(0,46,85,.3);}
@@ -297,17 +311,35 @@
                     <div class="recommended-grid d-flex gap-3 pb-2" style="overflow-x:auto;scrollbar-width:thin;">
                         <?php foreach ($recommendedSpots as $spot): ?>
                             <?php 
-                                $imagePath = 'uploads/spots/' . $spot['primary_image'];
-                                if (!is_file(FCPATH . $imagePath)) { 
-                                    $imagePath = 'uploads/spots/Spot-No-Image.png';
+                                // Prefer first gallery image when available, otherwise fall back to primary
+                                $imagePath = null;
+                                if (!empty($spot['gallery']) && is_array($spot['gallery'])) {
+                                    $firstGallery = $spot['gallery'][0];
+                                    if (is_array($firstGallery) && isset($firstGallery['image'])) {
+                                        $candidate = 'uploads/spots/gallery/' . $firstGallery['image'];
+                                        if (is_file(FCPATH . $candidate)) $imagePath = $candidate;
+                                    } elseif (is_string($firstGallery)) {
+                                        $candidate = 'uploads/spots/gallery/' . $firstGallery;
+                                        if (is_file(FCPATH . $candidate)) $imagePath = $candidate;
+                                    }
+                                }
+                                if (empty($imagePath)) {
+                                    $imagePath = 'uploads/spots/' . ($spot['primary_image'] ?? '');
+                                    if (!is_file(FCPATH . $imagePath)) {
+                                        $imagePath = 'uploads/spots/Spot-No-Image.png';
+                                    }
                                 }
                                 $isFav = in_array(($spot['spot_id'] ?? $spot['id'] ?? null), $favoriteSpotIds ?? []);
                             ?>
-                            <div class="spot-card recommended-card flex-shrink-0" style="width:280px;min-width:280px;" data-category="<?= esc($spot['category']) ?>" data-spot-id="<?= esc($spot['spot_id'] ?? $spot['id'] ?? '') ?>">
-                                <div class="spot-image" style="background-image: url('<?= base_url($imagePath) ?>');height:180px;">
-                                    <button class="favorite-btn<?= $isFav ? ' active' : '' ?>" data-spot-id="<?= esc($spot['spot_id'] ?? $spot['id'] ?? '') ?>" onclick="toggleFavorite(this)">
-                                        <i class="bi bi-heart"></i>
-                                    </button>
+                            <div class="spot-card recommended-card flex-shrink-0 modern-spot-card" style="width:280px;min-width:280px;" data-category="<?= esc($spot['category']) ?>" data-spot-id="<?= esc($spot['spot_id'] ?? $spot['id'] ?? '') ?>">
+                                <div class="spot-image modern-card-img" style="height:180px;">
+                                    <img src="<?= base_url($imagePath) ?>" alt="<?= esc($spot['spot_name']) ?>" onerror="this.src='<?= base_url('uploads/spots/Spot-No-Image.png') ?>'">
+                                    <div class="spot-overlay">
+                                        <div class="price-pill"><?= ($spot['price_per_person'] ? '₱' . number_format((float)$spot['price_per_person']) : 'Free') ?></div>
+                                        <button class="favorite-btn<?= $isFav ? ' active' : '' ?>" data-spot-id="<?= esc($spot['spot_id'] ?? $spot['id'] ?? '') ?>" onclick="toggleFavorite(this)">
+                                            <i class="bi bi-heart"></i>
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="spot-content" style="min-height:200px;display:flex;flex-direction:column;">
                                     <h3 class="spot-title" style="font-size:1rem;height:2.4em;overflow:hidden;line-height:1.2em;"><?= esc($spot['spot_name']) ?></h3>
@@ -343,17 +375,35 @@
                     <div class="free-spots-grid d-flex flex-wrap gap-3">
                         <?php foreach ($freeSpots as $spot): ?>
                             <?php 
-                                $imagePath = 'uploads/spots/' . $spot['primary_image'];
-                                if (!is_file(FCPATH . $imagePath)) { 
-                                    $imagePath = 'uploads/spots/Spot-No-Image.png';
+                                // Prefer first gallery image when available, otherwise fall back to primary
+                                $imagePath = null;
+                                if (!empty($spot['gallery']) && is_array($spot['gallery'])) {
+                                    $firstGallery = $spot['gallery'][0];
+                                    if (is_array($firstGallery) && isset($firstGallery['image'])) {
+                                        $candidate = 'uploads/spots/gallery/' . $firstGallery['image'];
+                                        if (is_file(FCPATH . $candidate)) $imagePath = $candidate;
+                                    } elseif (is_string($firstGallery)) {
+                                        $candidate = 'uploads/spots/gallery/' . $firstGallery;
+                                        if (is_file(FCPATH . $candidate)) $imagePath = $candidate;
+                                    }
+                                }
+                                if (empty($imagePath)) {
+                                    $imagePath = 'uploads/spots/' . ($spot['primary_image'] ?? '');
+                                    if (!is_file(FCPATH . $imagePath)) {
+                                        $imagePath = 'uploads/spots/Spot-No-Image.png';
+                                    }
                                 }
                                 $isFav = in_array(($spot['spot_id'] ?? $spot['id'] ?? null), $favoriteSpotIds ?? []);
                             ?>
-                            <div class="spot-card" data-category="<?= esc($spot['category']) ?>" data-spot-id="<?= esc($spot['spot_id'] ?? $spot['id'] ?? '') ?>" style="width:280px;">
-                                <div class="spot-image" style="background-image: url('<?= base_url($imagePath) ?>');height:180px;">
-                                    <button class="favorite-btn<?= $isFav ? ' active' : '' ?>" data-spot-id="<?= esc($spot['spot_id'] ?? $spot['id'] ?? '') ?>" onclick="toggleFavorite(this)">
-                                        <i class="bi bi-heart"></i>
-                                    </button>
+                            <div class="spot-card modern-spot-card" data-category="<?= esc($spot['category']) ?>" data-spot-id="<?= esc($spot['spot_id'] ?? $spot['id'] ?? '') ?>" style="width:280px;">
+                                <div class="spot-image modern-card-img" style="height:180px;">
+                                    <img src="<?= base_url($imagePath) ?>" alt="<?= esc($spot['spot_name']) ?>" onerror="this.src='<?= base_url('uploads/spots/Spot-No-Image.png') ?>'">
+                                    <div class="spot-overlay">
+                                        <div class="price-pill"><?= ($spot['price_per_person'] ? '₱' . number_format((float)$spot['price_per_person']) : 'Free') ?></div>
+                                        <button class="favorite-btn<?= $isFav ? ' active' : '' ?>" data-spot-id="<?= esc($spot['spot_id'] ?? $spot['id'] ?? '') ?>" onclick="toggleFavorite(this)">
+                                            <i class="bi bi-heart"></i>
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="spot-content" style="min-height:200px;display:flex;flex-direction:column;">
                                     <h3 class="spot-title" style="font-size:1rem;height:2.4em;overflow:hidden;line-height:1.2em;"><?= esc($spot['spot_name']) ?></h3>
@@ -401,19 +451,36 @@
 
                     <?php foreach ($otherSpots as $spot): ?>
                         <?php 
-                            // IMAGE PATH CHECK
-                            $imagePath = 'uploads/spots/' . $spot['primary_image'];
-                            if (!is_file(FCPATH . $imagePath)) { 
-                                $imagePath = 'uploads/spots/Spot-No-Image.png';
+                            // Prefer first gallery image when available, otherwise fall back to primary
+                            $imagePath = null;
+                            if (!empty($spot['gallery']) && is_array($spot['gallery'])) {
+                                $firstGallery = $spot['gallery'][0];
+                                if (is_array($firstGallery) && isset($firstGallery['image'])) {
+                                    $candidate = 'uploads/spots/gallery/' . $firstGallery['image'];
+                                    if (is_file(FCPATH . $candidate)) $imagePath = $candidate;
+                                } elseif (is_string($firstGallery)) {
+                                    $candidate = 'uploads/spots/gallery/' . $firstGallery;
+                                    if (is_file(FCPATH . $candidate)) $imagePath = $candidate;
+                                }
+                            }
+                            if (empty($imagePath)) {
+                                $imagePath = 'uploads/spots/' . ($spot['primary_image'] ?? '');
+                                if (!is_file(FCPATH . $imagePath)) {
+                                    $imagePath = 'uploads/spots/Spot-No-Image.png';
+                                }
                             }
                         ?>
 
-                        <div class="spot-card" data-category="<?= esc($spot['category']) ?>" data-spot-id="<?= esc($spot['spot_id'] ?? $spot['id'] ?? '') ?>">
-                            <div class="spot-image" style="background-image: url('<?= base_url($imagePath) ?>')">
+                        <div class="spot-card modern-spot-card" data-category="<?= esc($spot['category']) ?>" data-spot-id="<?= esc($spot['spot_id'] ?? $spot['id'] ?? '') ?>">
+                            <div class="spot-image modern-card-img">
+                                <img src="<?= base_url($imagePath) ?>" alt="<?= esc($spot['spot_name']) ?>" onerror="this.src='<?= base_url('uploads/spots/Spot-No-Image.png') ?>'">
                                 <?php $isFav = in_array(($spot['spot_id'] ?? $spot['id'] ?? null), $favoriteSpotIds ?? []); ?>
-                                <button class="favorite-btn<?= $isFav ? ' active' : '' ?>" data-spot-id="<?= esc($spot['spot_id'] ?? $spot['id'] ?? '') ?>" onclick="toggleFavorite(this)">
-                                    <i class="bi bi-heart"></i>
-                                </button>
+                                <div class="spot-overlay">
+                                    <div class="price-pill"><?= ($spot['price_per_person'] ? '₱' . number_format((float)$spot['price_per_person']) : 'Free') ?></div>
+                                    <button class="favorite-btn<?= $isFav ? ' active' : '' ?>" data-spot-id="<?= esc($spot['spot_id'] ?? $spot['id'] ?? '') ?>" onclick="toggleFavorite(this)">
+                                        <i class="bi bi-heart"></i>
+                                    </button>
+                                </div>
                             </div>
 
                             <div class="spot-content">
@@ -1222,7 +1289,8 @@
                 'location' => $spot['location'],
                 'opening_time' => $spot['opening_time'] ?? null,
                 'closing_time' => $spot['closing_time'] ?? null,
-                'primary_image' => $spot['primary_image'],
+                'primary_image' => $spot['primary_image'] ?? null,
+                'gallery' => $spot['gallery'] ?? [],
             ]) ?>;
         <?php endforeach; ?>
 

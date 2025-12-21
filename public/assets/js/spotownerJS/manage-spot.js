@@ -266,6 +266,15 @@ function renderManageSpotPage() {
 
 
 let currentEditingSpot = null;
+
+    // Helper: get display price for a spot with fallbacks
+    function formatPrice(spot) {
+        if (!spot) return '0.00';
+        const raw = spot.price || spot.price_per_person || spot.pricePerPerson || 0;
+        const n = Number(String(raw).replace(/[^0-9.-]+/g, '')) || 0;
+        // Format with thousands separator, one or no decimals (use no decimals)
+        return n.toLocaleString('en-PH', { maximumFractionDigits: 0 });
+    }
 let newSpotImageData = [];
 let currentEditImageIndex = 0;
 
@@ -480,7 +489,7 @@ function loadManageSpotsGrid() {
         <div class="col-lg-4 col-md-6" data-spot-id="${spot.id}" data-status="${spot.status}">
             <div class="custom-card h-100">
                 <div class="position-relative">
-                    <img src="${spot.images ? spot.images[0] : spot.image}" alt="${spot.name}" class="img-fluid rounded-top" style="height: 200px; width: 100%; object-fit: cover;">
+                    <img src="${spot.image || '/assets/images/Spot-No-Image.png'}" alt="${spot.name}" class="img-fluid rounded-top" style="height: 200px; width: 100%; object-fit: cover;">
                     <div class="position-absolute top-0 end-0 m-3">
                         <span class="badge ${spot.status === 'active' ? 'bg-success' : 'bg-secondary'}">${spot.status}</span>
                     </div>
@@ -501,7 +510,7 @@ function loadManageSpotsGrid() {
                     <div class="mb-3">
                         <div class="d-flex justify-content-between mb-2">
                             <span class="text-muted-custom small">Price:</span>
-                            <span class="fw-medium">₱${spot.price}/person</span>
+                            <span class="fw-medium">₱${formatPrice(spot)}/person</span>
                         </div>
                         <div class="d-flex justify-content-between mb-2">
                             <span class="text-muted-custom small">Capacity:</span>
@@ -514,7 +523,7 @@ function loadManageSpotsGrid() {
                         <div class="d-flex justify-content-between">
                             <span class="text-muted-custom small">Rating:</span>
                             <span class="fw-medium">
-                                <i class="bi bi-star-fill text-warning"></i> ${spot.rating} (${spot.reviews})
+                                <i class="bi bi-star-fill text-warning"></i> ${spot.rating || 0}${(spot.reviews && Number(spot.reviews) > 0) ? ` <span class="text-muted-custom small ms-1">(${spot.reviews})</span>` : ''}
                             </span>
                         </div>
                     </div>
